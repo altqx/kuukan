@@ -49,18 +49,13 @@ impl AnimeSearchCommand {
     pub fn parse(query: &Query) -> Result<Self, ApiError> {
         let mut parser = QueryParser::clean(query);
         let media = MediaSearchCommand::parse_with(&mut parser);
-        let status =
-            parser.enum_optional::<AnimeStatus>("status", AnimeStatus::PHP_CLASS);
+        let status = parser.enum_optional::<AnimeStatus>("status", AnimeStatus::PHP_CLASS);
         let anime_type = parser.enum_optional::<AnimeType>("type", AnimeType::PHP_CLASS);
-        let rating =
-            parser.enum_optional::<AnimeRating>("rating", AnimeRating::PHP_CLASS);
+        let rating = parser.enum_optional::<AnimeRating>("rating", AnimeRating::PHP_CLASS);
         let producer = parser.int_min_integer("producer", 1.0);
         let producers = parser.optional_string("producers");
         parser.prohibits("producers", &["producer"]);
-        let order_by = parser.enum_optional::<AnimeOrderBy>(
-            "order_by",
-            AnimeOrderBy::PHP_CLASS,
-        );
+        let order_by = parser.enum_optional::<AnimeOrderBy>("order_by", AnimeOrderBy::PHP_CLASS);
         parser.finish()?;
         let media = media?;
         let command = Self {
@@ -143,12 +138,13 @@ impl AnimeForumLookupCommand {
     pub fn parse(id: i64, query: &Query) -> Result<Self, ApiError> {
         let mut parser = QueryParser::new(query);
         let id = parser.id(id);
-        let filter = parser.enum_optional::<AnimeForumFilter>(
-            "filter",
-            AnimeForumFilter::PHP_CLASS,
-        );
+        let filter =
+            parser.enum_optional::<AnimeForumFilter>("filter", AnimeForumFilter::PHP_CLASS);
         parser.finish()?;
-        Ok(Self { id, filter: filter? })
+        Ok(Self {
+            id,
+            filter: filter?,
+        })
     }
 }
 
@@ -352,7 +348,10 @@ mod tests {
     fn anime_search_page_message() {
         let query = Query::from_pairs([("page", "0")]);
         let messages = bag(AnimeSearchCommand::parse(&query).unwrap_err());
-        assert_eq!(messages["page"], serde_json::json!(["The page must be at least 1."]));
+        assert_eq!(
+            messages["page"],
+            serde_json::json!(["The page must be at least 1."])
+        );
     }
 
     #[test]
@@ -415,8 +414,7 @@ mod tests {
             ])
         );
 
-        let query =
-            Query::from_pairs([("score", "0.5"), ("min_score", "1"), ("max_score", "9")]);
+        let query = Query::from_pairs([("score", "0.5"), ("min_score", "1"), ("max_score", "9")]);
         let messages = bag(AnimeSearchCommand::parse(&query).unwrap_err());
         assert_eq!(
             messages["score"],
@@ -447,22 +445,15 @@ mod tests {
             serde_json::json!(["The start date does not match the format Y-m-d."])
         );
 
-        let query = Query::from_pairs([
-            ("start_date", "2021-01-01"),
-            ("end_date", "2020-01-01"),
-        ]);
+        let query = Query::from_pairs([("start_date", "2021-01-01"), ("end_date", "2020-01-01")]);
         let messages = bag(AnimeSearchCommand::parse(&query).unwrap_err());
         assert_eq!(
             messages["start_date"],
-            serde_json::json!([
-                "The start date must be a date before or equal to end date."
-            ])
+            serde_json::json!(["The start date must be a date before or equal to end date."])
         );
         assert_eq!(
             messages["end_date"],
-            serde_json::json!([
-                "The end date must be a date after or equal to start date."
-            ])
+            serde_json::json!(["The end date must be a date after or equal to start date."])
         );
     }
 
@@ -505,16 +496,17 @@ mod tests {
         let command = AnimeLookupCommand::parse(1, &Query::new()).unwrap();
         assert_eq!(command.id, 1);
         let messages = bag(AnimeLookupCommand::parse(0, &Query::new()).unwrap_err());
-        assert_eq!(messages["id"], serde_json::json!(["The id must be at least 1."]));
+        assert_eq!(
+            messages["id"],
+            serde_json::json!(["The id must be at least 1."])
+        );
     }
 
     #[test]
     fn anime_episode_lookup() {
-        let command =
-            AnimeEpisodeLookupCommand::parse(1, 5, &Query::new()).unwrap();
+        let command = AnimeEpisodeLookupCommand::parse(1, 5, &Query::new()).unwrap();
         assert_eq!(command.episode_id, 5);
-        let messages =
-            bag(AnimeEpisodeLookupCommand::parse(1, 0, &Query::new()).unwrap_err());
+        let messages = bag(AnimeEpisodeLookupCommand::parse(1, 0, &Query::new()).unwrap_err());
         assert_eq!(
             messages["episodeId"],
             serde_json::json!(["The episode id must be at least 1."])
@@ -525,7 +517,10 @@ mod tests {
     fn anime_episodes_page_validation() {
         let query = Query::from_pairs([("page", "x")]);
         let messages = bag(AnimeEpisodesLookupCommand::parse(1, &query).unwrap_err());
-        assert_eq!(messages["page"], serde_json::json!(["The page must be a number."]));
+        assert_eq!(
+            messages["page"],
+            serde_json::json!(["The page must be a number."])
+        );
     }
 
     #[test]
@@ -534,7 +529,9 @@ mod tests {
         let messages = bag(AnimeForumLookupCommand::parse(1, &query).unwrap_err());
         assert_eq!(
             messages["filter"],
-            serde_json::json!(["The filter field is not a valid App\\Enums\\AnimeForumFilterEnum."])
+            serde_json::json!([
+                "The filter field is not a valid App\\Enums\\AnimeForumFilterEnum."
+            ])
         );
     }
 

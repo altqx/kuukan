@@ -15,7 +15,7 @@ use crate::parser::manga::{
 };
 use crate::request::manga::{
     MangaCharactersRequest, MangaForumRequest, MangaMoreInfoRequest, MangaNewsRequest,
-    MangaPicturesRequest, MangaRecommendationsRequest, MangaRecentlyUpdatedByUsersRequest,
+    MangaPicturesRequest, MangaRecentlyUpdatedByUsersRequest, MangaRecommendationsRequest,
     MangaRequest, MangaReviewsRequest, MangaStatsRequest,
 };
 use crate::request::MalRequest;
@@ -68,7 +68,9 @@ pub async fn get_manga_more_info(client: &MalClient, id: i64) -> Result<Value, M
 pub async fn get_manga_stats(client: &MalClient, id: i64) -> Result<Value, MalError> {
     let path = MangaStatsRequest::new(id).path();
     let doc = client.get_html(&path).await?;
-    MangaStatsParser::new(doc).model().map_err(parse_error(&path))
+    MangaStatsParser::new(doc)
+        .model()
+        .map_err(parse_error(&path))
 }
 
 /// `MalClient::getMangaForum()` — array of forum topics.
@@ -132,7 +134,9 @@ pub async fn get_manga_reviews(
 ) -> Result<Value, MalError> {
     let path = MangaReviewsRequest::with_params(id, page, sort, spoilers, preliminary).path();
     let doc = client.get_html(&path).await?;
-    MangaReviewsParser::new(doc).model().map_err(parse_error(&path))
+    MangaReviewsParser::new(doc)
+        .model()
+        .map_err(parse_error(&path))
 }
 
 /// `MalClient::getMangaGenres()` (full genre list).

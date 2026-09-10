@@ -13,7 +13,8 @@ use serde_json::{json, Value};
 use crate::client::MalClient;
 use crate::error::MalError;
 use crate::parser::search::{
-    AnimeSearchParser, CharacterSearchParser, MangaSearchParser, PersonSearchParser, UserSearchParser,
+    AnimeSearchParser, CharacterSearchParser, MangaSearchParser, PersonSearchParser,
+    UserSearchParser,
 };
 use crate::request::search::{
     AnimeSearchRequest, CharacterSearchRequest, MangaSearchRequest, PersonSearchRequest,

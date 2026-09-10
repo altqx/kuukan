@@ -107,6 +107,9 @@ mod tests {
             messages["spoilers"],
             serde_json::json!(["The spoilers field must be true or false."])
         );
-        assert_eq!(messages["page"], serde_json::json!(["The page must be a number."]));
+        assert_eq!(
+            messages["page"],
+            serde_json::json!(["The page must be a number."])
+        );
     }
 }

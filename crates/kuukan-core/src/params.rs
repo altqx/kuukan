@@ -99,10 +99,7 @@ impl Query {
 
     /// `page` parameter: default 1, values < 1 are clamped to 1 by the paginator.
     pub fn page(&self) -> Result<u64, ParamError> {
-        Ok(self
-            .get_i64("page")?
-            .unwrap_or(1)
-            .max(1) as u64)
+        Ok(self.get_i64("page")?.unwrap_or(1).max(1) as u64)
     }
 
     /// `limit` parameter, capped at `max` (and never below 1).
@@ -126,9 +123,17 @@ mod tests {
 
     #[test]
     fn booleans_follow_laravel() {
-        assert_eq!(Query::from_pairs([("sfw", "true")]).get_bool("sfw"), Ok(Some(true)));
-        assert_eq!(Query::from_pairs([("sfw", "0")]).get_bool("sfw"), Ok(Some(false)));
-        assert!(Query::from_pairs([("sfw", "maybe")]).get_bool("sfw").is_err());
+        assert_eq!(
+            Query::from_pairs([("sfw", "true")]).get_bool("sfw"),
+            Ok(Some(true))
+        );
+        assert_eq!(
+            Query::from_pairs([("sfw", "0")]).get_bool("sfw"),
+            Ok(Some(false))
+        );
+        assert!(Query::from_pairs([("sfw", "maybe")])
+            .get_bool("sfw")
+            .is_err());
     }
 
     #[test]

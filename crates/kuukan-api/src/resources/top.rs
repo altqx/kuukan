@@ -63,7 +63,10 @@ mod tests {
         let pagination = Pagination::search(2, true, 1, 2, 30, 25);
         let out = top_anime(&pagination, &items);
         assert_eq!(keys(&out), vec!["data", "pagination"]);
-        assert_eq!(out["data"][0]["title"], json!("Fullmetal Alchemist: Brotherhood"));
+        assert_eq!(
+            out["data"][0]["title"],
+            json!("Fullmetal Alchemist: Brotherhood")
+        );
         // canonical AnimeResource defaults are applied
         assert_eq!(out["data"][0]["approved"], json!(true));
         assert_eq!(

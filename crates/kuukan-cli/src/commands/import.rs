@@ -81,7 +81,7 @@ pub async fn index_imported(
                         std::borrow::Cow::Owned(payload)
                     }
                 };
-                state.pipeline.index_payload(search_kind, &*payload)?;
+                state.pipeline.index_payload(search_kind, &payload)?;
                 indexed += 1;
             }
             offset += page.len() as i64;

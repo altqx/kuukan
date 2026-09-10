@@ -10,8 +10,8 @@ use bytes::Bytes;
 use kuukan_core::error::ApiError;
 use kuukan_core::util::request_fingerprint;
 use moka::future::Cache;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crate::error::ApiErrorResponse;
@@ -162,7 +162,11 @@ impl RateLimiter {
 }
 
 fn client_key(req: &Request) -> String {
-    if let Some(forwarded) = req.headers().get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
+    if let Some(forwarded) = req
+        .headers()
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+    {
         return forwarded
             .split(',')
             .next()

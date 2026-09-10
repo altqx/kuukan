@@ -13,7 +13,10 @@ use chrono::{DateTime, TimeZone, Utc};
 
 /// IMF-fixdate, e.g. `Sun, 06 Nov 1994 08:49:37 GMT`.
 pub fn httpdate(timestamp: i64) -> String {
-    let dt: DateTime<Utc> = Utc.timestamp_opt(timestamp, 0).single().unwrap_or_else(Utc::now);
+    let dt: DateTime<Utc> = Utc
+        .timestamp_opt(timestamp, 0)
+        .single()
+        .unwrap_or_else(Utc::now);
     dt.format("%a, %d %b %Y %H:%M:%S GMT").to_string()
 }
 
@@ -78,7 +81,10 @@ mod tests {
             response.headers().get("Cache-Control").unwrap(),
             "public, s-maxage=3600"
         );
-        assert_eq!(response.headers().get("X-Request-Fingerprint").unwrap(), "request:anime:abc");
+        assert_eq!(
+            response.headers().get("X-Request-Fingerprint").unwrap(),
+            "request:anime:abc"
+        );
         let bytes = to_bytes(response.into_body(), 1024).await.unwrap();
         let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(body["data"], serde_json::json!({}));

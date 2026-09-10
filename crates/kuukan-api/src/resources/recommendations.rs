@@ -105,7 +105,10 @@ mod tests {
             json!({"last_visible_page": 2, "has_next_page": true})
         );
         let item = &out["data"][0];
-        assert_eq!(keys(item), vec!["content", "date", "entry", "mal_id", "user"]);
+        assert_eq!(
+            keys(item),
+            vec!["content", "date", "entry", "mal_id", "user"]
+        );
         assert_eq!(item["mal_id"], json!("4103-6675"));
         assert_eq!(item["entry"].as_array().unwrap().len(), 2);
         assert_eq!(item["user"]["username"], json!("VBayer"));
@@ -147,7 +150,10 @@ mod tests {
     #[test]
     fn recommendation_list_item_shape() {
         let out = recommendation_list_item(&list_item_doc());
-        assert_eq!(keys(&out), vec!["content", "date", "entry", "mal_id", "user"]);
+        assert_eq!(
+            keys(&out),
+            vec!["content", "date", "entry", "mal_id", "user"]
+        );
         assert_eq!(out["date"], json!("2022-06-20T17:21:22+00:00"));
         assert!(recommendation_list_item(&json!({}))["user"].is_null());
     }

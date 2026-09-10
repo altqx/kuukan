@@ -9,9 +9,8 @@
 use std::ops::Deref;
 
 use kuukan_core::enums::{
-    AnimeListAiringStatusFilter, AnimeListStatus, Gender, MangaListStatus,
-    UserAnimeListOrderBy, UserHistoryType, UserMangaListOrderBy,
-    UserMangaListStatusFilter,
+    AnimeListAiringStatusFilter, AnimeListStatus, Gender, MangaListStatus, UserAnimeListOrderBy,
+    UserHistoryType, UserMangaListOrderBy, UserMangaListStatusFilter,
 };
 use kuukan_core::error::ApiError;
 use kuukan_core::params::Query;
@@ -145,11 +144,8 @@ impl UserHistoryLookupCommand {
         let mut parser = QueryParser::new(query);
         let username = parser.username_lookup(username);
         let raw = history_type.or_else(|| parser.get("type"));
-        let history_type = parser.enum_nullable_raw::<UserHistoryType>(
-            "type",
-            raw,
-            UserHistoryType::PHP_CLASS,
-        );
+        let history_type =
+            parser.enum_nullable_raw::<UserHistoryType>("type", raw, UserHistoryType::PHP_CLASS);
         parser.finish()?;
         Ok(Self {
             username,
@@ -197,27 +193,19 @@ impl QueryAnimeListOfUserCommand {
         let mut parser = QueryParser::new(query);
         let list = QueryListOfUserCommand::parse_with(&mut parser, username);
         let raw = status.or_else(|| parser.get("status"));
-        let status_value = parser.enum_optional_raw::<AnimeListStatus>(
-            "status",
-            raw,
-            AnimeListStatus::PHP_CLASS,
-        );
-        let order_by = parser.enum_optional::<UserAnimeListOrderBy>(
-            "order_by",
-            UserAnimeListOrderBy::PHP_CLASS,
-        );
-        let order_by2 = parser.enum_optional::<UserAnimeListOrderBy>(
-            "order_by2",
-            UserAnimeListOrderBy::PHP_CLASS,
-        );
+        let status_value =
+            parser.enum_optional_raw::<AnimeListStatus>("status", raw, AnimeListStatus::PHP_CLASS);
+        let order_by = parser
+            .enum_optional::<UserAnimeListOrderBy>("order_by", UserAnimeListOrderBy::PHP_CLASS);
+        let order_by2 = parser
+            .enum_optional::<UserAnimeListOrderBy>("order_by2", UserAnimeListOrderBy::PHP_CLASS);
         let airing_status = parser.enum_optional::<AnimeListAiringStatusFilter>(
             "airing_status",
             AnimeListAiringStatusFilter::PHP_CLASS,
         );
         let year = parser.int_min_max("year", 1500.0, 2999.0);
         let producer = parser.int_min("producer", 1.0);
-        let (aired_from, aired_to) =
-            parser.date_range("aired_from", "aired_to");
+        let (aired_from, aired_to) = parser.date_range("aired_from", "aired_to");
         parser.finish()?;
         Ok(Self {
             list: list?,
@@ -269,22 +257,14 @@ impl QueryMangaListOfUserCommand {
         let mut parser = QueryParser::new(query);
         let list = QueryListOfUserCommand::parse_with(&mut parser, username);
         let raw = status.or_else(|| parser.get("status"));
-        let status_value = parser.enum_optional_raw::<MangaListStatus>(
-            "status",
-            raw,
-            MangaListStatus::PHP_CLASS,
-        );
-        let order_by = parser.enum_optional::<UserMangaListOrderBy>(
-            "order_by",
-            UserMangaListOrderBy::PHP_CLASS,
-        );
-        let order_by2 = parser.enum_optional::<UserMangaListOrderBy>(
-            "order_by2",
-            UserMangaListOrderBy::PHP_CLASS,
-        );
+        let status_value =
+            parser.enum_optional_raw::<MangaListStatus>("status", raw, MangaListStatus::PHP_CLASS);
+        let order_by = parser
+            .enum_optional::<UserMangaListOrderBy>("order_by", UserMangaListOrderBy::PHP_CLASS);
+        let order_by2 = parser
+            .enum_optional::<UserMangaListOrderBy>("order_by2", UserMangaListOrderBy::PHP_CLASS);
         let magazine = parser.int_min("magazine", 1.0);
-        let (published_from, published_to) =
-            parser.date_range("published_from", "published_to");
+        let (published_from, published_to) = parser.date_range("published_from", "published_to");
         let publishing_status = parser.enum_optional::<UserMangaListStatusFilter>(
             "publishing_status",
             UserMangaListStatusFilter::PHP_CLASS,
@@ -352,8 +332,7 @@ mod tests {
         let command = UserAboutLookupCommand::parse("nekomata", &Query::new()).unwrap();
         assert_eq!(command.username, "nekomata");
 
-        let messages =
-            bag(UserAboutLookupCommand::parse("ab", &Query::new()).unwrap_err());
+        let messages = bag(UserAboutLookupCommand::parse("ab", &Query::new()).unwrap_err());
         assert_eq!(
             messages["username"],
             serde_json::json!(["The username must be at least 3 characters."])
@@ -386,8 +365,7 @@ mod tests {
 
     #[test]
     fn animelist_defaults_and_status() {
-        let command =
-            QueryAnimeListOfUserCommand::parse("nekomata", &Query::new()).unwrap();
+        let command = QueryAnimeListOfUserCommand::parse("nekomata", &Query::new()).unwrap();
         assert_eq!(command.page, 1);
         assert_eq!(command.status, None);
         assert_eq!(command.aired_from, None);
@@ -408,13 +386,9 @@ mod tests {
 
     #[test]
     fn animelist_invalid_fields() {
-        let query = Query::from_pairs([
-            ("year", "abc"),
-            ("producer", "abc"),
-            ("order_by", "bogus"),
-        ]);
-        let messages =
-            bag(QueryAnimeListOfUserCommand::parse("nekomata", &query).unwrap_err());
+        let query =
+            Query::from_pairs([("year", "abc"), ("producer", "abc"), ("order_by", "bogus")]);
+        let messages = bag(QueryAnimeListOfUserCommand::parse("nekomata", &query).unwrap_err());
         assert_eq!(
             messages["year"],
             serde_json::json!([
@@ -447,31 +421,22 @@ mod tests {
 
     #[test]
     fn animelist_date_range() {
-        let query = Query::from_pairs([
-            ("aired_from", "2021-01-01"),
-            ("aired_to", "2020-01-01"),
-        ]);
-        let messages =
-            bag(QueryAnimeListOfUserCommand::parse("nekomata", &query).unwrap_err());
+        let query = Query::from_pairs([("aired_from", "2021-01-01"), ("aired_to", "2020-01-01")]);
+        let messages = bag(QueryAnimeListOfUserCommand::parse("nekomata", &query).unwrap_err());
         assert_eq!(
             messages["aired_from"],
-            serde_json::json!([
-                "The aired from must be a date before or equal to aired to."
-            ])
+            serde_json::json!(["The aired from must be a date before or equal to aired to."])
         );
         assert_eq!(
             messages["aired_to"],
-            serde_json::json!([
-                "The aired to must be a date after or equal to aired from."
-            ])
+            serde_json::json!(["The aired to must be a date after or equal to aired from."])
         );
     }
 
     #[test]
     fn animelist_empty_date_is_required() {
         let query = Query::from_pairs([("aired_from", "")]);
-        let messages =
-            bag(QueryAnimeListOfUserCommand::parse("nekomata", &query).unwrap_err());
+        let messages = bag(QueryAnimeListOfUserCommand::parse("nekomata", &query).unwrap_err());
         assert_eq!(
             messages["aired_from"],
             serde_json::json!(["The aired from field is required."])
@@ -479,17 +444,14 @@ mod tests {
         assert!(messages.get("aired_to").is_none());
 
         let query = Query::from_pairs([("aired_from", ""), ("aired_to", "2010-01-01")]);
-        let messages =
-            bag(QueryAnimeListOfUserCommand::parse("nekomata", &query).unwrap_err());
+        let messages = bag(QueryAnimeListOfUserCommand::parse("nekomata", &query).unwrap_err());
         assert_eq!(
             messages["aired_from"],
             serde_json::json!(["The aired from field is required."])
         );
         assert_eq!(
             messages["aired_to"],
-            serde_json::json!([
-                "The aired to must be a date after or equal to aired from."
-            ])
+            serde_json::json!(["The aired to must be a date after or equal to aired from."])
         );
     }
 
@@ -513,8 +475,7 @@ mod tests {
     #[test]
     fn mangalist_fields() {
         let query = Query::from_pairs([("magazine", "abc")]);
-        let messages =
-            bag(QueryMangaListOfUserCommand::parse("nekomata", &query).unwrap_err());
+        let messages = bag(QueryMangaListOfUserCommand::parse("nekomata", &query).unwrap_err());
         assert_eq!(
             messages["magazine"],
             serde_json::json!(["The magazine must be a number."])
@@ -524,8 +485,7 @@ mod tests {
             ("published_from", "2021-01-01"),
             ("published_to", "2020-01-01"),
         ]);
-        let messages =
-            bag(QueryMangaListOfUserCommand::parse("nekomata", &query).unwrap_err());
+        let messages = bag(QueryMangaListOfUserCommand::parse("nekomata", &query).unwrap_err());
         assert_eq!(
             messages["published_from"],
             serde_json::json!([

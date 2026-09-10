@@ -107,7 +107,11 @@ impl PersonParser {
             return Ok(None);
         };
         let family = cleanse(&caps[1]);
-        Ok(if family.is_empty() { None } else { Some(family) })
+        Ok(if family.is_empty() {
+            None
+        } else {
+            Some(family)
+        })
     }
 
     /// `PersonParser::getPersonAlternateNames()`.
@@ -122,7 +126,7 @@ impl PersonParser {
             return Ok(vec![]);
         };
         let text = ancestor.node_text().replace(&node.node_text(), "");
-        Ok(text.split(',').map(|name| cleanse(name)).collect())
+        Ok(text.split(',').map(cleanse).collect())
     }
 
     /// `PersonParser::getPersonWebsite()`.
@@ -178,13 +182,17 @@ impl PersonParser {
 
     /// `PersonParser::getPersonAbout()`.
     pub fn about(&self) -> Result<Option<String>, ParseError> {
-        let cell = self.doc.first(
-            "//div[@id=\"content\"]/table/tr/td[@class=\"borderClass\"]",
-        )?;
+        let cell = self
+            .doc
+            .first("//div[@id=\"content\"]/table/tr/td[@class=\"borderClass\"]")?;
         let Some(cell) = cell else {
             return Ok(None);
         };
-        let Some(node) = cell.css_nodes(".people-informantion-more")?.into_iter().next() else {
+        let Some(node) = cell
+            .css_nodes(".people-informantion-more")?
+            .into_iter()
+            .next()
+        else {
             return Ok(None);
         };
         if node.node_text().is_empty() {
@@ -268,8 +276,13 @@ impl VoiceActingRoleParser {
         let image = self.node.first("//td[1]/div/a/img")?;
         Ok(anime_meta(
             &url.as_ref().map(|n| n.node_text()).unwrap_or_default(),
-            &url.as_ref().and_then(|n| n.node_attr("href")).unwrap_or_default(),
-            image.as_ref().and_then(|n| n.node_attr("data-src")).as_deref(),
+            &url.as_ref()
+                .and_then(|n| n.node_attr("href"))
+                .unwrap_or_default(),
+            image
+                .as_ref()
+                .and_then(|n| n.node_attr("data-src"))
+                .as_deref(),
         ))
     }
 
@@ -279,8 +292,13 @@ impl VoiceActingRoleParser {
         let image = self.node.first("//td[4]/div/a/img")?;
         Ok(character_meta(
             &url.as_ref().map(|n| n.node_text()).unwrap_or_default(),
-            &url.as_ref().and_then(|n| n.node_attr("href")).unwrap_or_default(),
-            image.as_ref().and_then(|n| n.node_attr("data-src")).as_deref(),
+            &url.as_ref()
+                .and_then(|n| n.node_attr("href"))
+                .unwrap_or_default(),
+            image
+                .as_ref()
+                .and_then(|n| n.node_attr("data-src"))
+                .as_deref(),
         ))
     }
 
@@ -319,8 +337,13 @@ impl AnimeStaffPositionParser {
         let image = self.node.first("//td[position() = 1]/div/a/img")?;
         Ok(anime_meta(
             &url.as_ref().map(|n| n.node_text()).unwrap_or_default(),
-            &url.as_ref().and_then(|n| n.node_attr("href")).unwrap_or_default(),
-            image.as_ref().and_then(|n| n.node_attr("data-src")).as_deref(),
+            &url.as_ref()
+                .and_then(|n| n.node_attr("href"))
+                .unwrap_or_default(),
+            image
+                .as_ref()
+                .and_then(|n| n.node_attr("data-src"))
+                .as_deref(),
         ))
     }
 
@@ -358,8 +381,13 @@ impl PublishedMangaParser {
         let image = self.node.first("//td[position() = 1]/div/a/img")?;
         Ok(manga_meta(
             &url.as_ref().map(|n| n.node_text()).unwrap_or_default(),
-            &url.as_ref().and_then(|n| n.node_attr("href")).unwrap_or_default(),
-            image.as_ref().and_then(|n| n.node_attr("data-src")).as_deref(),
+            &url.as_ref()
+                .and_then(|n| n.node_attr("href"))
+                .unwrap_or_default(),
+            image
+                .as_ref()
+                .and_then(|n| n.node_attr("data-src"))
+                .as_deref(),
         ))
     }
 

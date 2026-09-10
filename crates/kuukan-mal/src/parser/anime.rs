@@ -780,9 +780,9 @@ impl AnimeParser {
                 continue;
             };
             let relation = cleanse(
-                &related_type_re()
+                related_type_re()
                     .replace(&relation_node.node_text(), "")
-                    .to_string(),
+                    .as_ref(),
             );
             let links = tile.nodes("//div[@class=\"content\"]/div[@class=\"title\"]/a")?;
 
@@ -1022,11 +1022,9 @@ fn related_type_re() -> &'static Regex {
 }
 
 fn related_append(entries: &mut Vec<(String, Value)>, key: &str, value: Value) {
-    if let Some((_, existing)) = entries.iter_mut().find(|(k, _)| k == key) {
-        if let Value::Array(items) = existing {
-            items.push(value);
-            return;
-        }
+    if let Some((_, Value::Array(items))) = entries.iter_mut().find(|(k, _)| k == key) {
+        items.push(value);
+        return;
     }
     entries.push((key.to_string(), Value::Array(vec![value])));
 }
@@ -2246,7 +2244,7 @@ impl AnimeReviewItemParser {
     }
 
     fn field_first(&self, xpath: &str) -> PResult<Option<HtmlNode>> {
-        Ok(self.node.first(xpath)?)
+        self.node.first(xpath)
     }
 
     /// `AnimeReviewParser::getId()`.

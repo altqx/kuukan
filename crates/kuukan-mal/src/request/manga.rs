@@ -218,7 +218,10 @@ impl MangaReviewsRequest {
 impl MalRequest for MangaReviewsRequest {
     fn path(&self) -> String {
         let query = http_build_query(&[
-            ("spoiler", QueryValue::Str(if self.spoilers { "on" } else { "off" })),
+            (
+                "spoiler",
+                QueryValue::Str(if self.spoilers { "on" } else { "off" }),
+            ),
             (
                 "preliminary",
                 QueryValue::Str(if self.preliminary { "on" } else { "off" }),
@@ -251,7 +254,10 @@ impl MangaRecentlyUpdatedByUsersRequest {
 
 impl MalRequest for MangaRecentlyUpdatedByUsersRequest {
     fn path(&self) -> String {
-        format!("{BASE_URL}/manga/{}/jikan/stats?show={}", self.id, self.offset)
+        format!(
+            "{BASE_URL}/manga/{}/jikan/stats?show={}",
+            self.id, self.offset
+        )
     }
 }
 

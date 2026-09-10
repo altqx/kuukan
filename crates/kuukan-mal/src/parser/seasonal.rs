@@ -66,7 +66,12 @@ impl<'a> SeasonalParser<'a> {
 
     /// `explode(' ', JString::cleanse($node->text()))` for `div.navi-seasonal a.on`.
     fn season_parts(&self) -> Result<Option<Vec<String>>, ParseError> {
-        let Some(node) = self.doc.css_nodes("div.navi-seasonal a.on")?.into_iter().next() else {
+        let Some(node) = self
+            .doc
+            .css_nodes("div.navi-seasonal a.on")?
+            .into_iter()
+            .next()
+        else {
             return Ok(None);
         };
         Ok(Some(

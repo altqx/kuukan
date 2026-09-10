@@ -27,10 +27,8 @@ impl MagazineSearchCommand {
     pub fn parse(query: &Query) -> Result<Self, ApiError> {
         let mut parser = QueryParser::clean(query);
         let search = SearchCommand::parse_with(&mut parser);
-        let order_by = parser.enum_optional::<MagazineOrderBy>(
-            "order_by",
-            MagazineOrderBy::PHP_CLASS,
-        );
+        let order_by =
+            parser.enum_optional::<MagazineOrderBy>("order_by", MagazineOrderBy::PHP_CLASS);
         parser.finish()?;
         let command = Self {
             search: search?,
@@ -67,7 +65,9 @@ mod tests {
         let messages = bag(MagazineSearchCommand::parse(&query).unwrap_err());
         assert_eq!(
             messages["order_by"],
-            serde_json::json!(["The order by field is not a valid App\\Enums\\MagazineOrderByEnum."])
+            serde_json::json!([
+                "The order by field is not a valid App\\Enums\\MagazineOrderByEnum."
+            ])
         );
     }
 }

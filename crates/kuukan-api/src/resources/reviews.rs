@@ -69,7 +69,10 @@ pub fn manga_review_item(payload: &Value) -> Value {
 /// `Jikan\Model\Reviews\FullAnimeReview` JMS shape (`/reviews/anime` items):
 /// the per-entry review plus `entry`.
 pub fn full_anime_review_item(payload: &Value) -> Value {
-    let mut out = anime_review_item(payload).as_object().cloned().unwrap_or_default();
+    let mut out = anime_review_item(payload)
+        .as_object()
+        .cloned()
+        .unwrap_or_default();
     out.insert("entry".into(), get(payload, "entry"));
     Value::Object(out)
 }
@@ -77,7 +80,10 @@ pub fn full_anime_review_item(payload: &Value) -> Value {
 /// `Jikan\Model\Reviews\FullMangaReview` JMS shape (`/reviews/manga` items):
 /// the per-entry review plus `entry`.
 pub fn full_manga_review_item(payload: &Value) -> Value {
-    let mut out = manga_review_item(payload).as_object().cloned().unwrap_or_default();
+    let mut out = manga_review_item(payload)
+        .as_object()
+        .cloned()
+        .unwrap_or_default();
     out.insert("entry".into(), get(payload, "entry"));
     Value::Object(out)
 }
@@ -134,7 +140,23 @@ mod tests {
             json!({"last_visible_page": 2, "has_next_page": true})
         );
         let item = &out["data"][0];
-        assert_eq!(keys(item), vec!["date", "episodes_watched", "is_preliminary", "is_spoiler", "mal_id", "reactions", "review", "score", "tags", "type", "url", "user"]);
+        assert_eq!(
+            keys(item),
+            vec![
+                "date",
+                "episodes_watched",
+                "is_preliminary",
+                "is_spoiler",
+                "mal_id",
+                "reactions",
+                "review",
+                "score",
+                "tags",
+                "type",
+                "url",
+                "user"
+            ]
+        );
         assert!(item["episodes_watched"].is_null());
         assert_eq!(item["user"]["username"], json!("TheLlama"));
     }
@@ -188,7 +210,23 @@ mod tests {
     #[test]
     fn anime_review_item_shape() {
         let out = anime_review_item(&anime_review_doc());
-        assert_eq!(keys(&out), vec!["date", "episodes_watched", "is_preliminary", "is_spoiler", "mal_id", "reactions", "review", "score", "tags", "type", "url", "user"]);
+        assert_eq!(
+            keys(&out),
+            vec![
+                "date",
+                "episodes_watched",
+                "is_preliminary",
+                "is_spoiler",
+                "mal_id",
+                "reactions",
+                "review",
+                "score",
+                "tags",
+                "type",
+                "url",
+                "user"
+            ]
+        );
         assert_eq!(out["score"], json!(10));
     }
 
@@ -208,7 +246,23 @@ mod tests {
             "chapters_read": 75,
             "user": {"url": "u", "username": "helmy47", "images": {"jpg": {"image_url": "i"}}}
         }));
-        assert_eq!(keys(&out), vec!["chapters_read", "date", "is_preliminary", "is_spoiler", "mal_id", "reactions", "review", "score", "tags", "type", "url", "user"]);
+        assert_eq!(
+            keys(&out),
+            vec![
+                "chapters_read",
+                "date",
+                "is_preliminary",
+                "is_spoiler",
+                "mal_id",
+                "reactions",
+                "review",
+                "score",
+                "tags",
+                "type",
+                "url",
+                "user"
+            ]
+        );
         assert_eq!(out["chapters_read"], json!(75));
         assert!(out.get("episodes_watched").is_none());
     }
@@ -218,10 +272,43 @@ mod tests {
         let anime = full_anime_review_item(&full_anime_review_doc());
         assert_eq!(
             keys(&anime),
-            vec!["date", "entry", "episodes_watched", "is_preliminary", "is_spoiler", "mal_id", "reactions", "review", "score", "tags", "type", "url", "user"]
+            vec![
+                "date",
+                "entry",
+                "episodes_watched",
+                "is_preliminary",
+                "is_spoiler",
+                "mal_id",
+                "reactions",
+                "review",
+                "score",
+                "tags",
+                "type",
+                "url",
+                "user"
+            ]
         );
         assert_eq!(anime["entry"]["mal_id"], json!(43470));
-        let manga = full_manga_review_item(&json!({"mal_id": 1, "chapters_read": 75, "entry": {"mal_id": 2}}));
-        assert_eq!(keys(&manga), vec!["chapters_read", "date", "entry", "is_preliminary", "is_spoiler", "mal_id", "reactions", "review", "score", "tags", "type", "url", "user"]);
+        let manga = full_manga_review_item(
+            &json!({"mal_id": 1, "chapters_read": 75, "entry": {"mal_id": 2}}),
+        );
+        assert_eq!(
+            keys(&manga),
+            vec![
+                "chapters_read",
+                "date",
+                "entry",
+                "is_preliminary",
+                "is_spoiler",
+                "mal_id",
+                "reactions",
+                "review",
+                "score",
+                "tags",
+                "type",
+                "url",
+                "user"
+            ]
+        );
     }
 }

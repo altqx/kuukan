@@ -32,15 +32,15 @@ impl Validator {
     }
 
     fn required_message(&mut self, field: &str) {
-        self.add(field, format!("The {} field is required.", attribute(field)));
+        self.add(
+            field,
+            format!("The {} field is required.", attribute(field)),
+        );
     }
 
     fn type_message(&mut self, field: &str, kind: &str) {
         // Lumen's validation lang omits "field" for type rules.
-        self.add(
-            field,
-            format!("The {} must be {kind}.", attribute(field)),
-        );
+        self.add(field, format!("The {} must be {kind}.", attribute(field)));
     }
 
     /// `required`
@@ -151,11 +151,7 @@ impl Validator {
         if (value - size).abs() > f64::EPSILON {
             self.add(
                 field,
-                format!(
-                    "The {} must be {}.",
-                    attribute(field),
-                    trim_number(size)
-                ),
+                format!("The {} must be {}.", attribute(field), trim_number(size)),
             );
         }
     }
@@ -165,10 +161,7 @@ impl Validator {
         if !raw.chars().all(|c| c.is_ascii_alphabetic()) {
             self.add(
                 field,
-                format!(
-                    "The {} must only contain letters.",
-                    attribute(field)
-                ),
+                format!("The {} must only contain letters.", attribute(field)),
             );
         }
     }
@@ -241,7 +234,7 @@ impl Validator {
         accepted: &[&str],
         php_class: &str,
     ) -> bool {
-        if accepted.iter().any(|v| *v == raw) {
+        if accepted.contains(&raw) {
             true
         } else {
             self.add(

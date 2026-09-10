@@ -53,7 +53,8 @@ pub fn app_debug() -> bool {
 
 impl IntoResponse for ApiErrorResponse {
     fn into_response(self) -> Response {
-        let status = StatusCode::from_u16(self.0.status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+        let status =
+            StatusCode::from_u16(self.0.status()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
         let body = self.0.body(app_debug());
         let mut response = axum::Json(body).into_response();
         *response.status_mut() = status;

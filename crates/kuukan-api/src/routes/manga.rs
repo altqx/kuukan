@@ -27,10 +27,9 @@ use serde_json::{json, Value};
 use crate::config::CacheCategory;
 use crate::dto::manga::{
     MangaCharactersLookupCommand, MangaExternalLookupCommand, MangaForumLookupCommand,
-    MangaFullLookupCommand, MangaLookupCommand, MangaMoreInfoLookupCommand,
-    MangaNewsLookupCommand, MangaPicturesLookupCommand, MangaRecommendationsLookupCommand,
-    MangaRelationsLookupCommand, MangaReviewsLookupCommand, MangaStatsLookupCommand,
-    MangaUserUpdatesLookupCommand,
+    MangaFullLookupCommand, MangaLookupCommand, MangaMoreInfoLookupCommand, MangaNewsLookupCommand,
+    MangaPicturesLookupCommand, MangaRecommendationsLookupCommand, MangaRelationsLookupCommand,
+    MangaReviewsLookupCommand, MangaStatsLookupCommand, MangaUserUpdatesLookupCommand,
 };
 use crate::error::ApiErrorResponse;
 use crate::extract::RawQuery;
@@ -104,12 +103,7 @@ where
 
 /// Render a mapper result with the Jikan cache flags for `uri`.
 fn render(data: Value, uri: &str, cached: CachedPayload, ttl: u64) -> Response {
-    json_with_cache_flags(
-        data,
-        &fingerprint("manga", uri),
-        cached.modified_at,
-        ttl,
-    )
+    json_with_cache_flags(data, &fingerprint("manga", uri), cached.modified_at, ttl)
 }
 
 async fn main(
@@ -265,12 +259,8 @@ async fn user_updates(
     let mal = state.mal.clone();
     let page = command.page;
     let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        kuukan_mal::api::manga::get_manga_recently_updated_by_users(
-            &mal,
-            command.id,
-            Some(page),
-        )
-        .await
+        kuukan_mal::api::manga::get_manga_recently_updated_by_users(&mal, command.id, Some(page))
+            .await
     })
     .await?;
     // `MangaUserUpdatesLookupHandler` keeps the default `ResultsResource`.

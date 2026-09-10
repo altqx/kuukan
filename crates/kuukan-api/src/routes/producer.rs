@@ -6,14 +6,16 @@ use axum::routing::get;
 use axum::Router;
 
 use crate::config::CacheCategory;
-use kuukan_core::envelope;
-use crate::dto::producer::{ProducerExternalLookupCommand, ProducerFullLookupCommand, ProducerLookupCommand};
+use crate::dto::producer::{
+    ProducerExternalLookupCommand, ProducerFullLookupCommand, ProducerLookupCommand,
+};
 use crate::error::ApiErrorResponse;
 use crate::extract::RawQuery;
 use crate::render::json_with_cache_flags;
 use crate::resources::producer as resource;
 use crate::services::scrape::{entity_or_scrape, fingerprint, request_uri, CachedPayload};
 use crate::state::AppState;
+use kuukan_core::envelope;
 use kuukan_store::EntityKind;
 
 pub fn router() -> Router<AppState> {

@@ -192,9 +192,8 @@ impl MangaGenreParser {
 
 /// Shared genre-list parsing for anime and manga (`genre-link` columns).
 fn genre_list(doc: &HtmlDoc, index: usize) -> Result<Vec<Value>, ParseError> {
-    let xpath = format!(
-        "//*[@class=\"genre-link\"][{index}]/div/div/a[@class=\"genre-name-link\"]"
-    );
+    let xpath =
+        format!("//*[@class=\"genre-link\"][{index}]/div/div/a[@class=\"genre-name-link\"]");
     doc.nodes(&xpath)?
         .iter()
         .map(|node| GenreListItemParser::new(node.clone()).model())

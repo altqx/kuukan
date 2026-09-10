@@ -58,13 +58,8 @@ impl Pagination {
 pub fn paginate(total: u64, page: u64, per_page: u64) -> Pagination {
     let per_page = per_page.max(1);
     let last_page = ((total as f64) / (per_page as f64)).ceil().max(1.0) as u64;
-    let count = total.saturating_sub((page.saturating_sub(1)) * per_page).min(per_page);
-    Pagination::search(
-        last_page,
-        page < last_page,
-        page,
-        count,
-        total,
-        per_page,
-    )
+    let count = total
+        .saturating_sub((page.saturating_sub(1)) * per_page)
+        .min(per_page);
+    Pagination::search(last_page, page < last_page, page, count, total, per_page)
 }

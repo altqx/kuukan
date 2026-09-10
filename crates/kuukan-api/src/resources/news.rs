@@ -121,8 +121,16 @@ mod tests {
         assert_eq!(out["author_username"], json!("ImperfectBlue"));
         let empty = news_item(&json!({}));
         for key in [
-            "mal_id", "url", "title", "date", "author_username", "author_url", "forum_url",
-            "images", "comments", "excerpt",
+            "mal_id",
+            "url",
+            "title",
+            "date",
+            "author_username",
+            "author_url",
+            "forum_url",
+            "images",
+            "comments",
+            "excerpt",
         ] {
             assert!(empty[key].is_null(), "{key} should be null");
         }

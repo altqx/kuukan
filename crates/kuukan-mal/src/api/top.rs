@@ -21,8 +21,8 @@ pub async fn get_top_anime(
     page: u64,
     r#type: Option<&str>,
 ) -> Result<Value, MalError> {
-    let request =
-        TopAnimeRequest::new(page, r#type).map_err(|error| parse_failed("TopAnimeRequest", error))?;
+    let request = TopAnimeRequest::new(page, r#type)
+        .map_err(|error| parse_failed("TopAnimeRequest", error))?;
     let path = request.path();
     let doc = client.get_html(&path).await?;
     TopAnimeParser::new(&doc)
@@ -36,8 +36,8 @@ pub async fn get_top_manga(
     page: u64,
     r#type: Option<&str>,
 ) -> Result<Value, MalError> {
-    let request =
-        TopMangaRequest::new(page, r#type).map_err(|error| parse_failed("TopMangaRequest", error))?;
+    let request = TopMangaRequest::new(page, r#type)
+        .map_err(|error| parse_failed("TopMangaRequest", error))?;
     let path = request.path();
     let doc = client.get_html(&path).await?;
     TopMangaParser::new(&doc)

@@ -55,11 +55,15 @@ mod tests {
     #[test]
     fn path_matches_php() {
         assert_eq!(
-            RecentRecommendationsRequest::new("anime", 1).unwrap().path(),
+            RecentRecommendationsRequest::new("anime", 1)
+                .unwrap()
+                .path(),
             "https://myanimelist.net/recommendations.php?s=recentrecs&t=anime"
         );
         assert_eq!(
-            RecentRecommendationsRequest::new("manga", 3).unwrap().path(),
+            RecentRecommendationsRequest::new("manga", 3)
+                .unwrap()
+                .path(),
             "https://myanimelist.net/recommendations.php?s=recentrecs&t=manga&show=200"
         );
         assert!(RecentRecommendationsRequest::new("novel", 1).is_err());

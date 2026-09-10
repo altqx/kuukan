@@ -130,14 +130,23 @@ mod tests {
             ]
         );
         assert_eq!(out["comments"], json!(7));
-        assert_eq!(out["last_comment"]["date"], json!("2022-06-19T06:26:00+00:00"));
+        assert_eq!(
+            out["last_comment"]["date"],
+            json!("2022-06-19T06:26:00+00:00")
+        );
     }
 
     #[test]
     fn forum_post_shape() {
         let out = forum_post(&topic_doc()["last_comment"]);
-        assert_eq!(keys(&out), vec!["author_url", "author_username", "date", "url"]);
-        assert_eq!(out["url"], json!("https://myanimelist.net/forum/?topicid=2022869&goto=lastpost"));
+        assert_eq!(
+            keys(&out),
+            vec!["author_url", "author_username", "date", "url"]
+        );
+        assert_eq!(
+            out["url"],
+            json!("https://myanimelist.net/forum/?topicid=2022869&goto=lastpost")
+        );
         assert!(forum_post(&json!({}))["date"].is_null());
     }
 }

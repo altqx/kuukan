@@ -355,7 +355,7 @@ mod tests {
 
     #[test]
     fn airing_status_filter_is_unresolvable_in_php() {
-        assert!(!AnimeListAiringStatusFilter::RESOLVES_IN_PHP);
+        const { assert!(!AnimeListAiringStatusFilter::RESOLVES_IN_PHP) };
         for index in AnimeListAiringStatusFilter::INDEXES {
             assert_eq!(
                 parse_anime_list_airing_status_filter(index),

@@ -73,7 +73,9 @@ async fn people(
 ) -> Result<Response, ApiErrorResponse> {
     QueryRandomPersonCommand::parse(&query)?;
     let payload = random(&state, EntityKind::Person, false, false).await?;
-    Ok(json_ok(kuukan_core::envelope::data(person::person(&payload))))
+    Ok(json_ok(kuukan_core::envelope::data(person::person(
+        &payload,
+    ))))
 }
 
 async fn users(

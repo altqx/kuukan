@@ -50,10 +50,7 @@ pub fn common_image_resource(image_url: Option<&str>) -> Value {
 /// `CharacterImageResource` (`{jpg:{image_url},webp:{image_url,small_image_url}}`).
 pub fn character_image_resource(image_url: Option<&str>) -> Value {
     let (webp_url, webp_small) = match image_url {
-        Some(url) => (
-            url.replace(".jpg", ".webp"),
-            url.replace(".jpg", "t.webp"),
-        ),
+        Some(url) => (url.replace(".jpg", ".webp"), url.replace(".jpg", "t.webp")),
         // `str_replace` with null -> "" (and the null guard never triggers).
         None => (String::new(), String::new()),
     };
@@ -418,9 +415,7 @@ impl VoiceActorParser {
         let Some(img) = self.node.first("//img")? else {
             return Ok(None);
         };
-        let src = img
-            .node_attr("src")
-            .or_else(|| img.node_attr("data-src"));
+        let src = img.node_attr("src").or_else(|| img.node_attr("data-src"));
         Ok(src.map(|url| parse_image_quality(&url)))
     }
 
@@ -506,7 +501,8 @@ impl CharacterListItemParser {
 
     /// `CharacterListItemParser::getName()`.
     pub fn name(&self) -> Result<Option<String>, ParseError> {
-        self.node.text("//h3[contains(@class, \"h3_character_name\")]")
+        self.node
+            .text("//h3[contains(@class, \"h3_character_name\")]")
     }
 
     /// `CharacterListItemParser::getImage()`.

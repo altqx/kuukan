@@ -82,11 +82,17 @@ mod tests {
             AnimeGenreRequest::new(1, 1).path(),
             "https://myanimelist.net/anime/genre/1?page=1"
         );
-        assert_eq!(AnimeGenresRequest::new().path(), "https://myanimelist.net/anime.php");
+        assert_eq!(
+            AnimeGenresRequest::new().path(),
+            "https://myanimelist.net/anime.php"
+        );
         assert_eq!(
             MangaGenreRequest::new(1, 1).path(),
             "https://myanimelist.net/manga/genre/1?page=1"
         );
-        assert_eq!(MangaGenresRequest::new().path(), "https://myanimelist.net/manga.php");
+        assert_eq!(
+            MangaGenresRequest::new().path(),
+            "https://myanimelist.net/manga.php"
+        );
     }
 }

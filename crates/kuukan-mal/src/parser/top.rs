@@ -77,11 +77,17 @@ impl<'a> TopListItemParser<'a> {
             return MalUrlParser::new(node).get_model();
         }
         // For Manga
-        if let Some(node) = self.node.first("//td[contains(@class, \"title\")]/div/h3/a")? {
+        if let Some(node) = self
+            .node
+            .first("//td[contains(@class, \"title\")]/div/h3/a")?
+        {
             return MalUrlParser::new(node).get_model();
         }
         // For Characters/People
-        if let Some(node) = self.node.first("//td[contains(@class, \"people\")]/div/a")? {
+        if let Some(node) = self
+            .node
+            .first("//td[contains(@class, \"people\")]/div/a")?
+        {
             return MalUrlParser::new(node).get_model();
         }
         Err(ParseError::InvalidXPath(
@@ -127,7 +133,12 @@ impl<'a> TopListItemParser<'a> {
         let text = self.get_text()?;
         Ok(text
             .split('\n')
-            .map(|part| part.replace('\n', "").replace("<br>", "").trim().to_string())
+            .map(|part| {
+                part.replace('\n', "")
+                    .replace("<br>", "")
+                    .trim()
+                    .to_string()
+            })
             .filter(|part| !part.is_empty())
             .collect())
     }
@@ -190,10 +201,7 @@ impl<'a> TopListItemParser<'a> {
 
     /// `TopListItemParser::getKanjiName()`.
     pub fn get_kanji_name(&self) -> Result<Option<String>, ParseError> {
-        match self
-            .node
-            .first("//span[@class=\"fs12 fn-grey6\"][1]")?
-        {
+        match self.node.first("//span[@class=\"fs12 fn-grey6\"][1]")? {
             Some(node) => {
                 let text = node.node_text();
                 Ok(Some(text.trim_matches(['(', ')']).to_string()))
@@ -233,7 +241,9 @@ impl<'a> TopListItemParser<'a> {
     }
 
     /// `TopListItemParser::getBirthday()`.
-    pub fn get_birthday(&self) -> Result<Option<chrono::DateTime<chrono::FixedOffset>>, ParseError> {
+    pub fn get_birthday(
+        &self,
+    ) -> Result<Option<chrono::DateTime<chrono::FixedOffset>>, ParseError> {
         let text = self.node.text("//td[3]")?.unwrap_or_default();
         Ok(parse_date(&text))
     }
@@ -284,7 +294,10 @@ impl<'a> TopAnimeParser<'a> {
 
     /// `TopAnimeParser::getLastPage()`.
     pub fn get_last_page(&self) -> Result<i64, ParseError> {
-        Ok(next_page_limit(self.doc, "//*[@id=\"content\"]/div[4]/h2/span[1]/a[contains(@class, \"next\")]")?)
+        next_page_limit(
+            self.doc,
+            "//*[@id=\"content\"]/div[4]/h2/span[1]/a[contains(@class, \"next\")]",
+        )
     }
 
     /// `TopAnimeParser::getHasNextPage()`.
@@ -341,7 +354,10 @@ impl<'a> TopMangaParser<'a> {
 
     /// `TopMangaParser::getLastPage()`.
     pub fn get_last_page(&self) -> Result<i64, ParseError> {
-        Ok(next_page_limit(self.doc, "//*[@id=\"content\"]/div[4]/h2/span[1]/a[contains(@class, \"next\")]")?)
+        next_page_limit(
+            self.doc,
+            "//*[@id=\"content\"]/div[4]/h2/span[1]/a[contains(@class, \"next\")]",
+        )
     }
 
     /// `TopMangaParser::getHasNextPage()`.
@@ -396,7 +412,10 @@ impl<'a> TopCharactersParser<'a> {
 
     /// `TopCharactersParser::getLastPage()`.
     pub fn get_last_page(&self) -> Result<i64, ParseError> {
-        Ok(next_page_limit(self.doc, "//*[@id=\"content\"]/h2/div/span/a[contains(@class, \"next\")]")?)
+        next_page_limit(
+            self.doc,
+            "//*[@id=\"content\"]/h2/div/span/a[contains(@class, \"next\")]",
+        )
     }
 
     /// `TopCharactersParser::getHasNextPage()`.
@@ -450,7 +469,10 @@ impl<'a> TopPeopleParser<'a> {
 
     /// `TopPeopleParser::getLastPage()`.
     pub fn get_last_page(&self) -> Result<i64, ParseError> {
-        Ok(next_page_limit(self.doc, "//*[@id=\"content\"]/h2/div/span/a[contains(@class, \"next\")]")?)
+        next_page_limit(
+            self.doc,
+            "//*[@id=\"content\"]/h2/div/span/a[contains(@class, \"next\")]",
+        )
     }
 
     /// `TopPeopleParser::getHasNextPage()`.

@@ -12,7 +12,10 @@ use crate::request::MalRequest;
 pub async fn get_person(client: &MalClient, id: i64) -> Result<Value, MalError> {
     let path = PersonRequest::new(id).path();
     if id == 0 {
-        return Err(MalError::BadResponse { status: 404, url: path });
+        return Err(MalError::BadResponse {
+            status: 404,
+            url: path,
+        });
     }
     let doc = client.get_html(&path).await?;
     PersonParser::new(doc)

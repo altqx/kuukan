@@ -567,7 +567,10 @@ mod tests {
         request.set_genre([1, 22]);
         let path = request.path();
         assert!(path.contains("&show=50&letter=A&"), "{path}");
-        assert!(path.ends_with("&genre[]=1&genre[]=22&c[]=a&c[]=b&c[]=c&c[]=f&c[]=d&c[]=e&c[]=g"), "{path}");
+        assert!(
+            path.ends_with("&genre[]=1&genre[]=22&c[]=a&c[]=b&c[]=c&c[]=f&c[]=d&c[]=e&c[]=g"),
+            "{path}"
+        );
     }
 
     #[test]
@@ -624,6 +627,11 @@ mod tests {
         request.set_genre([2, 1]);
         request.set_genre([1, 3]);
         let path = request.path();
-        assert!(path.ends_with("&genre[]=1&genre[]=3&genre[]=2&c[]=a&c[]=b&c[]=c&c[]=f&c[]=d&c[]=e&c[]=g"), "{path}");
+        assert!(
+            path.ends_with(
+                "&genre[]=1&genre[]=3&genre[]=2&c[]=a&c[]=b&c[]=c&c[]=f&c[]=d&c[]=e&c[]=g"
+            ),
+            "{path}"
+        );
     }
 }

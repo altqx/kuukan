@@ -162,10 +162,7 @@ impl<'a> EpisodeListItemParser<'a> {
 
     /// `EpisodeListItemParser::getRegionLocked()`.
     pub fn get_region_locked(&self) -> Result<bool, ParseError> {
-        Ok(self
-            .node
-            .count("//div[contains(@class, \"is_blocked\")]")?
-            > 0)
+        Ok(self.node.count("//div[contains(@class, \"is_blocked\")]")? > 0)
     }
 
     /// `EpisodeListItemParser::getAnimeMeta()`.

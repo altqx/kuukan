@@ -45,10 +45,9 @@ impl<'a> NewsListParser<'a> {
 
     /// `NewsListParser::getHasNextPage()`.
     pub fn get_has_next_page(&self) -> Result<bool, ParseError> {
-        Ok(self
-            .doc
-            .count("//*[@id=\"content\"]/table/tr/td[2]/div[1]/a[contains(text(), \"More News\")]")?
-            > 0)
+        Ok(self.doc.count(
+            "//*[@id=\"content\"]/table/tr/td[2]/div[1]/a[contains(text(), \"More News\")]",
+        )? > 0)
     }
 
     /// `NewsList::fromParser()`: `{results, has_next_page, last_visible_page}`.
@@ -208,8 +207,14 @@ mod tests {
         assert_eq!(model["url"], "https://myanimelist.net/news/66547854");
         assert_eq!(model["title"], "Berserk resumes");
         assert_eq!(model["author_username"], "Vindstot");
-        assert_eq!(model["author_url"], "https://myanimelist.net/profile/Vindstot");
-        assert_eq!(model["forum_url"], "https://myanimelist.net/forum/?topicid=2021160");
+        assert_eq!(
+            model["author_url"],
+            "https://myanimelist.net/profile/Vindstot"
+        );
+        assert_eq!(
+            model["forum_url"],
+            "https://myanimelist.net/forum/?topicid=2021160"
+        );
         assert_eq!(model["comments"], 70);
         assert_eq!(model["excerpt"], "Some excerpt with markup.");
         assert_eq!(

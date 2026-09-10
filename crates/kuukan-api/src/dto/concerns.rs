@@ -50,10 +50,7 @@ pub fn optional_bool_flag(query: &Query, field: &str) -> Result<Option<bool>, Ap
         "0" => Ok(Some(false)),
         _ => {
             let mut v = Validator::new();
-            v.add(
-                field,
-                format!("The {} field must be true or false.", field),
-            );
+            v.add(field, format!("The {} field must be true or false.", field));
             Err(v.finish().unwrap_err())
         }
     }
@@ -161,7 +158,10 @@ mod tests {
     fn bool_flags_match_php() {
         assert!(bool_flag(&Query::from_pairs([("sfw", "true")]), "sfw", false).unwrap());
         assert!(!bool_flag(&Query::new(), "sfw", false).unwrap());
-        assert_eq!(optional_bool_flag(&Query::from_pairs([("kids", "1")]), "kids").unwrap(), Some(true));
+        assert_eq!(
+            optional_bool_flag(&Query::from_pairs([("kids", "1")]), "kids").unwrap(),
+            Some(true)
+        );
         // `?sfw=` (empty value): `ContextualBooleanCast` turns it into true.
         assert_eq!(
             optional_bool_flag(&Query::from_pairs([("sfw", "")]), "sfw").unwrap(),

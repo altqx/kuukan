@@ -11,7 +11,9 @@ use serde_json::{json, Map, Value};
 use std::sync::OnceLock;
 
 use crate::error::ParseError;
-use crate::parser::character::{common_image_resource, user_image_resource, CharacterListItemParser};
+use crate::parser::character::{
+    common_image_resource, user_image_resource, CharacterListItemParser,
+};
 use crate::parser::common::{alternative_titles, mal_url, url_parser};
 use crate::parser::date::{format_atom, parse_date};
 use crate::parser::helper::{parse_image_quality, HtmlDoc, HtmlNode};
@@ -89,7 +91,7 @@ impl MangaParser {
             return Ok(vec![]);
         };
         let titles = ancestor.node_text().replace(&span.node_text(), "");
-        Ok(titles.split(", ").map(|title| cleanse(title)).collect())
+        Ok(titles.split(", ").map(cleanse).collect())
     }
 
     /// `MangaParser::getMangaTitleJapanese()`.
@@ -115,7 +117,11 @@ impl MangaParser {
         let Some(value) = self.labelled_value("Type:")? else {
             return Ok(None);
         };
-        Ok(if value == "Unknown" { None } else { Some(value) })
+        Ok(if value == "Unknown" {
+            None
+        } else {
+            Some(value)
+        })
     }
 
     /// `MangaParser::getMangaChapters()`.
@@ -300,15 +306,12 @@ impl MangaParser {
             }
         }
 
-        let rows = self.doc.nodes("//table[contains(@class, \"entries-table\")]/tr")?;
+        let rows = self
+            .doc
+            .nodes("//table[contains(@class, \"entries-table\")]/tr")?;
         for row in rows {
             let links = row.nodes("//td[2]//a")?;
-            let relation = cleanse(
-                &row
-                    .text("//td[1]")?
-                    .unwrap_or_default()
-                    .replace(':', ""),
-            );
+            let relation = cleanse(&row.text("//td[1]")?.unwrap_or_default().replace(':', ""));
 
             if links.len() == 1 && links[0].node_text().is_empty() {
                 related.insert(relation, json!([]));
@@ -336,10 +339,7 @@ impl MangaParser {
 
     /// `MangaParser::getMangaBackground()`.
     pub fn background(&self) -> Result<Option<String>, ParseError> {
-        let Some(node) = self
-            .doc
-            .first("//span[@itemprop=\"description\"]/..")?
-        else {
+        let Some(node) = self.doc.first("//span[@itemprop=\"description\"]/..")? else {
             return Ok(None);
         };
         node.remove_child_nodes()?;
@@ -461,7 +461,11 @@ impl MangaParser {
             let Some(ancestor) = span.ancestors().into_iter().next() else {
                 continue;
             };
-            if check_empty && ancestor.node_text().contains("No genres have been added yet") {
+            if check_empty
+                && ancestor
+                    .node_text()
+                    .contains("No genres have been added yet")
+            {
                 continue;
             }
             return ancestor.nodes("//a")?.iter().map(mal_url).collect();
@@ -599,7 +603,10 @@ impl MangaStatsParser {
             .doc
             .first("//h2[text()=\"Score Stats\"]/following-sibling::text()")?
         {
-            if node.node_text().contains("No scores have been recorded for this") {
+            if node
+                .node_text()
+                .contains("No scores have been recorded for this")
+            {
                 return Ok(json!([]));
             }
         }
@@ -728,7 +735,6 @@ impl MangaReviewsParser {
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // MangaReviewScoresParser
 // ---------------------------------------------------------------------------
@@ -841,6 +847,10 @@ impl MangaRecentlyUpdatedByUsersParser {
 }
 
 /// `Jikan\Parser\Manga\MangaRecentlyUpdatedByUsersListParser`.
+/// Read/total pair parsed from a `/`-separated progress column; `None` on one
+/// side means the profile showed `-`.
+type ProgressPair = Option<(Option<i64>, Option<i64>)>;
+
 struct MangaRecentlyUpdatedByUsersListParser {
     node: HtmlNode,
 }
@@ -888,7 +898,7 @@ impl MangaRecentlyUpdatedByUsersListParser {
         Ok(self.node.text("//td[3]")?.unwrap_or_default())
     }
 
-    fn split_column(&self, xpath: &str) -> Result<Option<(Option<i64>, Option<i64>)>, ParseError> {
+    fn split_column(&self, xpath: &str) -> Result<ProgressPair, ParseError> {
         let Some(text) = self.node.text(xpath)? else {
             return Ok(None);
         };
@@ -915,16 +925,12 @@ impl MangaRecentlyUpdatedByUsersListParser {
 
     /// `...::getVolumesRead()` / `getVolumesTotal()`.
     fn volumes(&self) -> Result<(Option<i64>, Option<i64>), ParseError> {
-        Ok(self
-            .split_column("//td[4]")?
-            .unwrap_or((None, None)))
+        Ok(self.split_column("//td[4]")?.unwrap_or((None, None)))
     }
 
     /// `...::getChaptersRead()` / `getChaptersTotal()`.
     fn chapters(&self) -> Result<(Option<i64>, Option<i64>), ParseError> {
-        Ok(self
-            .split_column("//td[5]")?
-            .unwrap_or((None, None)))
+        Ok(self.split_column("//td[5]")?.unwrap_or((None, None)))
     }
 
     /// `...::getDate()` — `new DateTimeImmutable($text, UTC)`.
@@ -1066,7 +1072,7 @@ fn date_range_until(raw: &str) -> Option<chrono::DateTime<chrono::FixedOffset>> 
     if !raw.contains(" to ") || raw.contains(" to ?") {
         return None;
     }
-    let date = raw.splitn(2, " to ").nth(1).unwrap_or_default();
+    let date = raw.split_once(" to ").map(|x| x.1).unwrap_or_default();
     parse_date(date)
 }
 
@@ -1163,7 +1169,10 @@ mod tests {
         assert_eq!(scores["9"]["votes"], 7830);
         assert_eq!(scores["9"]["percentage"], 26.2);
         // Missing scores are filled with zeros; ksort puts 1 first.
-        assert_eq!(scores["1"], json!({"score": 1, "votes": 0, "percentage": 0.0}));
+        assert_eq!(
+            scores["1"],
+            json!({"score": 1, "votes": 0, "percentage": 0.0})
+        );
         let keys: Vec<&String> = scores.as_object().unwrap().keys().collect();
         assert_eq!(keys.first().map(|k| k.as_str()), Some("1"));
         assert_eq!(keys.last().map(|k| k.as_str()), Some("10"));

@@ -34,12 +34,8 @@ impl QueryTopAnimeItemsCommand {
         let top = QueryTopItemsCommand::parse_with(&mut parser);
         let sfw = parser.bool_flag("sfw", false);
         let anime_type = parser.enum_optional::<AnimeType>("type", AnimeType::PHP_CLASS);
-        let rating =
-            parser.enum_optional::<AnimeRating>("rating", AnimeRating::PHP_CLASS);
-        let filter = parser.enum_optional::<TopAnimeFilter>(
-            "filter",
-            TopAnimeFilter::PHP_CLASS,
-        );
+        let rating = parser.enum_optional::<AnimeRating>("rating", AnimeRating::PHP_CLASS);
+        let filter = parser.enum_optional::<TopAnimeFilter>("filter", TopAnimeFilter::PHP_CLASS);
         parser.finish()?;
         Ok(Self {
             top: top?,
@@ -74,10 +70,7 @@ impl QueryTopMangaItemsCommand {
         let top = QueryTopItemsCommand::parse_with(&mut parser);
         let sfw = parser.bool_flag("sfw", false);
         let manga_type = parser.enum_optional::<MangaType>("type", MangaType::PHP_CLASS);
-        let filter = parser.enum_optional::<TopMangaFilter>(
-            "filter",
-            TopMangaFilter::PHP_CLASS,
-        );
+        let filter = parser.enum_optional::<TopMangaFilter>("filter", TopMangaFilter::PHP_CLASS);
         parser.finish()?;
         Ok(Self {
             top: top?,
@@ -157,10 +150,8 @@ impl QueryTopReviewsCommand {
     pub fn parse(query: &Query) -> Result<Self, ApiError> {
         let mut parser = QueryParser::clean(query);
         let top = QueryTopItemsCommand::parse_with(&mut parser);
-        let reviews_type = parser.enum_optional::<TopReviewsType>(
-            "type",
-            TopReviewsType::PHP_CLASS,
-        );
+        let reviews_type =
+            parser.enum_optional::<TopReviewsType>("type", TopReviewsType::PHP_CLASS);
         let preliminary = parser.optional_bool_flag("preliminary");
         let spoilers = parser.optional_bool_flag("spoilers");
         parser.finish()?;
@@ -242,8 +233,14 @@ mod tests {
 
         let query = Query::from_pairs([("limit", "0"), ("page", "x")]);
         let messages = bag(QueryTopCharactersCommand::parse(&query).unwrap_err());
-        assert_eq!(messages["limit"], serde_json::json!(["The limit must be at least 1."]));
-        assert_eq!(messages["page"], serde_json::json!(["The page must be a number."]));
+        assert_eq!(
+            messages["limit"],
+            serde_json::json!(["The limit must be at least 1."])
+        );
+        assert_eq!(
+            messages["page"],
+            serde_json::json!(["The page must be a number."])
+        );
 
         assert!(QueryTopPeopleCommand::parse(&Query::new()).is_ok());
     }

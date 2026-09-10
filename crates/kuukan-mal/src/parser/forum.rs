@@ -91,7 +91,9 @@ impl<'a> ForumTopicParser<'a> {
     }
 
     /// `ForumTopicParser::getPostDate()`.
-    pub fn get_post_date(&self) -> Result<Option<chrono::DateTime<chrono::FixedOffset>>, ParseError> {
+    pub fn get_post_date(
+        &self,
+    ) -> Result<Option<chrono::DateTime<chrono::FixedOffset>>, ParseError> {
         let text = self
             .node
             .text("//td[2]/span[@class=\"lightLink\"]")?

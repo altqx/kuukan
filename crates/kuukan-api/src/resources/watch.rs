@@ -181,7 +181,10 @@ mod tests {
         assert_eq!(keys(item), vec!["entry", "title", "trailer"]);
         assert_eq!(item["title"], json!("Character PV"));
         assert_eq!(item["trailer"]["youtube_id"], json!("t0d7_6WCls8"));
-        assert_eq!(item["trailer"]["images"]["maximum_image_url"], json!("https://img.youtube.com/vi/t0d7_6WCls8/maxresdefault.jpg"));
+        assert_eq!(
+            item["trailer"]["images"]["maximum_image_url"],
+            json!("https://img.youtube.com/vi/t0d7_6WCls8/maxresdefault.jpg")
+        );
     }
 
     #[test]
@@ -220,7 +223,10 @@ mod tests {
             "url": "https://myanimelist.net/anime/1/episode/1",
             "images": {"jpg": {"image_url": "x"}}
         }));
-        assert_eq!(keys(&out), vec!["episode", "images", "mal_id", "title", "url"]);
+        assert_eq!(
+            keys(&out),
+            vec!["episode", "images", "mal_id", "title", "url"]
+        );
         assert_eq!(out["episode"], json!("1"));
         assert_eq!(out["images"]["jpg"]["image_url"], json!("x"));
     }

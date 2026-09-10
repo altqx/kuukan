@@ -343,12 +343,7 @@ mod tests {
     use serde_json::json;
 
     fn keys(value: &Value) -> Vec<String> {
-        let mut keys: Vec<String> = value
-            .as_object()
-            .expect("object")
-            .keys()
-            .cloned()
-            .collect();
+        let mut keys: Vec<String> = value.as_object().expect("object").keys().cloned().collect();
         keys.sort();
         keys
     }
@@ -611,11 +606,26 @@ mod tests {
         assert_eq!(out["anime"]["episodes"], json!(24));
         assert_eq!(out["anime"]["status"], json!("Finished Airing"));
         assert_eq!(out["anime"]["airing"], json!(false));
-        assert_eq!(out["anime"]["aired"]["from"], json!("2011-04-06T00:00:00+00:00"));
-        assert_eq!(out["anime"]["aired"]["to"], json!("2011-09-14T00:00:00+00:00"));
-        assert_eq!(out["anime"]["aired"]["prop"]["from"], json!({"day": 6, "month": 4, "year": 2011}));
-        assert_eq!(out["anime"]["aired"]["prop"]["to"], json!({"day": 14, "month": 9, "year": 2011}));
-        assert_eq!(out["anime"]["aired"]["string"], json!("Apr 6, 2011 to Sep 14, 2011"));
+        assert_eq!(
+            out["anime"]["aired"]["from"],
+            json!("2011-04-06T00:00:00+00:00")
+        );
+        assert_eq!(
+            out["anime"]["aired"]["to"],
+            json!("2011-09-14T00:00:00+00:00")
+        );
+        assert_eq!(
+            out["anime"]["aired"]["prop"]["from"],
+            json!({"day": 6, "month": 4, "year": 2011})
+        );
+        assert_eq!(
+            out["anime"]["aired"]["prop"]["to"],
+            json!({"day": 14, "month": 9, "year": 2011})
+        );
+        assert_eq!(
+            out["anime"]["aired"]["string"],
+            json!("Apr 6, 2011 to Sep 14, 2011")
+        );
     }
 
     #[test]
@@ -659,10 +669,7 @@ mod tests {
             user_profile_anime_list_response(&items),
             json!({"data": mapped})
         );
-        assert_eq!(
-            user_profile_anime_list_response(&[]),
-            json!({"data": []})
-        );
+        assert_eq!(user_profile_anime_list_response(&[]), json!({"data": []}));
     }
 
     fn manga_list_item() -> Value {
@@ -746,9 +753,15 @@ mod tests {
             out["manga"]["published"]["string"],
             json!("Apr 13, 2005 to ?")
         );
-        assert_eq!(out["manga"]["published"]["from"], json!("2005-04-13T00:00:00+00:00"));
+        assert_eq!(
+            out["manga"]["published"]["from"],
+            json!("2005-04-13T00:00:00+00:00")
+        );
         assert!(out["manga"]["published"]["to"].is_null());
-        assert_eq!(out["manga"]["published"]["prop"]["to"], json!({"day": null, "month": null, "year": null}));
+        assert_eq!(
+            out["manga"]["published"]["prop"]["to"],
+            json!({"day": null, "month": null, "year": null})
+        );
     }
 
     #[test]
@@ -757,7 +770,10 @@ mod tests {
         let mapped = user_profile_manga_list_collection(&items);
         assert_eq!(mapped.len(), 1);
         assert_eq!(mapped[0]["manga"]["status"], json!("Publishing"));
-        assert_eq!(user_profile_manga_list_response(&items), json!({"data": mapped}));
+        assert_eq!(
+            user_profile_manga_list_response(&items),
+            json!({"data": mapped})
+        );
         assert_eq!(user_profile_manga_list_response(&[]), json!({"data": []}));
     }
 

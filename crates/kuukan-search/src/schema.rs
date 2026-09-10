@@ -599,7 +599,13 @@ fn fill_character(schema: &EntitySchema, doc: &mut TantivyDocument, payload: &Va
         "name_kanji",
         get(payload, "name_kanji").and_then(as_string),
     );
-    copy_u64_first(schema, doc, payload, "member_favorites", &["favorites", "member_favorites"]);
+    copy_u64_first(
+        schema,
+        doc,
+        payload,
+        "member_favorites",
+        &["favorites", "member_favorites"],
+    );
 }
 
 fn fill_person(schema: &EntitySchema, doc: &mut TantivyDocument, payload: &Value) {
@@ -627,7 +633,13 @@ fn fill_person(schema: &EntitySchema, doc: &mut TantivyDocument, payload: &Value
         "alternate_names",
         get(payload, "alternate_names"),
     );
-    copy_u64_first(schema, doc, payload, "member_favorites", &["favorites", "member_favorites"]);
+    copy_u64_first(
+        schema,
+        doc,
+        payload,
+        "member_favorites",
+        &["favorites", "member_favorites"],
+    );
     copy_timestamp(schema, doc, payload, "birthday", "birthday");
 }
 
@@ -930,19 +942,7 @@ fn copy_u64(schema: &EntitySchema, doc: &mut TantivyDocument, payload: &Value, f
     }
 }
 
-fn copy_u64_from(
-    schema: &EntitySchema,
-    doc: &mut TantivyDocument,
-    payload: &Value,
-    field: &str,
-    source: &str,
-) {
-    if let Some(value) = get(payload, source).and_then(as_u64) {
-        add_u64(schema, doc, field, value);
-    }
-}
-
-/// Like [`copy_u64_from`] but tries several payload keys in order (e.g.
+/// Like [`copy_u64`] but tries several payload keys in order (e.g.
 /// `favorites` then `member_favorites`, matching the resource accessors).
 fn copy_u64_first(
     schema: &EntitySchema,

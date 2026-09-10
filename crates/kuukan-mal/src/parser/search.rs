@@ -11,12 +11,10 @@ use std::sync::OnceLock;
 
 use crate::error::ParseError;
 use crate::parser::date::{format_atom, parse_date, parse_date_mdy, parse_date_time_pst};
-use crate::parser::helper::{
-    parse_image_quality, parse_image_thumb_to_hq, HtmlDoc, HtmlNode,
-};
+use crate::parser::helper::{parse_image_quality, parse_image_thumb_to_hq, HtmlDoc, HtmlNode};
 use crate::parser::jstring::{cleanse, utf8_nbsp_trim};
-use crate::parser::mal_url::{id_from_url, MalUrlParser, BASE_URL};
 use crate::parser::mal_url::MalUrl;
+use crate::parser::mal_url::{id_from_url, MalUrlParser, BASE_URL};
 
 // ---------------------------------------------------------------------------
 // Shared image resources (private to this module)
@@ -173,18 +171,12 @@ impl<'a> AnimeSearchListItemParser<'a> {
 
     /// `AnimeSearchListItemParser::getUrl()`.
     pub fn get_url(&self) -> Result<String, ParseError> {
-        Ok(self
-            .node
-            .attr("//td[2]//a", "href")?
-            .unwrap_or_default())
+        Ok(self.node.attr("//td[2]//a", "href")?.unwrap_or_default())
     }
 
     /// `AnimeSearchListItemParser::getTitle()`.
     pub fn get_title(&self) -> Result<String, ParseError> {
-        Ok(self
-            .node
-            .text("//td[2]//a/strong")?
-            .unwrap_or_default())
+        Ok(self.node.text("//td[2]//a/strong")?.unwrap_or_default())
     }
 
     /// `AnimeSearchListItemParser::getImageUrl()`.
@@ -530,10 +522,9 @@ impl<'a> CharacterSearchParser<'a> {
 
     /// `CharacterSearchParser::getResults()`.
     pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
-        if self
-            .doc
-            .count("//div[@id=\"content\"]/table/tr/td[1][contains(text(), \"There were some probrems\")]")?
-            > 0
+        if self.doc.count(
+            "//div[@id=\"content\"]/table/tr/td[1][contains(text(), \"There were some probrems\")]",
+        )? > 0
         {
             return Ok(Vec::new());
         }
@@ -970,7 +961,7 @@ pub(crate) fn mal_url_json(mal_url: &MalUrl) -> Value {
 
 /// `explode(' ', $text)`, `end()`, `str_replace(['[', ']'], '', $last)`.
 fn last_page_number(text: &str) -> i64 {
-    let last = text.split(' ').last().unwrap_or_default();
+    let last = text.split(' ').next_back().unwrap_or_default();
     let cleaned = last.replace(['[', ']'], "");
     php_intval(&cleaned)
 }

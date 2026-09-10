@@ -6,9 +6,7 @@ use kuukan_core::enums::CharacterOrderBy;
 use kuukan_core::error::ApiError;
 use kuukan_core::params::Query;
 
-use super::base::{
-    check_search_q, id_lookup_command, QueryParser, SearchCommand,
-};
+use super::base::{check_search_q, id_lookup_command, QueryParser, SearchCommand};
 
 /// PHP `App\Dto\CharactersSearchCommand`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,10 +27,8 @@ impl CharactersSearchCommand {
     pub fn parse(query: &Query) -> Result<Self, ApiError> {
         let mut parser = QueryParser::clean(query);
         let search = SearchCommand::parse_with(&mut parser);
-        let order_by = parser.enum_optional::<CharacterOrderBy>(
-            "order_by",
-            CharacterOrderBy::PHP_CLASS,
-        );
+        let order_by =
+            parser.enum_optional::<CharacterOrderBy>("order_by", CharacterOrderBy::PHP_CLASS);
         parser.finish()?;
         let command = Self {
             search: search?,
@@ -102,7 +98,9 @@ mod tests {
         let messages = bag(CharactersSearchCommand::parse(&query).unwrap_err());
         assert_eq!(
             messages["order_by"],
-            serde_json::json!(["The order by field is not a valid App\\Enums\\CharacterOrderByEnum."])
+            serde_json::json!([
+                "The order by field is not a valid App\\Enums\\CharacterOrderByEnum."
+            ])
         );
     }
 
@@ -113,6 +111,9 @@ mod tests {
             1
         );
         let messages = bag(CharacterLookupCommand::parse(0, &Query::new()).unwrap_err());
-        assert_eq!(messages["id"], serde_json::json!(["The id must be at least 1."]));
+        assert_eq!(
+            messages["id"],
+            serde_json::json!(["The id must be at least 1."])
+        );
     }
 }

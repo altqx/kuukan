@@ -68,8 +68,7 @@ async fn main(
     // `window + 1` rows reveal whether anything beyond the requested page
     // matches the time window.
     let has_more = alive.len() as u64 > window
-        || (metrics.len() as u64 > window
-            && metrics[window as usize].created_at > cutoff);
+        || (metrics.len() as u64 > window && metrics[window as usize].created_at > cutoff);
 
     let start = page.saturating_sub(1).saturating_mul(limit) as usize;
     let items: Vec<Value> = alive
@@ -111,10 +110,7 @@ async fn trends(
         .map_err(storage_error)?;
 
     let mut counts: BTreeMap<String, u64> = BTreeMap::new();
-    for metric in metrics
-        .iter()
-        .filter(|metric| metric.created_at > cutoff)
-    {
+    for metric in metrics.iter().filter(|metric| metric.created_at > cutoff) {
         *counts.entry(metric_url(metric)).or_default() += 1;
     }
     let mut aggregated: Vec<(String, u64)> = counts.into_iter().collect();
@@ -157,11 +153,7 @@ fn page_limit(state: &AppState, query: &kuukan_core::params::Query) -> (u64, u64
     let page = query_page(query);
     let limit = match query.get("limit") {
         None => max,
-        Some(raw) => raw
-            .trim()
-            .parse::<i64>()
-            .unwrap_or(0)
-            .clamp(1, max as i64) as u64,
+        Some(raw) => raw.trim().parse::<i64>().unwrap_or(0).clamp(1, max as i64) as u64,
     };
     (page, limit)
 }
@@ -207,7 +199,11 @@ fn list_page(page: u64, has_more: bool, count: u64) -> Pagination {
     if count == 0 && !has_more {
         return Pagination::list(1, false);
     }
-    let last_visible_page = if has_more { page.saturating_add(1) } else { page };
+    let last_visible_page = if has_more {
+        page.saturating_add(1)
+    } else {
+        page
+    };
     Pagination::list(last_visible_page, has_more)
 }
 

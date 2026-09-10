@@ -4,9 +4,7 @@ use serde_json::Value;
 
 use crate::client::MalClient;
 use crate::error::MalError;
-use crate::parser::watch::{
-    WatchEpisodesParser, WatchPromotionalVideosParser,
-};
+use crate::parser::watch::{WatchEpisodesParser, WatchPromotionalVideosParser};
 use crate::request::watch::{
     PopularEpisodesRequest, PopularPromotionalVideosRequest, RecentEpisodesRequest,
     RecentPromotionalVideosRequest,

@@ -7,7 +7,7 @@ use kuukan_core::error::ApiError;
 use kuukan_core::params::Query;
 
 use super::base::{
-    check_search_q, id_lookup_command, id_page_lookup_command,     QueryParser, SearchCommand,
+    check_search_q, id_lookup_command, id_page_lookup_command, QueryParser, SearchCommand,
 };
 
 /// PHP `App\Dto\ClubSearchCommand`.
@@ -31,11 +31,9 @@ impl ClubSearchCommand {
     pub fn parse(query: &Query) -> Result<Self, ApiError> {
         let mut parser = QueryParser::clean(query);
         let search = SearchCommand::parse_with(&mut parser);
-        let category =
-            parser.enum_optional::<ClubCategory>("category", ClubCategory::PHP_CLASS);
+        let category = parser.enum_optional::<ClubCategory>("category", ClubCategory::PHP_CLASS);
         let club_type = parser.enum_optional::<ClubType>("type", ClubType::PHP_CLASS);
-        let order_by =
-            parser.enum_optional::<ClubOrderBy>("order_by", ClubOrderBy::PHP_CLASS);
+        let order_by = parser.enum_optional::<ClubOrderBy>("order_by", ClubOrderBy::PHP_CLASS);
         parser.finish()?;
         let command = Self {
             search: search?,
@@ -115,10 +113,15 @@ mod tests {
 
     #[test]
     fn club_members_page() {
-        let command = ClubMembersLookupCommand::parse(1, &Query::from_pairs([("page", "3")])).unwrap();
+        let command =
+            ClubMembersLookupCommand::parse(1, &Query::from_pairs([("page", "3")])).unwrap();
         assert_eq!(command.page, 3);
-        let messages =
-            bag(ClubMembersLookupCommand::parse(1, &Query::from_pairs([("page", "x")])).unwrap_err());
-        assert_eq!(messages["page"], serde_json::json!(["The page must be a number."]));
+        let messages = bag(
+            ClubMembersLookupCommand::parse(1, &Query::from_pairs([("page", "x")])).unwrap_err(),
+        );
+        assert_eq!(
+            messages["page"],
+            serde_json::json!(["The page must be a number."])
+        );
     }
 }

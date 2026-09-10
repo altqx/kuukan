@@ -6,9 +6,7 @@ use kuukan_core::enums::PeopleOrderBy;
 use kuukan_core::error::ApiError;
 use kuukan_core::params::Query;
 
-use super::base::{
-    check_search_q, id_lookup_command, QueryParser, SearchCommand,
-};
+use super::base::{check_search_q, id_lookup_command, QueryParser, SearchCommand};
 
 /// PHP `App\Dto\PeopleSearchCommand`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,8 +27,7 @@ impl PeopleSearchCommand {
     pub fn parse(query: &Query) -> Result<Self, ApiError> {
         let mut parser = QueryParser::clean(query);
         let search = SearchCommand::parse_with(&mut parser);
-        let order_by =
-            parser.enum_optional::<PeopleOrderBy>("order_by", PeopleOrderBy::PHP_CLASS);
+        let order_by = parser.enum_optional::<PeopleOrderBy>("order_by", PeopleOrderBy::PHP_CLASS);
         parser.finish()?;
         let command = Self {
             search: search?,
@@ -106,6 +103,9 @@ mod tests {
     fn person_lookup_min_id() {
         assert_eq!(PersonLookupCommand::parse(3, &Query::new()).unwrap().id, 3);
         let messages = bag(PersonLookupCommand::parse(0, &Query::new()).unwrap_err());
-        assert_eq!(messages["id"], serde_json::json!(["The id must be at least 1."]));
+        assert_eq!(
+            messages["id"],
+            serde_json::json!(["The id must be at least 1."])
+        );
     }
 }

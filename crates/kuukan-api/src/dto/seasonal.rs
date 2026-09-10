@@ -99,11 +99,8 @@ impl QuerySpecificAnimeSeasonCommand {
         let mut parser = QueryParser::clean(query);
         let base = QueryAnimeSeasonCommand::parse_with(&mut parser);
         let year = parser.year(year);
-        let season_name = parser.enum_required::<AnimeSeason>(
-            "season",
-            Some(season),
-            AnimeSeason::PHP_CLASS,
-        );
+        let season_name =
+            parser.enum_required::<AnimeSeason>("season", Some(season), AnimeSeason::PHP_CLASS);
         parser.finish()?;
         Ok(Self {
             season: base?,
@@ -123,8 +120,7 @@ mod tests {
 
     #[test]
     fn season_defaults() {
-        let command =
-            QueryCurrentAnimeSeasonCommand::parse(&Query::new()).unwrap();
+        let command = QueryCurrentAnimeSeasonCommand::parse(&Query::new()).unwrap();
         assert_eq!(command.page, 1);
         assert_eq!(command.limit, 25);
         assert!(!command.sfw);
@@ -144,8 +140,7 @@ mod tests {
             ("filter", "tv"),
             ("limit", "10"),
         ]);
-        let command =
-            QueryUpcomingAnimeSeasonCommand::parse(&query).unwrap();
+        let command = QueryUpcomingAnimeSeasonCommand::parse(&query).unwrap();
         assert!(command.sfw);
         assert_eq!(command.kids, Some(true));
         assert!(command.unapproved);
@@ -157,8 +152,7 @@ mod tests {
     #[test]
     fn season_invalid_filter() {
         let query = Query::from_pairs([("filter", "bogus"), ("kids", "x")]);
-        let messages =
-            bag(QueryCurrentAnimeSeasonCommand::parse(&query).unwrap_err());
+        let messages = bag(QueryCurrentAnimeSeasonCommand::parse(&query).unwrap_err());
         assert_eq!(
             messages["filter"],
             serde_json::json!(["The filter field is not a valid App\\Enums\\AnimeTypeEnum."])
@@ -172,16 +166,13 @@ mod tests {
     #[test]
     fn specific_season_route_params() {
         let command =
-            QuerySpecificAnimeSeasonCommand::parse(2024, "winter", &Query::new())
-                .unwrap();
+            QuerySpecificAnimeSeasonCommand::parse(2024, "winter", &Query::new()).unwrap();
         assert_eq!(command.year, 2024);
         assert_eq!(command.season_name, AnimeSeason::Winter);
         assert_eq!(command.limit, 25);
 
-        let messages = bag(
-            QuerySpecificAnimeSeasonCommand::parse(999, "winter", &Query::new())
-                .unwrap_err(),
-        );
+        let messages =
+            bag(QuerySpecificAnimeSeasonCommand::parse(999, "winter", &Query::new()).unwrap_err());
         assert_eq!(
             messages["year"],
             serde_json::json!(["The year must be between 1000 and 2999."])
@@ -190,10 +181,8 @@ mod tests {
         // The PHP `messages()` override for `season.enum` is unreachable:
         // `getFromLocalArray()` is queried with the rule class name, so the
         // default EnumRule string is used.
-        let messages = bag(
-            QuerySpecificAnimeSeasonCommand::parse(2024, "bogus", &Query::new())
-                .unwrap_err(),
-        );
+        let messages =
+            bag(QuerySpecificAnimeSeasonCommand::parse(2024, "bogus", &Query::new()).unwrap_err());
         assert_eq!(
             messages["season"],
             serde_json::json!(["The season field is not a valid App\\Enums\\AnimeSeasonEnum."])

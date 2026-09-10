@@ -66,9 +66,10 @@ impl<'a> RecentRecommendationsParser<'a> {
     /// `RecentRecommendationsParser::getRecentRecommendations()`.
     pub fn get_recent_recommendations(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
-        for node in self.doc.nodes(
-            "//*[@id=\"content\"]/div[3]/div[contains(@class, \"spaceit borderClass\")]",
-        )? {
+        for node in self
+            .doc
+            .nodes("//*[@id=\"content\"]/div[3]/div[contains(@class, \"spaceit borderClass\")]")?
+        {
             out.push(RecommendationListItemParser::new(&node).get_model()?);
         }
         Ok(out)
@@ -98,7 +99,7 @@ impl<'a> RecentRecommendationsParser<'a> {
         let Some(text) = self.doc.text("//*[@id=\"horiznav_nav\"]/div/span")? else {
             return Ok(1);
         };
-        let last = text.split(' ').last().unwrap_or_default();
+        let last = text.split(' ').next_back().unwrap_or_default();
         Ok(last.replace(['[', ']'], "").parse().unwrap_or(1))
     }
 }
@@ -118,7 +119,10 @@ impl<'a> RecommendationListItemParser<'a> {
         let entry = self.get_recommendations()?;
         let mal_id = format!(
             "{}-{}",
-            entry.first().and_then(|e| e["mal_id"].as_i64()).unwrap_or(0),
+            entry
+                .first()
+                .and_then(|e| e["mal_id"].as_i64())
+                .unwrap_or(0),
             entry.get(1).and_then(|e| e["mal_id"].as_i64()).unwrap_or(0)
         );
         // PHP assigns `user` before `date`; `getDate()` removes the anchor

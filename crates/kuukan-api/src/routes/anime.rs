@@ -30,10 +30,10 @@ use crate::dto::anime::{
     AnimeCharactersLookupCommand, AnimeEpisodeLookupCommand, AnimeEpisodesLookupCommand,
     AnimeExternalLookupCommand, AnimeForumLookupCommand, AnimeFullLookupCommand,
     AnimeLookupCommand, AnimeMoreInfoLookupCommand, AnimeNewsLookupCommand,
-    AnimePicturesLookupCommand, AnimeRecommendationsLookupCommand,
-    AnimeRelationsLookupCommand, AnimeReviewsLookupCommand, AnimeStaffLookupCommand,
-    AnimeStatsLookupCommand, AnimeStreamingLookupCommand, AnimeThemesLookupCommand,
-    AnimeUserUpdatesLookupCommand, AnimeVideosEpisodesLookupCommand, AnimeVideosLookupCommand,
+    AnimePicturesLookupCommand, AnimeRecommendationsLookupCommand, AnimeRelationsLookupCommand,
+    AnimeReviewsLookupCommand, AnimeStaffLookupCommand, AnimeStatsLookupCommand,
+    AnimeStreamingLookupCommand, AnimeThemesLookupCommand, AnimeUserUpdatesLookupCommand,
+    AnimeVideosEpisodesLookupCommand, AnimeVideosLookupCommand,
 };
 use crate::error::ApiErrorResponse;
 use crate::extract::RawQuery;
@@ -114,12 +114,7 @@ where
 
 /// Render a mapper result with the Jikan cache flags for `uri`.
 fn render(data: Value, uri: &str, cached: CachedPayload, ttl: u64) -> Response {
-    json_with_cache_flags(
-        data,
-        &fingerprint("anime", uri),
-        cached.modified_at,
-        ttl,
-    )
+    json_with_cache_flags(data, &fingerprint("anime", uri), cached.modified_at, ttl)
 }
 
 async fn main(
@@ -205,11 +200,7 @@ async fn episode(
     OriginalUri(uri): OriginalUri,
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
-    let command = AnimeEpisodeLookupCommand::parse(
-        route_id(&id)?,
-        route_id(&episode_id)?,
-        &query,
-    )?;
+    let command = AnimeEpisodeLookupCommand::parse(route_id(&id)?, route_id(&episode_id)?, &query)?;
     let mal = state.mal.clone();
     let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
         kuukan_mal::api::anime::get_anime_episode(&mal, command.id, command.episode_id).await

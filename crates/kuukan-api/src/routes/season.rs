@@ -226,15 +226,14 @@ pub(crate) fn season_matches(
                     matched = true;
                 }
                 // Currently airing carry overs.
-                if start <= *from && end.map_or(false, |end| end >= *from) {
+                if start <= *from && end.is_some_and(|end| end >= *from) {
                     matched = true;
                 }
                 // MAL has not published the end date yet; keep entries that
                 // started within the last three months with enough episodes.
                 let months = (from.year() - start.year()) * 12
                     + (from.month() as i32 - start.month() as i32);
-                if end.is_none() && episodes.map_or(false, |e| e >= 14) && months > 0 && months <= 3
-                {
+                if end.is_none() && episodes.is_some_and(|e| e >= 14) && months > 0 && months <= 3 {
                     matched = true;
                 }
             }
@@ -381,7 +380,7 @@ pub(crate) fn passes_media_filters(
 fn has_mal_id(item: &Value, field: &str, mal_id: i32) -> bool {
     item.get(field)
         .and_then(Value::as_array)
-        .map_or(false, |entries| {
+        .is_some_and(|entries| {
             entries
                 .iter()
                 .any(|entry| entry.get("mal_id").and_then(Value::as_i64) == Some(i64::from(mal_id)))

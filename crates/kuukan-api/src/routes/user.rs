@@ -139,7 +139,10 @@ where
         let mut segments = path.trim_start_matches('/').splitn(4, '/');
         match (segments.next(), segments.next(), segments.next()) {
             (Some(version), Some(family), Some(username)) => {
-                format!("/{version}/{family}/{}", username.split('/').next().unwrap_or(username))
+                format!(
+                    "/{version}/{family}/{}",
+                    username.split('/').next().unwrap_or(username)
+                )
             }
             _ => path.to_string(),
         }

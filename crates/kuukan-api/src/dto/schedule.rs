@@ -69,8 +69,7 @@ mod tests {
 
     #[test]
     fn schedules_filter_values() {
-        let command =
-            QueryAnimeSchedulesCommand::parse(Some("monday"), &Query::new()).unwrap();
+        let command = QueryAnimeSchedulesCommand::parse(Some("monday"), &Query::new()).unwrap();
         assert_eq!(command.filter, Some(AnimeScheduleFilter::Monday));
 
         let query = Query::from_pairs([("filter", "sunday")]);
@@ -80,18 +79,17 @@ mod tests {
 
     #[test]
     fn schedules_invalid_filter_and_bool() {
-        let error =
-            QueryAnimeSchedulesCommand::parse(Some("bogus"), &Query::new()).unwrap_err();
+        let error = QueryAnimeSchedulesCommand::parse(Some("bogus"), &Query::new()).unwrap_err();
         let body = bag(error);
         assert_eq!(
             body["messages"]["filter"],
-            serde_json::json!(["The filter field is not a valid App\\Enums\\AnimeScheduleFilterEnum."])
+            serde_json::json!([
+                "The filter field is not a valid App\\Enums\\AnimeScheduleFilterEnum."
+            ])
         );
 
         let query = Query::from_pairs([("kids", "maybe")]);
-        let body = bag(
-            QueryAnimeSchedulesCommand::parse(None, &query).unwrap_err(),
-        );
+        let body = bag(QueryAnimeSchedulesCommand::parse(None, &query).unwrap_err());
         assert_eq!(
             body["messages"]["kids"],
             serde_json::json!(["The kids field must be true or false."])
@@ -102,8 +100,7 @@ mod tests {
     fn schedules_empty_filter_is_a_cast_error() {
         // `filter` is nullable (not Optional): the empty string skips the
         // `EnumRule` and then `EnumCast` throws, exactly like PHP.
-        let error = QueryAnimeSchedulesCommand::parse(Some(""), &Query::new())
-            .unwrap_err();
+        let error = QueryAnimeSchedulesCommand::parse(Some(""), &Query::new()).unwrap_err();
         assert_eq!(error.status(), 500);
     }
 }

@@ -75,12 +75,9 @@ pub fn build_router(state: AppState) -> Router {
         state.config.rate_limit_per_minute,
     );
 
-    let api = crate::routes::api_router()
-        .route("/", get(root))
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            source_health_middleware,
-        ));
+    let api = crate::routes::api_router().route("/", get(root)).layer(
+        axum::middleware::from_fn_with_state(state.clone(), source_health_middleware),
+    );
     let mut router = Router::new()
         .route("/", get(root))
         .nest("/v1", api)

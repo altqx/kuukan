@@ -73,7 +73,10 @@ mod tests {
             out["pagination"],
             json!({"last_visible_page": 1, "has_next_page": false})
         );
-        assert_eq!(out["data"][0], json!({"year": 2020, "seasons": ["winter", "spring", "summer", "fall"]}));
+        assert_eq!(
+            out["data"][0],
+            json!({"year": 2020, "seasons": ["winter", "spring", "summer", "fall"]})
+        );
     }
 
     #[test]
@@ -119,8 +122,14 @@ mod tests {
     #[test]
     fn upcoming_and_specific_share_the_collection_envelope() {
         let items = vec![json!({"mal_id": 9})];
-        assert_eq!(season_upcoming(&search_pagination(), &items), season_now(&search_pagination(), &items));
-        assert_eq!(season_main(&search_pagination(), &items), season_now(&search_pagination(), &items));
+        assert_eq!(
+            season_upcoming(&search_pagination(), &items),
+            season_now(&search_pagination(), &items)
+        );
+        assert_eq!(
+            season_main(&search_pagination(), &items),
+            season_now(&search_pagination(), &items)
+        );
     }
 
     #[test]

@@ -140,10 +140,7 @@ impl<'a> ReviewerParser<'a> {
             return Ok(node.node_attr("href").unwrap_or_default());
         }
         // works on Top UserReviewsParser pages, the div is shifted
-        match self
-            .node
-            .first("//div[1]/div[1]/div[4]/table/tr/td[2]/a")?
-        {
+        match self.node.first("//div[1]/div[1]/div[4]/table/tr/td[2]/a")? {
             Some(node) => Ok(node.node_attr("href").unwrap_or_default()),
             None => Err(ParseError::InvalidXPath(
                 "Couldn't find any URL on review pages.".to_string(),
@@ -229,18 +226,17 @@ impl<'a> ReactionsParser<'a> {
         if raw.is_empty() {
             return serde_json::from_str(DEFAULT_REACTIONS).expect("valid default");
         }
-        serde_json::from_str(&raw).unwrap_or_else(|_| {
-            serde_json::from_str(DEFAULT_REACTIONS).expect("valid default")
-        })
+        serde_json::from_str(&raw)
+            .unwrap_or_else(|_| serde_json::from_str(DEFAULT_REACTIONS).expect("valid default"))
     }
 }
 
 /// PHP `(int)` for `serde_json::Value` scalars (numbers and numeric strings).
 fn json_to_int(value: &JsonValue) -> Option<i64> {
     match value {
-        JsonValue::Number(number) => number.as_i64().or_else(|| {
-            number.as_f64().map(|float| float as i64)
-        }),
+        JsonValue::Number(number) => number
+            .as_i64()
+            .or_else(|| number.as_f64().map(|float| float as i64)),
         JsonValue::String(string) => Some(crate::parser::search::php_intval(string)),
         _ => None,
     }
@@ -399,10 +395,7 @@ impl<'a> AnimeReviewParser<'a> {
     /// `AnimeReviewParser::getType()`.
     pub fn get_type(&self) -> Result<Option<String>, ParseError> {
         // Anime/Manga and User Reviews page
-        if let Some(node) = self
-            .node
-            .first("//div/div/div[2]/div[2]/small")?
-        {
+        if let Some(node) = self.node.first("//div/div/div[2]/div[2]/small")? {
             return Ok(Some(
                 node.node_text()
                     .replace(['(', ')'], "")

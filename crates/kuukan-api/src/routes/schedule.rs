@@ -116,9 +116,7 @@ fn broadcast_matches(item: &Value, filter: AnimeScheduleFilter) -> bool {
 
     if filter.is_week_day() {
         // PHP label is the lowercase index (e.g. `monday`).
-        day.map_or(false, |day| {
-            day.to_ascii_lowercase().starts_with(filter.as_str())
-        })
+        day.is_some_and(|day| day.to_ascii_lowercase().starts_with(filter.as_str()))
     } else {
         let label = filter.as_str();
         day == Some(label)

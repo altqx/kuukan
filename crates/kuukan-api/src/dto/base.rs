@@ -43,9 +43,7 @@
 use std::ops::Deref;
 
 use chrono::Datelike;
-use kuukan_core::enums::{
-    EnumParseError, GenreFilter, MediaReviewsSort, SortDirection,
-};
+use kuukan_core::enums::{EnumParseError, GenreFilter, MediaReviewsSort, SortDirection};
 use kuukan_core::error::ApiError;
 use kuukan_core::params::Query;
 use kuukan_core::util::max_results_per_page;
@@ -139,10 +137,7 @@ pub fn php_is_integer(raw: &str) -> bool {
 /// PHP `(int) $value` for scalar strings.
 pub fn php_intval(raw: &str) -> i64 {
     if php_is_numeric(raw) {
-        raw.trim()
-            .parse::<f64>()
-            .map(|v| v as i64)
-            .unwrap_or(0)
+        raw.trim().parse::<f64>().map(|v| v as i64).unwrap_or(0)
     } else {
         0
     }
@@ -188,9 +183,7 @@ fn cast_error(error: impl Into<String>) -> ApiError {
 }
 
 fn enum_cast_error(php_class: &str) -> ApiError {
-    cast_error(format!(
-        "Could not cast enum: `` into a `{php_class}`"
-    ))
+    cast_error(format!("Could not cast enum: `` into a `{php_class}`"))
 }
 
 /// The three enums with duplicate labels cannot resolve in PHP: `EnumRule`
@@ -564,10 +557,7 @@ impl QueryReviewsCommand {
         let page = parser.page()?;
         let preliminary = parser.optional_bool_flag("preliminary");
         let spoilers = parser.optional_bool_flag("spoilers");
-        let sort = parser.enum_optional::<MediaReviewsSort>(
-            "sort",
-            MediaReviewsSort::PHP_CLASS,
-        );
+        let sort = parser.enum_optional::<MediaReviewsSort>("sort", MediaReviewsSort::PHP_CLASS);
         Ok(Self {
             page,
             preliminary,
@@ -642,8 +632,7 @@ pub struct GenreListCommand {
 
 impl GenreListCommand {
     pub(crate) fn parse_with(parser: &mut QueryParser) -> Result<Self, ApiError> {
-        let filter =
-            parser.enum_optional::<GenreFilter>("filter", GenreFilter::PHP_CLASS);
+        let filter = parser.enum_optional::<GenreFilter>("filter", GenreFilter::PHP_CLASS);
         Ok(Self { filter: filter? })
     }
 
@@ -1133,8 +1122,7 @@ impl<'a> QueryParser<'a> {
                 if is_broken_enum(php_class) {
                     return Err(broken_enum_error(php_class, raw));
                 }
-                self.validator
-                    .enum_rule(field, raw, &[], php_class);
+                self.validator.enum_rule(field, raw, &[], php_class);
                 Ok(None)
             }
         }
@@ -1246,11 +1234,7 @@ impl<'a> QueryParser<'a> {
     }
 
     /// `int|Optional` with `#[IntegerType, Min(1)]` (`producer` on anime).
-    pub fn int_min_integer(
-        &mut self,
-        field: &str,
-        min: f64,
-    ) -> Result<Option<i64>, ApiError> {
+    pub fn int_min_integer(&mut self, field: &str, min: f64) -> Result<Option<i64>, ApiError> {
         let Some(raw) = self.int_raw(field, field)? else {
             return Ok(None);
         };
@@ -1294,11 +1278,7 @@ impl<'a> QueryParser<'a> {
     /// Shared `Optional int` handling: returns `None` for absent values,
     /// errors when PHP would fail the int cast, and otherwise hands back the
     /// raw string for rule checks.
-    fn int_raw(
-        &mut self,
-        field: &str,
-        property: &str,
-    ) -> Result<Option<String>, ApiError> {
+    fn int_raw(&mut self, field: &str, property: &str) -> Result<Option<String>, ApiError> {
         let Some(raw) = self.get(field) else {
             return Ok(None);
         };
@@ -1403,8 +1383,14 @@ impl<'a> QueryParser<'a> {
         }
 
         (
-            from_raw.as_deref().and_then(php_lenient_date).map(to_date_only),
-            to_raw.as_deref().and_then(php_lenient_date).map(to_date_only),
+            from_raw
+                .as_deref()
+                .and_then(php_lenient_date)
+                .map(to_date_only),
+            to_raw
+                .as_deref()
+                .and_then(php_lenient_date)
+                .map(to_date_only),
         )
     }
 
@@ -1484,7 +1470,6 @@ impl<'a> QueryParser<'a> {
         }
         year
     }
-
 }
 
 /// Records the search-handler `q` control-character rejection
@@ -1708,7 +1693,10 @@ mod tests {
         let mut parser = QueryParser::clean(&query);
         parser.page().unwrap();
         let bag = messages(parser.finish().unwrap_err());
-        assert_eq!(bag["page"], serde_json::json!(["The page must be a number."]));
+        assert_eq!(
+            bag["page"],
+            serde_json::json!(["The page must be a number."])
+        );
 
         let query = Query::from_pairs([("page", "0")]);
         assert_eq!(QueryParser::clean(&query).page().unwrap(), 1);
@@ -1746,7 +1734,9 @@ mod tests {
         let bag = messages(parser.finish().unwrap_err());
         assert_eq!(
             bag["score"],
-            serde_json::json!(["The score field prohibits min score / max score from being present."])
+            serde_json::json!([
+                "The score field prohibits min score / max score from being present."
+            ])
         );
     }
 
@@ -1763,7 +1753,10 @@ mod tests {
     fn lookup_base_commands_validate_route_params() {
         assert_eq!(LookupDataCommand::parse(1, &Query::new()).unwrap().id, 1);
         let err = LookupDataCommand::parse(0, &Query::new()).unwrap_err();
-        assert_eq!(err.body(false)["messages"]["id"][0], "The id must be at least 1.");
+        assert_eq!(
+            err.body(false)["messages"]["id"][0],
+            "The id must be at least 1."
+        );
 
         assert_eq!(
             LookupByUsernameCommand::parse("nekomata", &Query::new())

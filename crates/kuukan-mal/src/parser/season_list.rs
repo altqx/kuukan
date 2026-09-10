@@ -96,6 +96,9 @@ mod tests {
         let model = SeasonListParser::new(&doc).get_model().unwrap();
         assert_eq!(model["results"][0]["year"], 2023);
         assert_eq!(model["results"][0]["seasons"], json!(["winter", "spring"]));
-        assert_eq!(model["results"][1]["seasons"], json!(["winter", "spring", "summer", "fall"]));
+        assert_eq!(
+            model["results"][1]["seasons"],
+            json!(["winter", "spring", "summer", "fall"])
+        );
     }
 }

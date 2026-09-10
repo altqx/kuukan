@@ -15,11 +15,17 @@ use crate::request::MalRequest;
 pub async fn get_character(client: &MalClient, id: i64) -> Result<Value, MalError> {
     let path = CharacterRequest::new(id).path();
     if id == 0 {
-        return Err(MalError::BadResponse { status: 404, url: path });
+        return Err(MalError::BadResponse {
+            status: 404,
+            url: path,
+        });
     }
     let doc = client.get_html(&path).await?;
     if doc.count("//*[@id=\"content\"]/div[@class=\"badresult\"]")? > 0 {
-        return Err(MalError::BadResponse { status: 404, url: path });
+        return Err(MalError::BadResponse {
+            status: 404,
+            url: path,
+        });
     }
     CharacterParser::new(doc)
         .model()

@@ -224,7 +224,7 @@ mod tests {
 
     #[test]
     fn user_manga_list_order_by_is_unresolvable_in_php() {
-        assert!(!UserMangaListOrderBy::RESOLVES_IN_PHP);
+        const { assert!(!UserMangaListOrderBy::RESOLVES_IN_PHP) };
         assert_eq!(
             UserMangaListOrderBy::PHP_CLASS,
             "App\\Enums\\UserMangaListOrderByEnum"
@@ -241,7 +241,7 @@ mod tests {
 
     #[test]
     fn user_manga_list_status_filter_is_unresolvable_in_php() {
-        assert!(!UserMangaListStatusFilter::RESOLVES_IN_PHP);
+        const { assert!(!UserMangaListStatusFilter::RESOLVES_IN_PHP) };
         assert_eq!(
             UserMangaListStatusFilter::PHP_CLASS,
             "App\\Enums\\UserMangaListStatusFilterEnum"

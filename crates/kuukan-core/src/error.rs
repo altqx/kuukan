@@ -107,7 +107,9 @@ fn urlencoding(s: &str) -> String {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ApiError {
     /// 400 `ValidationException` from DTO validation rules.
-    Validation { messages: BTreeMap<String, Vec<String>> },
+    Validation {
+        messages: BTreeMap<String, Vec<String>>,
+    },
     /// 400 `BadRequestException` thrown by controllers.
     BadRequest { message: String },
     /// `HttpException`, rendered with the status text as message (e.g. 404 Not Found).
@@ -120,11 +122,20 @@ pub enum ApiError {
         error: Option<String>,
     },
     /// Request to MAL timed out.
-    UpstreamTimeout { timeout_secs: u64, error: Option<String> },
+    UpstreamTimeout {
+        timeout_secs: u64,
+        error: Option<String>,
+    },
     /// Parser failure (`ParserException`).
-    Parser { error: Option<String>, report_url: Option<String> },
+    Parser {
+        error: Option<String>,
+        report_url: Option<String>,
+    },
     /// Storage/cache connection failure (PHP: Redis ConnectionException).
-    Storage { error: Option<String>, report_url: Option<String> },
+    Storage {
+        error: Option<String>,
+        report_url: Option<String>,
+    },
     /// Unhandled exception.
     Internal {
         message: String,
@@ -180,12 +191,7 @@ impl ApiError {
 
     pub fn parser(error: impl Into<String>) -> Self {
         let error = error.into();
-        let report_url = github_report_url(
-            JIKAN_PARSER_REPO,
-            "ParserException",
-            &error,
-            None,
-        );
+        let report_url = github_report_url(JIKAN_PARSER_REPO, "ParserException", &error, None);
         ApiError::Parser {
             error: Some(error),
             report_url: Some(report_url),
@@ -371,7 +377,8 @@ mod tests {
 
     #[test]
     fn mal_404_body_matches_php() {
-        let body = ApiError::from_upstream_status(404, "404 on https://myanimelist.net/anime/1").body(false);
+        let body = ApiError::from_upstream_status(404, "404 on https://myanimelist.net/anime/1")
+            .body(false);
         assert_eq!(
             body,
             json!({
@@ -395,7 +402,10 @@ mod tests {
     #[test]
     fn validation_envelope() {
         let mut messages = BTreeMap::new();
-        messages.insert("q".to_string(), vec!["The q field is required.".to_string()]);
+        messages.insert(
+            "q".to_string(),
+            vec!["The q field is required.".to_string()],
+        );
         let body = ApiError::Validation { messages }.body(false);
         assert_eq!(body["type"], "ValidationException");
         assert_eq!(body["messages"]["q"][0], "The q field is required.");

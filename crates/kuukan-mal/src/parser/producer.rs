@@ -160,7 +160,9 @@ impl ProducerParser {
     pub fn anime_count(&self) -> Result<i64, ParseError> {
         let text = self
             .doc
-            .text("//*[@id=\"content\"]/div[2]/div[contains(@class, \"navi-seasonal\")]/div/ul/li[1]")?
+            .text(
+                "//*[@id=\"content\"]/div[2]/div[contains(@class, \"navi-seasonal\")]/div/ul/li[1]",
+            )?
             .unwrap_or_default();
         let Some(caps) = count_re().captures(&text) else {
             return Ok(0);

@@ -57,8 +57,12 @@ async fn load(
 
     let mal = state.mal.clone();
     let cached = cache_or_scrape(state, "recommendations", &uri, ttl, move || async move {
-        kuukan_mal::api::recommendations::get_recent_recommendations(&mal, recommendation_type, None)
-            .await
+        kuukan_mal::api::recommendations::get_recent_recommendations(
+            &mal,
+            recommendation_type,
+            None,
+        )
+        .await
     })
     .await?;
 

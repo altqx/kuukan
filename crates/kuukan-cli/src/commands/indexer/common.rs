@@ -288,6 +288,7 @@ impl IndexReport {
 /// every `IndexPipeline::DEFAULT_BATCH_SIZE` operations (250) and is flushed
 /// explicitly when the run ends. A MAL 404 is skipped without a failure entry
 /// (like jikan); any other error is appended to `failed_path`.
+#[allow(clippy::too_many_arguments)] // mirrors the indexer command's knobs
 pub async fn index_ids<F, Fut>(
     state: &AppState,
     store_kind: StoreKind,
@@ -385,6 +386,7 @@ async fn store_and_index(
 }
 
 /// Apply `--reverse` / `--resume` / `--index` and run [`index_ids`].
+#[allow(clippy::too_many_arguments)] // plumbing for [`index_ids`]
 pub async fn run_ids<F, Fut>(
     state: &AppState,
     store_kind: StoreKind,

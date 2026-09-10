@@ -2,9 +2,7 @@
 
 use std::ops::Deref;
 
-use kuukan_core::enums::{
-    MangaForumFilter, MangaOrderBy, MangaStatus, MangaType,
-};
+use kuukan_core::enums::{MangaForumFilter, MangaOrderBy, MangaStatus, MangaType};
 use kuukan_core::error::ApiError;
 use kuukan_core::params::Query;
 
@@ -35,14 +33,10 @@ impl MangaSearchCommand {
     pub fn parse(query: &Query) -> Result<Self, ApiError> {
         let mut parser = QueryParser::clean(query);
         let media = MediaSearchCommand::parse_with(&mut parser);
-        let status =
-            parser.enum_optional::<MangaStatus>("status", MangaStatus::PHP_CLASS);
+        let status = parser.enum_optional::<MangaStatus>("status", MangaStatus::PHP_CLASS);
         let manga_type = parser.enum_optional::<MangaType>("type", MangaType::PHP_CLASS);
         let magazines = parser.optional_string("magazines");
-        let order_by = parser.enum_optional::<MangaOrderBy>(
-            "order_by",
-            MangaOrderBy::PHP_CLASS,
-        );
+        let order_by = parser.enum_optional::<MangaOrderBy>("order_by", MangaOrderBy::PHP_CLASS);
         parser.finish()?;
         let command = Self {
             media: media?,
@@ -89,12 +83,13 @@ impl MangaForumLookupCommand {
     pub fn parse(id: i64, query: &Query) -> Result<Self, ApiError> {
         let mut parser = QueryParser::new(query);
         let id = parser.id(id);
-        let filter = parser.enum_optional::<MangaForumFilter>(
-            "filter",
-            MangaForumFilter::PHP_CLASS,
-        );
+        let filter =
+            parser.enum_optional::<MangaForumFilter>("filter", MangaForumFilter::PHP_CLASS);
         parser.finish()?;
-        Ok(Self { id, filter: filter? })
+        Ok(Self {
+            id,
+            filter: filter?,
+        })
     }
 }
 
@@ -241,8 +236,12 @@ mod tests {
         let query = Query::from_pairs([("page", "2")]);
         let command = MangaNewsLookupCommand::parse(1, &query).unwrap();
         assert_eq!(command.page, 2);
-        let messages = bag(MangaNewsLookupCommand::parse(1, &Query::from_pairs([("page", "x")])).unwrap_err());
-        assert_eq!(messages["page"], serde_json::json!(["The page must be a number."]));
+        let messages =
+            bag(MangaNewsLookupCommand::parse(1, &Query::from_pairs([("page", "x")])).unwrap_err());
+        assert_eq!(
+            messages["page"],
+            serde_json::json!(["The page must be a number."])
+        );
     }
 
     #[test]
@@ -250,13 +249,16 @@ mod tests {
         let query = Query::from_pairs([("filter", "chapters")]);
         let command = MangaForumLookupCommand::parse(1, &query).unwrap();
         assert_eq!(command.filter, Some(MangaForumFilter::Chapters));
-        let messages = bag(
-            MangaForumLookupCommand::parse(1, &Query::from_pairs([("filter", "x")]))
-                .unwrap_err(),
-        );
+        let messages = bag(MangaForumLookupCommand::parse(
+            1,
+            &Query::from_pairs([("filter", "x")]),
+        )
+        .unwrap_err());
         assert_eq!(
             messages["filter"],
-            serde_json::json!(["The filter field is not a valid App\\Enums\\MangaForumFilterEnum."])
+            serde_json::json!([
+                "The filter field is not a valid App\\Enums\\MangaForumFilterEnum."
+            ])
         );
     }
 

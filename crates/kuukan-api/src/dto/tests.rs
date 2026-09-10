@@ -34,7 +34,8 @@ fn bag(err: ApiError) -> serde_json::Value {
 fn every_command_parses_defaults() {
     // Anime
     assert!(AnimeSearchCommand::parse(&Query::new()).is_ok());
-    for id in [1_i64] {
+    {
+        let id = 1_i64;
         assert!(AnimeLookupCommand::parse(id, &Query::new()).is_ok());
         assert!(AnimeFullLookupCommand::parse(id, &Query::new()).is_ok());
         assert!(AnimeCharactersLookupCommand::parse(id, &Query::new()).is_ok());
@@ -111,7 +112,8 @@ fn every_command_parses_defaults() {
     assert!(MangaGenreListCommand::parse(&Query::new()).is_ok());
 
     // Users
-    for username in ["nekomata"] {
+    {
+        let username = "nekomata";
         assert!(UserAboutLookupCommand::parse(username, &Query::new()).is_ok());
         assert!(UserFullLookupCommand::parse(username, &Query::new()).is_ok());
         assert!(UserProfileLookupCommand::parse(username, &Query::new()).is_ok());
@@ -164,7 +166,9 @@ fn every_command_parses_defaults() {
 #[test]
 fn fingerprint_trait_is_implemented_for_all_fingerprint_commands() {
     fn assert_fingerprint<T: HasRequestFingerprint>(command: &T) {
-        assert!(command.request_fingerprint("/v4/anime").starts_with("request:"));
+        assert!(command
+            .request_fingerprint("/v4/anime")
+            .starts_with("request:"));
     }
     assert_fingerprint(&QueryCurrentAnimeSeasonCommand::parse(&Query::new()).unwrap());
     assert_fingerprint(&QueryAnimeSchedulesCommand::parse(None, &Query::new()).unwrap());
@@ -172,9 +176,7 @@ fn fingerprint_trait_is_implemented_for_all_fingerprint_commands() {
     assert_fingerprint(&UsersSearchCommand::parse(&Query::new()).unwrap());
     assert_fingerprint(&QueryAnimeRecommendationsCommand::parse(&Query::new()).unwrap());
     assert_fingerprint(&QueryPopularEpisodesCommand::parse(&Query::new()).unwrap());
-    assert_fingerprint(
-        &QueryAnimeListOfUserCommand::parse("nekomata", &Query::new()).unwrap(),
-    );
+    assert_fingerprint(&QueryAnimeListOfUserCommand::parse("nekomata", &Query::new()).unwrap());
 }
 
 #[test]
@@ -206,11 +208,16 @@ fn probe_parity_messages() {
     // Captured PHP outputs for cases that are not covered in the family tests.
 
     // `sfw=TRUE` is not converted by PreparesData and fails the boolean rule.
-    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([("sfw", "TRUE")])).unwrap_err());
-    assert_eq!(messages["sfw"], serde_json::json!(["The sfw field must be true or false."]));
+    let messages =
+        bag(AnimeSearchCommand::parse(&Query::from_pairs([("sfw", "TRUE")])).unwrap_err());
+    assert_eq!(
+        messages["sfw"],
+        serde_json::json!(["The sfw field must be true or false."])
+    );
 
     // `limit=1e3` fails `integer`; the custom max rule uses `intval()`.
-    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([("limit", "1e3")])).unwrap_err());
+    let messages =
+        bag(AnimeSearchCommand::parse(&Query::from_pairs([("limit", "1e3")])).unwrap_err());
     assert_eq!(
         messages["limit"],
         serde_json::json!([
@@ -220,13 +227,22 @@ fn probe_parity_messages() {
     );
 
     // `limit=025` is numeric but not a FILTER_VALIDATE_INT value.
-    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([("limit", "025")])).unwrap_err());
-    assert_eq!(messages["limit"], serde_json::json!(["The limit must be an integer."]));
+    let messages =
+        bag(AnimeSearchCommand::parse(&Query::from_pairs([("limit", "025")])).unwrap_err());
+    assert_eq!(
+        messages["limit"],
+        serde_json::json!(["The limit must be an integer."])
+    );
 
     // `producer=0` fails only Min(1); `abc` fails numeric + integer.
-    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([("producer", "0")])).unwrap_err());
-    assert_eq!(messages["producer"], serde_json::json!(["The producer must be at least 1."]));
-    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([("producer", "abc")])).unwrap_err());
+    let messages =
+        bag(AnimeSearchCommand::parse(&Query::from_pairs([("producer", "0")])).unwrap_err());
+    assert_eq!(
+        messages["producer"],
+        serde_json::json!(["The producer must be at least 1."])
+    );
+    let messages =
+        bag(AnimeSearchCommand::parse(&Query::from_pairs([("producer", "abc")])).unwrap_err());
     assert_eq!(
         messages["producer"],
         serde_json::json!([
@@ -237,7 +253,11 @@ fn probe_parity_messages() {
 
     // Between is checked before numeric, and uses the string length when the
     // value is not numeric.
-    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([("min_score", "abcdefghijk")])).unwrap_err());
+    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([(
+        "min_score",
+        "abcdefghijk",
+    )]))
+    .unwrap_err());
     assert_eq!(
         messages["min_score"],
         serde_json::json!([
@@ -245,7 +265,11 @@ fn probe_parity_messages() {
             "The min score must be a number."
         ])
     );
-    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([("max_score", "abcdefghijk")])).unwrap_err());
+    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([(
+        "max_score",
+        "abcdefghijk",
+    )]))
+    .unwrap_err());
     assert_eq!(
         messages["max_score"],
         serde_json::json!([
@@ -255,15 +279,20 @@ fn probe_parity_messages() {
     );
 
     // `min_score=abc` passes `between` because 3 is within [0, 10].
-    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([("min_score", "abc")])).unwrap_err());
-    assert_eq!(messages["min_score"], serde_json::json!(["The min score must be a number."]));
+    let messages =
+        bag(AnimeSearchCommand::parse(&Query::from_pairs([("min_score", "abc")])).unwrap_err());
+    assert_eq!(
+        messages["min_score"],
+        serde_json::json!(["The min score must be a number."])
+    );
 
     // `min_score=abc` passes `lte` because `getSize('abc') == 3` is smaller
     // than the numeric max.
-    let messages = bag(
-        AnimeSearchCommand::parse(&Query::from_pairs([("min_score", "abc"), ("max_score", "5")]))
-            .unwrap_err(),
-    );
+    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([
+        ("min_score", "abc"),
+        ("max_score", "5"),
+    ]))
+    .unwrap_err());
     assert_eq!(
         messages["min_score"],
         serde_json::json!(["The min score must be a number."])
@@ -271,10 +300,11 @@ fn probe_parity_messages() {
     assert!(messages.get("max_score").is_none());
 
     // Cross `lte`/`gte` use the *other* value for the `:value` placeholder.
-    let messages = bag(
-        AnimeSearchCommand::parse(&Query::from_pairs([("min_score", "5"), ("max_score", "abc")]))
-            .unwrap_err(),
-    );
+    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([
+        ("min_score", "5"),
+        ("max_score", "abc"),
+    ]))
+    .unwrap_err());
     assert_eq!(
         messages["min_score"],
         serde_json::json!(["The min score must be less than or equal to 3."])
@@ -288,7 +318,8 @@ fn probe_parity_messages() {
     );
 
     // `q` is truncated by `Max(255)` before the string rule.
-    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([("q", "a".repeat(256))])).unwrap_err());
+    let messages =
+        bag(AnimeSearchCommand::parse(&Query::from_pairs([("q", "a".repeat(256))])).unwrap_err());
     assert_eq!(
         messages["q"],
         serde_json::json!(["The q must not be greater than 255 characters."])
@@ -302,13 +333,11 @@ fn probe_parity_messages() {
 fn date_cross_rule_message_order_matches_php() {
     // `before_or_equal` runs before `date_format`; an unparsable counterpart
     // fails the comparison of the other field as well.
-    let messages = bag(
-        AnimeSearchCommand::parse(&Query::from_pairs([
-            ("start_date", "garbage"),
-            ("end_date", "2020-01-01"),
-        ]))
-        .unwrap_err(),
-    );
+    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([
+        ("start_date", "garbage"),
+        ("end_date", "2020-01-01"),
+    ]))
+    .unwrap_err());
     assert_eq!(
         messages["start_date"],
         serde_json::json!([
@@ -318,23 +347,17 @@ fn date_cross_rule_message_order_matches_php() {
     );
     assert_eq!(
         messages["end_date"],
-        serde_json::json!([
-            "The end date must be a date after or equal to start date."
-        ])
+        serde_json::json!(["The end date must be a date after or equal to start date."])
     );
 
-    let messages = bag(
-        AnimeSearchCommand::parse(&Query::from_pairs([
-            ("start_date", "2020-01-01"),
-            ("end_date", "garbage"),
-        ]))
-        .unwrap_err(),
-    );
+    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([
+        ("start_date", "2020-01-01"),
+        ("end_date", "garbage"),
+    ]))
+    .unwrap_err());
     assert_eq!(
         messages["start_date"],
-        serde_json::json!([
-            "The start date must be a date before or equal to end date."
-        ])
+        serde_json::json!(["The start date must be a date before or equal to end date."])
     );
     assert_eq!(
         messages["end_date"],
@@ -346,13 +369,11 @@ fn date_cross_rule_message_order_matches_php() {
 
     // Slash dates fail `date_format` but Carbon still parses them for the
     // cross-field comparison.
-    let messages = bag(
-        AnimeSearchCommand::parse(&Query::from_pairs([
-            ("start_date", "2020/01/01"),
-            ("end_date", "2019-01-01"),
-        ]))
-        .unwrap_err(),
-    );
+    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([
+        ("start_date", "2020/01/01"),
+        ("end_date", "2019-01-01"),
+    ]))
+    .unwrap_err());
     assert_eq!(
         messages["start_date"],
         serde_json::json!([
@@ -362,9 +383,7 @@ fn date_cross_rule_message_order_matches_php() {
     );
     assert_eq!(
         messages["end_date"],
-        serde_json::json!([
-            "The end date must be a date after or equal to start date."
-        ])
+        serde_json::json!(["The end date must be a date after or equal to start date."])
     );
 }
 
@@ -372,49 +391,41 @@ fn date_cross_rule_message_order_matches_php() {
 fn whitespace_only_values_follow_php_casts() {
     // Blank strings skip the rules and then fail the int/float cast.
     for (field, value) in [("limit", " "), ("page", " "), ("score", " ")] {
-        let error = AnimeSearchCommand::parse(&Query::from_pairs([(field, value)]))
-            .unwrap_err();
+        let error = AnimeSearchCommand::parse(&Query::from_pairs([(field, value)])).unwrap_err();
         assert_eq!(error.status(), 500, "{field}");
     }
     let error =
-        AnimeSearchCommand::parse(&Query::from_pairs([("min_score", " "), ("max_score", " ") ]))
+        AnimeSearchCommand::parse(&Query::from_pairs([("min_score", " "), ("max_score", " ")]))
             .unwrap_err();
     assert_eq!(error.status(), 500);
 
     // Blank date values hit the explicit `Required` attribute.
-    let messages = bag(
-        AnimeSearchCommand::parse(&Query::from_pairs([("start_date", " ")]))
-            .unwrap_err(),
-    );
+    let messages =
+        bag(AnimeSearchCommand::parse(&Query::from_pairs([("start_date", " ")])).unwrap_err());
     assert_eq!(
         messages["start_date"],
         serde_json::json!(["The start date field is required."])
     );
 
     // An empty string is dropped by `PreparesData` for media searches.
-    assert!(AnimeSearchCommand::parse(&Query::from_pairs([
-        ("start_date", ""),
-        ("end_date", "")
-    ]))
-    .is_ok());
+    assert!(
+        AnimeSearchCommand::parse(&Query::from_pairs([("start_date", ""), ("end_date", "")]))
+            .is_ok()
+    );
 
     // Whitespace parses as *now* for the cross-field comparison.
-    let messages = bag(
-        AnimeSearchCommand::parse(&Query::from_pairs([
-            ("start_date", " "),
-            ("end_date", "2020-01-01"),
-        ]))
-        .unwrap_err(),
-    );
+    let messages = bag(AnimeSearchCommand::parse(&Query::from_pairs([
+        ("start_date", " "),
+        ("end_date", "2020-01-01"),
+    ]))
+    .unwrap_err());
     assert_eq!(
         messages["start_date"],
         serde_json::json!(["The start date field is required."])
     );
     assert_eq!(
         messages["end_date"],
-        serde_json::json!([
-            "The end date must be a date after or equal to start date."
-        ])
+        serde_json::json!(["The end date must be a date after or equal to start date."])
     );
 }
 
@@ -423,7 +434,9 @@ fn empty_values_fail_the_cast_in_non_prepares_data_classes() {
     // PHP raises a `TypeError` assigning `""` to an int property.
     let query = Query::from_pairs([("page", "")]);
     assert_eq!(
-        AnimeEpisodesLookupCommand::parse(1, &query).unwrap_err().status(),
+        AnimeEpisodesLookupCommand::parse(1, &query)
+            .unwrap_err()
+            .status(),
         500
     );
     assert_eq!(
@@ -435,12 +448,11 @@ fn empty_values_fail_the_cast_in_non_prepares_data_classes() {
 
     // PHP `EnumCast::cast()` throws `CannotCastEnum` for `""`.
     let query = Query::from_pairs([("filter", "")]);
+    assert_eq!(GenreListCommand::parse(&query).unwrap_err().status(), 500);
     assert_eq!(
-        GenreListCommand::parse(&query).unwrap_err().status(),
-        500
-    );
-    assert_eq!(
-        AnimeForumLookupCommand::parse(1, &query).unwrap_err().status(),
+        AnimeForumLookupCommand::parse(1, &query)
+            .unwrap_err()
+            .status(),
         500
     );
     let query = Query::from_pairs([("type", "")]);
@@ -459,10 +471,11 @@ fn empty_values_fail_the_cast_in_non_prepares_data_classes() {
 #[test]
 fn probe_parity_user_lists() {
     // `year=abc` runs `numeric` then `min` (string length 3).
-    let messages = bag(
-        QueryAnimeListOfUserCommand::parse("nekomata", &Query::from_pairs([("year", "abc")]))
-            .unwrap_err(),
-    );
+    let messages = bag(QueryAnimeListOfUserCommand::parse(
+        "nekomata",
+        &Query::from_pairs([("year", "abc")]),
+    )
+    .unwrap_err());
     assert_eq!(
         messages["year"],
         serde_json::json!([
@@ -472,48 +485,50 @@ fn probe_parity_user_lists() {
     );
 
     // `year=1000` fails Min(1500).
-    let messages = bag(
-        QueryAnimeListOfUserCommand::parse("nekomata", &Query::from_pairs([("year", "1000")]))
-            .unwrap_err(),
+    let messages = bag(QueryAnimeListOfUserCommand::parse(
+        "nekomata",
+        &Query::from_pairs([("year", "1000")]),
+    )
+    .unwrap_err());
+    assert_eq!(
+        messages["year"],
+        serde_json::json!(["The year must be at least 1500."])
     );
-    assert_eq!(messages["year"], serde_json::json!(["The year must be at least 1500."]));
 
     // `aired_to` is validated even when `aired_from` is empty.
-    let messages = bag(
-        QueryAnimeListOfUserCommand::parse(
-            "nekomata",
-            &Query::from_pairs([("aired_from", "2010-01-01"), ("aired_to", "")]),
-        )
-        .unwrap_err(),
-    );
+    let messages = bag(QueryAnimeListOfUserCommand::parse(
+        "nekomata",
+        &Query::from_pairs([("aired_from", "2010-01-01"), ("aired_to", "")]),
+    )
+    .unwrap_err());
     assert_eq!(
         messages["aired_to"],
         serde_json::json!(["The aired to field is required."])
     );
 
     // Empty `order_by` on the non-`PreparesData` list command fails the cast.
-    let error = QueryAnimeListOfUserCommand::parse(
-        "nekomata",
-        &Query::from_pairs([("order_by", "")]),
-    )
-    .unwrap_err();
+    let error =
+        QueryAnimeListOfUserCommand::parse("nekomata", &Query::from_pairs([("order_by", "")]))
+            .unwrap_err();
     assert_eq!(error.status(), 500);
 
     // `magazine` numeric rule only.
-    let messages = bag(
-        QueryMangaListOfUserCommand::parse("nekomata", &Query::from_pairs([("magazine", "abc")]))
-            .unwrap_err(),
+    let messages = bag(QueryMangaListOfUserCommand::parse(
+        "nekomata",
+        &Query::from_pairs([("magazine", "abc")]),
+    )
+    .unwrap_err());
+    assert_eq!(
+        messages["magazine"],
+        serde_json::json!(["The magazine must be a number."])
     );
-    assert_eq!(messages["magazine"], serde_json::json!(["The magazine must be a number."]));
 
     // `q` is capped at 255 characters on the list commands as well.
-    let messages = bag(
-        QueryAnimeListOfUserCommand::parse(
-            "nekomata",
-            &Query::from_pairs([("q", "a".repeat(256))]),
-        )
-        .unwrap_err(),
-    );
+    let messages = bag(QueryAnimeListOfUserCommand::parse(
+        "nekomata",
+        &Query::from_pairs([("q", "a".repeat(256))]),
+    )
+    .unwrap_err());
     assert_eq!(
         messages["q"],
         serde_json::json!(["The q must not be greater than 255 characters."])

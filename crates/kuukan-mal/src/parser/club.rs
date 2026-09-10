@@ -126,9 +126,9 @@ impl ClubParser {
 
     /// `ClubParser::getStaff()`.
     pub fn staff(&self) -> Result<Vec<Value>, ParseError> {
-        let Some(header) = self.doc.first(
-            "//div[contains(text(), \"Club Staff\") and @class=\"normal_header\"]",
-        )?
+        let Some(header) = self
+            .doc
+            .first("//div[contains(text(), \"Club Staff\") and @class=\"normal_header\"]")?
         else {
             return Ok(vec![]);
         };
@@ -381,8 +381,14 @@ mod tests {
         assert_eq!(parser.mal_id().unwrap(), 1);
         assert_eq!(parser.members_count().unwrap(), 1398);
         assert_eq!(parser.access().unwrap(), "public");
-        assert_eq!(parser.created().unwrap().as_deref(), Some("2007-03-29T00:00:00+00:00"));
-        assert_eq!(parser.anime_relations().unwrap()[0]["url"], "https://myanimelist.net/anime/1");
+        assert_eq!(
+            parser.created().unwrap().as_deref(),
+            Some("2007-03-29T00:00:00+00:00")
+        );
+        assert_eq!(
+            parser.anime_relations().unwrap()[0]["url"],
+            "https://myanimelist.net/anime/1"
+        );
         assert_eq!(parser.anime_relations().unwrap()[0]["mal_id"], 1);
         assert_eq!(parser.staff().unwrap()[0]["username"], "Xinil");
     }
