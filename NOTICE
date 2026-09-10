@@ -1,0 +1,19 @@
+NOTICE
+======
+
+Kuukan is an independent Rust reimplementation of the Jikan REST API v4.
+
+It is a derivative work, ported file-by-file, from:
+
+  * Jikan REST API (jikan-rest) - https://github.com/jikan-me/jikan-rest
+    Copyright (c) 2019 Jikan API
+    Licensed under the MIT License.
+
+  * Jikan PHP parser library (jikan-me/jikan v4.0.12) -
+    https://github.com/jikan-me/jikan
+    Copyright (c) 2018 Jikan API
+    Licensed under the MIT License.
+
+Kuukan is not affiliated with Jikan, MyAnimeList.net, or their maintainers.
+The HTTP API contract (routes, query parameters, response shapes) is
+intentionally compatible with Jikan v4 so existing clients keep working.

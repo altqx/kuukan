@@ -1,0 +1,22 @@
+[package]
+name = "kuukan-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kuukan-core = { path = "../kuukan-core" }
+kuukan-mal = { path = "../kuukan-mal" }
+kuukan-store = { path = "../kuukan-store" }
+kuukan-search = { path = "../kuukan-search" }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+axum = "0.8.9"
+moka = { version = "0.12.16", features = ["future"] }
+tower-http = { version = "0.7.1", features = ["cors", "trace", "compression-full", "catch-panic", "request-id"] }
+bytes = "1.12.1"
+form_urlencoded = "1.2.2"

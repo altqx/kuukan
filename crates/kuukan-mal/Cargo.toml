@@ -1,0 +1,27 @@
+[package]
+name = "kuukan-mal"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kuukan-core = { path = "../kuukan-core" }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+reqwest = { version = "0.13.5", features = ["rustls", "gzip", "brotli", "json", "socks"] }
+scraper = "0.27.0"
+regex = "1.13.1"
+url = "2.5.8"
+bytes = "1.12.1"
+rand = "0.10.2"
+percent-encoding = "2.3.2"
+encoding_rs = "0.8.41"
+futures = "0.3.34"
+libxml = "0.3.21"
+
+[dev-dependencies]
+wiremock = "0.6.5"

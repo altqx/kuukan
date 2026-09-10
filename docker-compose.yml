@@ -1,0 +1,23 @@
+services:
+  kuukan:
+    build: .
+    image: kuukan:latest
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      KUUKAN_DB_PATH: /app/data/kuukan.db
+      KUUKAN_SEARCH_PATH: /app/data/search
+      RUST_LOG: "${RUST_LOG:-info}"
+    volumes:
+      - kuukan-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "kuukan", "healthcheck", "--url", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  kuukan-data: {}
