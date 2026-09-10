@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
-FROM rust:1.98-slim AS build
+FROM rust:1.98-slim-bookworm AS build
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    pkg-config libxml2-dev && rm -rf /var/lib/apt/lists/*
+    pkg-config libxml2-dev clang libclang-dev && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY . .
-RUN cargo build --release --bin kuukan
+RUN cargo build --release --locked --bin kuukan
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
