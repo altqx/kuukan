@@ -73,6 +73,9 @@ jobs:
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
+          # GitHub renames release assets that start with a dot ("default.env.example"),
+          # so upload the example env under a plain name.
+          cp .env.example env.example
           cat > release-notes.md <<EOF
           Kuukan ${GITHUB_REF_NAME} — a single self-contained Rust binary that serves
           the Jikan REST v4 API under \`/v1\`, with SQLite (WAL) for storage and
@@ -111,4 +114,4 @@ jobs:
             --notes-file release-notes.md \
             --generate-notes \
             dist/*.tar.gz dist/*.sha256 \
-            docker-compose.yml .env.example
+            docker-compose.yml env.example
