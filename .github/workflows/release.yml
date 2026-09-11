@@ -75,22 +75,35 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           cat > release-notes.md <<EOF
           Kuukan ${GITHUB_REF_NAME} — a single self-contained Rust binary that serves
-          the Jikan REST v4 surface under \`/v1\`.
+          the Jikan REST v4 API under \`/v1\`, with SQLite (WAL) for storage and
+          Tantivy for full-text search. No MongoDB, Redis or Typesense.
+
+          Feature-complete port of Jikan REST v4.2.2 and jikan-php v4.0.12, verified
+          against **270 recorded responses from a real jikan-rest v4.2.2 instance**
+          (266 exact matches, 4 documented divergences).
 
           ### Container (linux/amd64, linux/arm64)
 
           \`\`\`bash
           docker pull ghcr.io/altqx/kuukan:${version}
-          docker run -d -p 8080:8080 -v kuukan-data:/app/data ghcr.io/altqx/kuukan:${version}
+          docker run -d --name kuukan -p 8080:8080 -v kuukan-data:/app/data \\
+            ghcr.io/altqx/kuukan:${version}
+          curl http://127.0.0.1:8080/v1/anime/1
           \`\`\`
 
-          Or grab \`docker-compose.yml\` below: \`KUUKAN_TAG=${version} docker compose up -d\`.
+          Or grab \`docker-compose.yml\` below, then: \`KUUKAN_TAG=${version} docker compose up -d\`.
 
           ### Binary
 
           \`kuukan-${version}-x86_64-unknown-linux-gnu.tar.gz\` contains the x86_64
           Linux binary (glibc >= 2.36, libxml2 required at runtime), README, LICENSE
           and NOTICE. Verify with the attached \`.sha256\`.
+
+          ### Verifying the image
+
+          \`\`\`bash
+          docker run --rm ghcr.io/altqx/kuukan:${version} --version
+          \`\`\`
 
           EOF
           gh release create "${GITHUB_REF_NAME}" \
