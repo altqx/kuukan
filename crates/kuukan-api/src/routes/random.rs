@@ -43,7 +43,7 @@ async fn anime(
     let payload = random(&state, EntityKind::Anime, command.sfw, command.unapproved).await?;
     // `AnimeResource` reads the Eloquent accessors (`season`, `year`,
     // `broadcast`), which the store keeps in their raw JMS shape.
-    let payload = crate::routes::season::materialize_accessors(&payload);
+    let payload = crate::collection::materialize_accessors(&payload);
     Ok(json_ok(kuukan_core::envelope::data(anime::anime(&payload))))
 }
 

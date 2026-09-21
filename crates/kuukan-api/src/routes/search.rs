@@ -97,7 +97,7 @@ async fn anime(
     let items: Vec<Value> = result
         .items
         .iter()
-        .map(crate::routes::season::materialize_accessors)
+        .map(crate::collection::materialize_accessors)
         .collect();
     Ok(json_ok(resource::anime_search(
         &search_page(&result),

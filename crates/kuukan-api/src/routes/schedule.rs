@@ -12,18 +12,15 @@ use axum::routing::get;
 use axum::Router;
 use kuukan_core::enums::AnimeScheduleFilter;
 use kuukan_core::error::ApiError;
-use kuukan_core::pagination::paginate;
 use serde_json::Value;
 
+use crate::collection::{AnimeCollection, Members};
 use crate::config::CacheCategory;
 use crate::dto::schedule::QueryAnimeSchedulesCommand;
 use crate::error::ApiErrorResponse;
 use crate::extract::RawQuery;
 use crate::render::json_with_cache_flags;
 use crate::resources::schedule as resource;
-use crate::routes::season::{
-    load_anime, materialize_accessors, page_slice, passes_media_filters, sort_by_members_asc,
-};
 use crate::services::scrape::{fingerprint, request_uri};
 use crate::state::AppState;
 
@@ -68,22 +65,17 @@ async fn handle(
 
     // `getCurrentlyAiring`: type = TV, status = Currently Airing, optional
     // broadcast day filter, ordered by members ascending.
-    let mut items = load_anime(state).await?;
-    items.retain(|item| {
+    let mut collection = AnimeCollection::load(state).await?.retain(|item| {
         item.get("type").and_then(Value::as_str) == Some("TV")
             && item.get("status").and_then(Value::as_str) == Some("Currently Airing")
     });
     if let Some(day) = command.filter {
-        items.retain(|item| broadcast_matches(item, day));
+        collection = collection.retain(|item| broadcast_matches(item, day));
     }
-    items.retain(|item| passes_media_filters(item, command.sfw, command.kids, command.unapproved));
-    sort_by_members_asc(&mut items);
-
-    let pagination = paginate(items.len() as u64, command.page, command.limit);
-    let page_items: Vec<Value> = page_slice(items, command.page, command.limit)
-        .iter()
-        .map(materialize_accessors)
-        .collect();
+    let (pagination, page_items) = collection
+        .media_filters(command.sfw, command.kids, command.unapproved)
+        .order_by_members(Members::Ascending)
+        .page(command.page, command.limit);
     let data = resource::schedules(&pagination, &page_items);
 
     // Repository responses carry no cached document: epoch headers.

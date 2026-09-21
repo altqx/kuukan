@@ -127,7 +127,7 @@ async fn main(
     let (cached, ttl, uri) = load_entity(&state, &uri, command.id).await?;
     // `AnimeResource` reads the Eloquent accessors (`season`, `year`,
     // `broadcast`), which the store keeps in their raw JMS shape.
-    let payload = crate::routes::season::materialize_accessors(&cached.payload);
+    let payload = crate::collection::materialize_accessors(&cached.payload);
     let data = envelope::data(resource::anime(&payload));
     Ok(render(data, &uri, cached, ttl))
 }
@@ -140,7 +140,7 @@ async fn full(
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeFullLookupCommand::parse(route_id(&id)?, &query)?;
     let (cached, ttl, uri) = load_entity(&state, &uri, command.id).await?;
-    let payload = crate::routes::season::materialize_accessors(&cached.payload);
+    let payload = crate::collection::materialize_accessors(&cached.payload);
     let data = envelope::data(resource::anime_full(&payload));
     Ok(render(data, &uri, cached, ttl))
 }
