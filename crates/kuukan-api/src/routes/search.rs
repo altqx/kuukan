@@ -35,6 +35,7 @@ use kuukan_core::pagination::Pagination;
 use kuukan_search::{EntityKind, SearchParams, SearchResult, SortDirection as SearchSort};
 use serde_json::{json, Value};
 
+use crate::config::CacheCategory;
 use crate::dto::anime::AnimeSearchCommand;
 use crate::dto::base::{MediaSearchCommand, SearchCommand};
 use crate::dto::character::CharactersSearchCommand;
@@ -52,7 +53,7 @@ use crate::state::AppState;
 
 /// `/users` is served from the search index, but its cache flags still belong
 /// to the `users` fingerprint family.
-const USERS: Endpoint = Endpoint::new("users");
+const USERS: Endpoint = Endpoint::new("users").category(CacheCategory::Search);
 
 pub fn router() -> Router<AppState> {
     Router::new()

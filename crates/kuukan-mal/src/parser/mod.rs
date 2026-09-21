@@ -50,9 +50,12 @@ use crate::parser::helper::HtmlDoc;
 /// interface, and it varied for no reason. Each parser's own spelling survives
 /// as an implementation detail behind this one.
 ///
-/// Eight parsers are deliberately absent: they yield an `Option<String>`, a
-/// bare list, or a different error type, and pretending otherwise would only
-/// move the special case somewhere less visible.
+/// Nine parsers are deliberately absent. Most yield an `Option<String>`, a
+/// bare list, or a different error type. `VideosParser` is absent for a
+/// sharper reason: it has *two* entry points (`get_model` for
+/// `/anime/{id}/videos`, `get_results_model` for `/anime/{id}/videos/episodes`)
+/// and no single `model` can mean both. A trait keyed on the parser type
+/// cannot express that, so both call sites spell out which one they want.
 pub trait ParseModel {
     /// Turn a fetched document into its API-shaped model.
     fn model(doc: HtmlDoc) -> Result<Value, ParseError>;
@@ -91,12 +94,6 @@ impl ParseModel for crate::parser::anime::CharactersAndStaffParser {
 impl ParseModel for crate::parser::anime::EpisodesParser {
     fn model(doc: HtmlDoc) -> Result<Value, ParseError> {
         crate::parser::anime::EpisodesParser::new(doc).get_model()
-    }
-}
-
-impl ParseModel for crate::parser::anime::VideosParser {
-    fn model(doc: HtmlDoc) -> Result<Value, ParseError> {
-        crate::parser::anime::VideosParser::new(doc).get_results_model()
     }
 }
 

@@ -63,6 +63,12 @@ use crate::state::AppState;
 /// What this module's endpoints are cached and fingerprinted as. The TTL
 /// category still varies per endpoint, so handlers pass it in.
 const ENDPOINT: Endpoint = Endpoint::new("users");
+/// `per_endpoint_cache_ttl` splits `/users/...` across four categories, and the
+/// category is one of the facts a descriptor owns — so there is one descriptor
+/// per category rather than a `ttl` threaded through every handler.
+const USER: Endpoint = ENDPOINT.category(CacheCategory::User);
+const USER_LIST: Endpoint = ENDPOINT.category(CacheCategory::UserList);
+const USER_SEARCH: Endpoint = ENDPOINT.category(CacheCategory::Search);
 use kuukan_core::enums::{AnimeListStatus, MangaListStatus};
 use kuukan_core::envelope;
 use kuukan_core::error::ApiError;
@@ -102,7 +108,7 @@ pub fn router() -> Router<AppState> {
 async fn cached_user_response<F, Fut>(
     state: &AppState,
     uri: &axum::http::Uri,
-    _ttl: u64,
+    endpoint: Endpoint,
     fetch: F,
     render: impl FnOnce(&Value) -> Value,
 ) -> Result<Response, ApiErrorResponse>
@@ -110,7 +116,7 @@ where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = Result<Value, kuukan_mal::error::MalError>>,
 {
-    let cached = ENDPOINT.document(state, uri, fetch).await?;
+    let cached = endpoint.document(state, uri, fetch).await?;
     Ok(cached.render(render(&cached.payload)))
 }
 
@@ -120,7 +126,7 @@ where
 async fn cached_profile_response<F, Fut>(
     state: &AppState,
     uri: &axum::http::Uri,
-    _ttl: u64,
+    endpoint: Endpoint,
     fetch: F,
     render: impl FnOnce(&Value) -> Value,
 ) -> Result<Response, ApiErrorResponse>
@@ -144,7 +150,7 @@ where
         }
     };
     // ...while `X-Request-Fingerprint` still hashes the actual request URI.
-    let cached = ENDPOINT
+    let cached = endpoint
         .document_keyed(state, uri, &canonical, fetch)
         .await?;
     Ok(cached.render(render(&cached.payload)))
@@ -193,11 +199,10 @@ async fn user_by_id(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = UserByIdLookupCommand::parse(id, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Search);
     cached_user_response(
         &state,
         &uri,
-        ttl,
+        USER_SEARCH,
         || {
             let mal = state.mal.clone();
             async move {
@@ -216,11 +221,10 @@ async fn recently_online(
     State(state): State<AppState>,
     OriginalUri(uri): OriginalUri,
 ) -> Result<Response, ApiErrorResponse> {
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
     cached_user_response(
         &state,
         &uri,
-        ttl,
+        ENDPOINT,
         || {
             let mal = state.mal.clone();
             async move {
@@ -244,11 +248,10 @@ async fn profile(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = UserProfileLookupCommand::parse(&username, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::User);
     cached_profile_response(
         &state,
         &uri,
-        ttl,
+        USER,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -266,11 +269,10 @@ async fn full(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = UserFullLookupCommand::parse(&username, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
     cached_profile_response(
         &state,
         &uri,
-        ttl,
+        ENDPOINT,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -288,11 +290,10 @@ async fn statistics(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = UserStatisticsLookupCommand::parse(&username, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::User);
     cached_profile_response(
         &state,
         &uri,
-        ttl,
+        USER,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -310,11 +311,10 @@ async fn favorites(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = UserFavoritesLookupCommand::parse(&username, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::User);
     cached_profile_response(
         &state,
         &uri,
-        ttl,
+        USER,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -332,11 +332,10 @@ async fn user_updates(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = UserUpdatesLookupCommand::parse(&username, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
     cached_profile_response(
         &state,
         &uri,
-        ttl,
+        ENDPOINT,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -354,11 +353,10 @@ async fn about(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = UserAboutLookupCommand::parse(&username, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::User);
     cached_profile_response(
         &state,
         &uri,
-        ttl,
+        USER,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -376,11 +374,10 @@ async fn external(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = UserExternalLookupCommand::parse(&username, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
     cached_profile_response(
         &state,
         &uri,
-        ttl,
+        ENDPOINT,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -402,11 +399,10 @@ async fn history(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = UserHistoryLookupCommand::parse(&username, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::User);
     cached_user_response(
         &state,
         &uri,
-        ttl,
+        USER,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -427,11 +423,10 @@ async fn history_type(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = UserHistoryLookupCommand::parse_with_type(&username, Some(&kind), &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::User);
     cached_user_response(
         &state,
         &uri,
-        ttl,
+        USER,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -452,11 +447,10 @@ async fn friends(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = UserFriendsLookupCommand::parse(&username, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::User);
     cached_user_response(
         &state,
         &uri,
-        ttl,
+        USER,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -475,11 +469,10 @@ async fn recommendations(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = UserRecommendationsLookupCommand::parse(&username, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::User);
     cached_user_response(
         &state,
         &uri,
-        ttl,
+        USER,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -500,11 +493,10 @@ async fn reviews(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = UserReviewsLookupCommand::parse(&username, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::User);
     cached_user_response(
         &state,
         &uri,
-        ttl,
+        USER,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -523,11 +515,10 @@ async fn clubs(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = UserClubsLookupCommand::parse(&username, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::User);
     cached_user_response(
         &state,
         &uri,
-        ttl,
+        USER,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -553,11 +544,10 @@ async fn animelist(
 ) -> Result<Response, ApiErrorResponse> {
     ensure_user_lists_enabled(&state)?;
     let command = QueryAnimeListOfUserCommand::parse(&username, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::UserList);
     cached_user_response(
         &state,
         &uri,
-        ttl,
+        USER_LIST,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -590,11 +580,10 @@ async fn animelist_status(
 ) -> Result<Response, ApiErrorResponse> {
     ensure_user_lists_enabled(&state)?;
     let command = QueryAnimeListOfUserCommand::parse_with_status(&username, Some(&status), &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::UserList);
     cached_user_response(
         &state,
         &uri,
-        ttl,
+        USER_LIST,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -627,11 +616,10 @@ async fn mangalist(
 ) -> Result<Response, ApiErrorResponse> {
     ensure_user_lists_enabled(&state)?;
     let command = QueryMangaListOfUserCommand::parse(&username, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::UserList);
     cached_user_response(
         &state,
         &uri,
-        ttl,
+        USER_LIST,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();
@@ -666,11 +654,10 @@ async fn mangalist_status(
 ) -> Result<Response, ApiErrorResponse> {
     ensure_user_lists_enabled(&state)?;
     let command = QueryMangaListOfUserCommand::parse_with_status(&username, Some(&status), &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::UserList);
     cached_user_response(
         &state,
         &uri,
-        ttl,
+        USER_LIST,
         || {
             let mal = state.mal.clone();
             let username = command.username.clone();

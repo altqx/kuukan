@@ -2656,4 +2656,41 @@ mod tests {
         let dt = parse_date_with_timezone("Oct 20, 1999(JST)").expect("JST date");
         assert_eq!(date::format_atom(&dt), "1999-10-20T00:00:00+09:00");
     }
+
+    /// `VideosParser` has two entry points and they are not interchangeable:
+    /// `/anime/{id}/videos` returns `{promo, episodes, music_videos}` and
+    /// `/anime/{id}/videos/episodes` returns the paginated
+    /// `{results, has_next_page, last_visible_page}`. Collapsing the parsers
+    /// onto one `model()` once swapped them silently, so pin both shapes.
+    #[test]
+    fn videos_entry_points_return_different_shapes() {
+        use crate::parser::helper::HtmlDoc;
+        use std::collections::BTreeSet;
+
+        let keys = |value: &Value| -> BTreeSet<String> {
+            value.as_object().expect("object").keys().cloned().collect()
+        };
+        let doc = || {
+            HtmlDoc::parse_str("<html><body><div id=\"content\"></div></body></html>").expect("doc")
+        };
+
+        assert_eq!(
+            keys(&VideosParser::new(doc()).get_model().expect("model")),
+            ["episodes", "music_videos", "promo"]
+                .into_iter()
+                .map(String::from)
+                .collect::<BTreeSet<_>>()
+        );
+        assert_eq!(
+            keys(
+                &VideosParser::new(doc())
+                    .get_results_model()
+                    .expect("results model")
+            ),
+            ["has_next_page", "last_visible_page", "results"]
+                .into_iter()
+                .map(String::from)
+                .collect::<BTreeSet<_>>()
+        );
+    }
 }

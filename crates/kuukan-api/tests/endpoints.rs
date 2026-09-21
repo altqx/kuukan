@@ -293,3 +293,66 @@ async fn profile_endpoints_key_on_username_but_fingerprint_the_request() {
         "the header hashes the request URI, not the cache key"
     );
 }
+
+/// `per_endpoint_cache_ttl` is not decoration: the TTL sets `s-maxage` *and*
+/// the stored `expires_at`, so a user profile cached for a day instead of five
+/// minutes is a staleness bug, not a header nit. A refactor once collapsed all
+/// of these to the default; assert the categories through the router.
+#[tokio::test]
+async fn endpoints_keep_their_per_endpoint_ttl() {
+    use kuukan_api::endpoint::fingerprint;
+
+    let harness = Harness::new(RecordedSource::new()).await;
+    let body = serde_json::json!({ "mal_id": 1, "username": "someone" });
+
+    harness
+        .state
+        .store
+        .upsert_entity(
+            StoredEntity::new(EntityKind::Anime, 1, body.clone()),
+            Some(86_400),
+        )
+        .await
+        .expect("seed anime");
+
+    // Each key is the one its endpoint looks the document up under: the
+    // profile family collapses to the username, the rest use the full URI.
+    for key in [
+        fingerprint("users", "/v1/users/someone"),
+        fingerprint("users", "/v1/users/someone/animelist"),
+        fingerprint("genres", "/v1/genres/anime"),
+    ] {
+        harness
+            .state
+            .store
+            .put_cache(&key, body.clone(), Some(86_400), false)
+            .await
+            .expect("seed cache document");
+    }
+
+    // (path, expected s-maxage) straight from config/jikan.php.
+    let cases = [
+        ("/v1/anime/1", 86_400u64),             // Default
+        ("/v1/users/someone", 300),             // User
+        ("/v1/users/someone/animelist", 3_600), // UserList
+        ("/v1/users?q=x", 432_000),             // Search
+    ];
+
+    for (path, expected) in cases {
+        let (status, headers, _) = harness.get(path).await;
+        assert_eq!(status, StatusCode::OK, "{path} did not render");
+        assert_eq!(
+            header(&headers, "cache-control"),
+            Some(format!("public, s-maxage={expected}").as_str()),
+            "{path} advertised the wrong TTL"
+        );
+    }
+
+    // Genre lists are the documented exception: jikan-rest serves them from
+    // the genre collections with no cache flags at all, so Symfony's default
+    // stands. The Genre TTL still governs the stored document, just not a
+    // header.
+    let (status, headers, _) = harness.get("/v1/genres/anime").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(header(&headers, "cache-control"), Some("no-cache, private"));
+}

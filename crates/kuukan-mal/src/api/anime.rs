@@ -73,7 +73,13 @@ pub async fn get_anime_episode(
 
 /// `MalClient::getAnimeVideos(AnimeVideosRequest $request)`.
 pub async fn get_anime_videos(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
-    super::fetch_and_parse::<VideosParser>(client, req::AnimeVideosRequest::new(id)).await
+    // `get_model`, not `get_results_model`: this endpoint returns
+    // `{promo, episodes, music_videos}`, while `/videos/episodes` returns the
+    // paginated `{results, has_next_page, last_visible_page}`.
+    super::fetch_then(client, req::AnimeVideosRequest::new(id), |doc| {
+        VideosParser::new(doc).get_model()
+    })
+    .await
 }
 
 /// `MalClient::getAnimeVideosEpisodes(AnimeVideosEpisodesRequest $request)`.
@@ -82,9 +88,10 @@ pub async fn get_anime_videos_episodes(
     id: i64,
     page: Option<u64>,
 ) -> Result<Value, MalError> {
-    super::fetch_and_parse::<VideosParser>(
+    super::fetch_then(
         client,
         req::AnimeVideosEpisodesRequest::new(id, page.unwrap_or(1) as i64),
+        |doc| VideosParser::new(doc).get_results_model(),
     )
     .await
 }
