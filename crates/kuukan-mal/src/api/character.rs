@@ -34,9 +34,8 @@ pub async fn get_character(client: &dyn MalSource, id: i64) -> Result<Value, Mal
 
 /// `MalClient::getCharacterPictures()` — array of `PersonImageResource`.
 pub async fn get_character_pictures(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
-    let path = CharacterPicturesRequest::new(id).path();
-    let doc = client.get_html(&path).await?;
-    crate::parser::common::default_pictures_page(&doc)
-        .map(Value::Array)
-        .map_err(|err| MalError::parse_failed(&path, err.to_string()))
+    super::fetch_then(client, CharacterPicturesRequest::new(id), |doc| {
+        crate::parser::common::default_pictures_page(&doc).map(Value::Array)
+    })
+    .await
 }

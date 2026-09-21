@@ -37,10 +37,7 @@ where
 
 /// `MalClient::getUserProfile()`.
 pub async fn get_user_profile(client: &dyn MalSource, username: &str) -> Result<Value, MalError> {
-    let request = UserProfileRequest::new(username);
-    let path = request.path();
-    let doc = client.get_html(&path).await?;
-    parsed(&path, || UserProfileParser::new(&doc).get_model())
+    super::fetch_and_parse::<UserProfileParser>(client, UserProfileRequest::new(username)).await
 }
 
 /// `MalClient::getUserFriends()`.
@@ -49,10 +46,11 @@ pub async fn get_user_friends(
     username: &str,
     page: Option<u32>,
 ) -> Result<Value, MalError> {
-    let request = UserFriendsRequest::new(username, page.unwrap_or(1) as i64);
-    let path = request.path();
-    let doc = client.get_html(&path).await?;
-    parsed(&path, || FriendsParser::new(&doc).get_model())
+    super::fetch_and_parse::<FriendsParser>(
+        client,
+        UserFriendsRequest::new(username, page.unwrap_or(1) as i64),
+    )
+    .await
 }
 
 /// `MalClient::getUserHistory()`.
@@ -178,10 +176,7 @@ pub async fn get_user_reviews(
 
 /// `MalClient::getUsernameById()`.
 pub async fn get_username_by_id(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
-    let request = UsernameByIdRequest::new(id);
-    let path = request.path();
-    let doc = client.get_html(&path).await?;
-    parsed(&path, || UsernameByIdParser::new(&doc).get_user())
+    super::fetch_and_parse::<UsernameByIdParser>(client, UsernameByIdRequest::new(id)).await
 }
 
 /// `MalClient::getRecentOnlineUsers()`.

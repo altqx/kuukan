@@ -47,18 +47,10 @@ pub async fn get_top_manga(
 
 /// `MalClient::getTopCharacters(TopCharactersRequest $request)`.
 pub async fn get_top_characters(client: &dyn MalSource, page: u64) -> Result<Value, MalError> {
-    let path = TopCharactersRequest::new(page).path();
-    let doc = client.get_html(&path).await?;
-    TopCharactersParser::new(&doc)
-        .get_model()
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_and_parse::<TopCharactersParser>(client, TopCharactersRequest::new(page)).await
 }
 
 /// `MalClient::getTopPeople(TopPeopleRequest $request)`.
 pub async fn get_top_people(client: &dyn MalSource, page: u64) -> Result<Value, MalError> {
-    let path = TopPeopleRequest::new(page).path();
-    let doc = client.get_html(&path).await?;
-    TopPeopleParser::new(&doc)
-        .get_model()
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_and_parse::<TopPeopleParser>(client, TopPeopleRequest::new(page)).await
 }

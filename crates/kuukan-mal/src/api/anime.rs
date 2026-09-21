@@ -33,11 +33,7 @@ fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
 
 /// `MalClient::getAnime(AnimeRequest $request)`.
 pub async fn get_anime(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
-    let path = req::AnimeRequest::new(id).path();
-    let doc = client.get_html(&path).await?;
-    AnimeParser::new(doc)
-        .get_model()
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_and_parse::<AnimeParser>(client, req::AnimeRequest::new(id)).await
 }
 
 /// `MalClient::getAnimeEpisodes(AnimeEpisodesRequest $request)`.
@@ -49,21 +45,12 @@ pub async fn get_anime_episodes(
     id: i64,
     page: Option<u64>,
 ) -> Result<Value, MalError> {
-    let path = req::AnimeEpisodesRequest::new(id, page.unwrap_or(1) as i64).path();
-    let doc = match client.get_html(&path).await {
-        Ok(doc) => doc,
-        Err(MalError::BadResponse { status: 404, .. }) => {
-            return Ok(json!({
-                "results": [],
-                "has_next_page": false,
-                "last_visible_page": 1,
-            }));
-        }
-        Err(error) => return Err(error),
-    };
-    EpisodesParser::new(doc)
-        .get_model()
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_and_parse_or_empty::<EpisodesParser>(
+        client,
+        req::AnimeEpisodesRequest::new(id, page.unwrap_or(1) as i64),
+        || json!({ "results": [], "has_next_page": false, "last_visible_page": 1, }),
+    )
+    .await
 }
 
 /// `MalClient::getAnimeEpisode(AnimeEpisodeRequest $request)`.
@@ -86,11 +73,7 @@ pub async fn get_anime_episode(
 
 /// `MalClient::getAnimeVideos(AnimeVideosRequest $request)`.
 pub async fn get_anime_videos(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
-    let path = req::AnimeVideosRequest::new(id).path();
-    let doc = client.get_html(&path).await?;
-    VideosParser::new(doc)
-        .get_model()
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_and_parse::<VideosParser>(client, req::AnimeVideosRequest::new(id)).await
 }
 
 /// `MalClient::getAnimeVideosEpisodes(AnimeVideosEpisodesRequest $request)`.
@@ -99,11 +82,11 @@ pub async fn get_anime_videos_episodes(
     id: i64,
     page: Option<u64>,
 ) -> Result<Value, MalError> {
-    let path = req::AnimeVideosEpisodesRequest::new(id, page.unwrap_or(1) as i64).path();
-    let doc = client.get_html(&path).await?;
-    VideosParser::new(doc)
-        .get_results_model()
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_and_parse::<VideosParser>(
+        client,
+        req::AnimeVideosEpisodesRequest::new(id, page.unwrap_or(1) as i64),
+    )
+    .await
 }
 
 /// `MalClient::getAnimeCharactersAndStaff(AnimeCharactersAndStaffRequest)`.
@@ -111,11 +94,11 @@ pub async fn get_anime_characters_and_staff(
     client: &dyn MalSource,
     id: i64,
 ) -> Result<Value, MalError> {
-    let path = req::AnimeCharactersAndStaffRequest::new(id).path();
-    let doc = client.get_html(&path).await?;
-    CharactersAndStaffParser::new(doc)
-        .get_model()
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_and_parse::<CharactersAndStaffParser>(
+        client,
+        req::AnimeCharactersAndStaffRequest::new(id),
+    )
+    .await
 }
 
 /// `MalClient::getAnimePictures(AnimePicturesRequest $request)` (array).
@@ -143,11 +126,7 @@ pub async fn get_anime_more_info(client: &dyn MalSource, id: i64) -> Result<Valu
 
 /// `MalClient::getAnimeStats(AnimeStatsRequest $request)`.
 pub async fn get_anime_stats(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
-    let path = req::AnimeStatsRequest::new(id).path();
-    let doc = client.get_html(&path).await?;
-    AnimeStatsParser::new(doc)
-        .get_model()
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_and_parse::<AnimeStatsParser>(client, req::AnimeStatsRequest::new(id)).await
 }
 
 /// `MalClient::getAnimeForum(AnimeForumRequest $request)` (array of topics).
@@ -171,11 +150,12 @@ pub async fn get_anime_news(
     id: i64,
     page: Option<u64>,
 ) -> Result<Value, MalError> {
-    let path = req::AnimeNewsRequest::new(id, page.unwrap_or(1) as i64).path();
-    let doc = client.get_html(&path).await?;
-    news::parse_news(&doc)
-        .map(Value::Array)
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_then(
+        client,
+        req::AnimeNewsRequest::new(id, page.unwrap_or(1) as i64),
+        |doc| news::parse_news(&doc).map(Value::Array),
+    )
+    .await
 }
 
 /// `MalClient::getAnimeRecentlyUpdatedByUsers(...)`.
@@ -184,20 +164,19 @@ pub async fn get_anime_recently_updated_by_users(
     id: i64,
     page: Option<u64>,
 ) -> Result<Value, MalError> {
-    let path = req::AnimeRecentlyUpdatedByUsersRequest::new(id, page.unwrap_or(1) as i64).path();
-    let doc = client.get_html(&path).await?;
-    AnimeRecentlyUpdatedByUsersParser::new(doc)
-        .get_model()
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_and_parse::<AnimeRecentlyUpdatedByUsersParser>(
+        client,
+        req::AnimeRecentlyUpdatedByUsersRequest::new(id, page.unwrap_or(1) as i64),
+    )
+    .await
 }
 
 /// `MalClient::getAnimeRecommendations(AnimeRecommendationsRequest)` (array).
 pub async fn get_anime_recommendations(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
-    let path = req::AnimeRecommendationsRequest::new(id).path();
-    let doc = client.get_html(&path).await?;
-    common::recommendations(&doc)
-        .map(Value::Array)
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_then(client, req::AnimeRecommendationsRequest::new(id), |doc| {
+        common::recommendations(&doc).map(Value::Array)
+    })
+    .await
 }
 
 /// `MalClient::getAnimeReviews(AnimeReviewsRequest $request)`.

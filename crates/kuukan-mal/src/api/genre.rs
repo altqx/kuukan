@@ -9,21 +9,11 @@ use crate::parser::genre::{
 use crate::request::genre::{
     AnimeGenreRequest, AnimeGenresRequest, MangaGenreRequest, MangaGenresRequest,
 };
-use crate::request::MalRequest;
-use crate::source::{MalSource, MalSourceExt};
-
-/// Wrap a parser failure like `ParserException::fromRequest()`.
-fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
-    MalError::parse_failed(path, error.to_string())
-}
+use crate::source::MalSource;
 
 /// `MalClient::getAnimeGenres(AnimeGenresRequest $request)` (full list).
 pub async fn get_anime_genres(client: &dyn MalSource) -> Result<Value, MalError> {
-    let path = AnimeGenresRequest::new().path();
-    let doc = client.get_html(&path).await?;
-    AnimeGenreListParser::new(doc)
-        .model()
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_and_parse::<AnimeGenreListParser>(client, AnimeGenresRequest::new()).await
 }
 
 /// `MalClient::getAnimeGenre(AnimeGenreRequest $request)` (genre listing).
@@ -32,20 +22,12 @@ pub async fn get_anime_genre(
     id: i64,
     page: u64,
 ) -> Result<Value, MalError> {
-    let path = AnimeGenreRequest::new(id, page).path();
-    let doc = client.get_html(&path).await?;
-    AnimeGenreParser::new(doc)
-        .model()
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_and_parse::<AnimeGenreParser>(client, AnimeGenreRequest::new(id, page)).await
 }
 
 /// `MalClient::getMangaGenres(MangaGenresRequest $request)` (full list).
 pub async fn get_manga_genres(client: &dyn MalSource) -> Result<Value, MalError> {
-    let path = MangaGenresRequest::new().path();
-    let doc = client.get_html(&path).await?;
-    MangaGenreListParser::new(doc)
-        .model()
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_and_parse::<MangaGenreListParser>(client, MangaGenresRequest::new()).await
 }
 
 /// `MalClient::getMangaGenre(MangaGenreRequest $request)` (genre listing).
@@ -54,9 +36,5 @@ pub async fn get_manga_genre(
     id: i64,
     page: u64,
 ) -> Result<Value, MalError> {
-    let path = MangaGenreRequest::new(id, page).path();
-    let doc = client.get_html(&path).await?;
-    MangaGenreParser::new(doc)
-        .model()
-        .map_err(|error| parse_failed(&path, error))
+    super::fetch_and_parse::<MangaGenreParser>(client, MangaGenreRequest::new(id, page)).await
 }
