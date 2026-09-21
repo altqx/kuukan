@@ -17,18 +17,17 @@ use axum::response::Response;
 use axum::routing::get;
 use axum::Router;
 
-use crate::config::CacheCategory;
 use crate::dto::club::{
     ClubLookupCommand, ClubMembersLookupCommand, ClubRelationLookupCommand, ClubStaffLookupCommand,
 };
+use crate::endpoint::{Cached, Endpoint};
 use crate::error::ApiErrorResponse;
 use crate::extract::RawQuery;
-use crate::render::json_with_cache_flags;
 use crate::resources::club as resource;
-use crate::services::scrape::{
-    cache_or_scrape, entity_or_scrape, fingerprint, request_uri, CachedPayload,
-};
 use crate::state::AppState;
+
+/// What this module's endpoints are cached and fingerprinted as.
+const ENDPOINT: Endpoint = Endpoint::new("clubs");
 use kuukan_core::envelope;
 use kuukan_store::EntityKind;
 
@@ -46,15 +45,13 @@ async fn load_club(
     state: &AppState,
     uri: &axum::http::Uri,
     id: i64,
-) -> Result<(CachedPayload, u64, String), ApiErrorResponse> {
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(uri);
+) -> Result<Cached, ApiErrorResponse> {
     let mal = state.mal.clone();
-    let cached = entity_or_scrape(state, EntityKind::Club, id, ttl, move || async move {
-        kuukan_mal::api::club::get_club(&mal, id).await
-    })
-    .await?;
-    Ok((cached, ttl, uri))
+    ENDPOINT
+        .entity(state, uri, EntityKind::Club, id, move || async move {
+            kuukan_mal::api::club::get_club(&mal, id).await
+        })
+        .await
 }
 
 async fn main(
@@ -64,14 +61,9 @@ async fn main(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = ClubLookupCommand::parse(id, &query)?;
-    let (cached, ttl, uri) = load_club(&state, &uri, command.id).await?;
+    let cached = load_club(&state, &uri, command.id).await?;
     let data = envelope::data(resource::club(&cached.payload));
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("clubs", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }
 
 async fn members(
@@ -81,20 +73,14 @@ async fn members(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = ClubMembersLookupCommand::parse(id, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(&uri);
     let mal = state.mal.clone();
-    let cached = cache_or_scrape(&state, "clubs", &uri, ttl, move || async move {
-        kuukan_mal::api::club::get_club_users(&mal, command.id, command.page).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::club::get_club_users(&mal, command.id, command.page).await
+        })
+        .await?;
     let data = resource::club_members(&cached.payload);
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("clubs", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }
 
 async fn staff(
@@ -104,14 +90,9 @@ async fn staff(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = ClubStaffLookupCommand::parse(id, &query)?;
-    let (cached, ttl, uri) = load_club(&state, &uri, command.id).await?;
+    let cached = load_club(&state, &uri, command.id).await?;
     let data = envelope::data(resource::club_staff(&cached.payload));
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("clubs", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }
 
 async fn relations(
@@ -121,12 +102,7 @@ async fn relations(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = ClubRelationLookupCommand::parse(id, &query)?;
-    let (cached, ttl, uri) = load_club(&state, &uri, command.id).await?;
+    let cached = load_club(&state, &uri, command.id).await?;
     let data = envelope::data(resource::club_relations(&cached.payload));
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("clubs", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }

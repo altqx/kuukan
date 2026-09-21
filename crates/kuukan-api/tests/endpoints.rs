@@ -231,3 +231,65 @@ async fn invalid_query_is_rejected_before_scraping() {
         "validation must run before the source is touched"
     );
 }
+
+/// Genre lists are media-wide documents, so `?page=` must not split the cache.
+/// Seeding the document under the path-only key and asking for page 2 proves
+/// the endpoint keys on the path alone, end to end.
+#[tokio::test]
+async fn genre_lists_ignore_pagination_in_the_cache_key() {
+    let harness = Harness::new(RecordedSource::new()).await;
+    let key = kuukan_api::endpoint::fingerprint("genres", "/v1/genres/anime");
+    harness
+        .state
+        .store
+        .put_cache(
+            &key,
+            serde_json::json!({ "genres": [{ "mal_id": 1, "name": "Action" }] }),
+            Some(432_000),
+            false,
+        )
+        .await
+        .expect("seed cache document");
+
+    let (status, _, body) = harness.get("/v1/genres/anime?page=2").await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["data"][0]["name"], "Action");
+    assert!(
+        harness.source.requests().is_empty(),
+        "a paginated genre list must reuse the media-wide document"
+    );
+}
+
+/// Profile endpoints deliberately key the cache on the username alone while
+/// the header still hashes the request that was made. Both halves of that
+/// divergence are load-bearing, so pin them together.
+#[tokio::test]
+async fn profile_endpoints_key_on_username_but_fingerprint_the_request() {
+    let harness = Harness::new(RecordedSource::new()).await;
+    let key = kuukan_api::endpoint::fingerprint("users", "/v1/users/someone");
+    harness
+        .state
+        .store
+        .put_cache(
+            &key,
+            serde_json::json!({ "username": "someone" }),
+            Some(300),
+            false,
+        )
+        .await
+        .expect("seed cache document");
+
+    let (status, headers, _) = harness.get("/v1/users/someone?page=2").await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(
+        harness.source.requests().is_empty(),
+        "the username-keyed document must be reused whatever the query"
+    );
+    assert_eq!(
+        header(&headers, "x-request-fingerprint"),
+        Some(kuukan_api::endpoint::fingerprint("users", "/v1/users/someone?page=2").as_str()),
+        "the header hashes the request URI, not the cache key"
+    );
+}

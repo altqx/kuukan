@@ -107,7 +107,7 @@ async fn random(
     Ok(entity.payload)
 }
 
-/// Same rendering as `services::scrape` for storage failures.
+/// Same rendering as `crate::endpoint` for storage failures.
 fn storage_error(error: kuukan_store::StoreError) -> ApiErrorResponse {
     ApiErrorResponse(ApiError::Storage {
         error: Some(error.to_string()),

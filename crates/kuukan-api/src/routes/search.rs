@@ -35,7 +35,6 @@ use kuukan_core::pagination::Pagination;
 use kuukan_search::{EntityKind, SearchParams, SearchResult, SortDirection as SearchSort};
 use serde_json::{json, Value};
 
-use crate::config::CacheCategory;
 use crate::dto::anime::AnimeSearchCommand;
 use crate::dto::base::{MediaSearchCommand, SearchCommand};
 use crate::dto::character::CharactersSearchCommand;
@@ -45,12 +44,15 @@ use crate::dto::manga::MangaSearchCommand;
 use crate::dto::person::PeopleSearchCommand;
 use crate::dto::producer::ProducersSearchCommand;
 use crate::dto::user::UsersSearchCommand;
+use crate::endpoint::Endpoint;
 use crate::error::{json_ok, ApiErrorResponse};
 use crate::extract::RawQuery;
-use crate::render::json_with_cache_flags;
 use crate::resources::search as resource;
-use crate::services::scrape::{fingerprint, request_uri};
 use crate::state::AppState;
+
+/// `/users` is served from the search index, but its cache flags still belong
+/// to the `users` fingerprint family.
+const USERS: Endpoint = Endpoint::new("users");
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -171,14 +173,9 @@ async fn users(
     let items: Vec<Value> = result.items.iter().map(user_search_item).collect();
     let data = kuukan_core::envelope::paged(&list_page(&result), items);
 
-    let ttl = state.config.cache_ttl(CacheCategory::Search);
-    let uri = request_uri(&uri);
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("users", &uri),
-        kuukan_store::now_unix(),
-        ttl,
-    ))
+    Ok(USERS
+        .flags(&state, &uri, kuukan_store::now_unix())
+        .render(data))
 }
 
 async fn producers(

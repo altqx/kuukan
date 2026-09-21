@@ -5,16 +5,17 @@ use axum::response::Response;
 use axum::routing::get;
 use axum::Router;
 
-use crate::config::CacheCategory;
 use crate::dto::producer::{
     ProducerExternalLookupCommand, ProducerFullLookupCommand, ProducerLookupCommand,
 };
+use crate::endpoint::{Cached, Endpoint};
 use crate::error::ApiErrorResponse;
 use crate::extract::RawQuery;
-use crate::render::json_with_cache_flags;
 use crate::resources::producer as resource;
-use crate::services::scrape::{entity_or_scrape, fingerprint, request_uri, CachedPayload};
 use crate::state::AppState;
+
+/// What this module's endpoints are cached and fingerprinted as.
+const ENDPOINT: Endpoint = Endpoint::new("producers");
 use kuukan_core::envelope;
 use kuukan_store::EntityKind;
 
@@ -31,15 +32,13 @@ async fn load(
     state: &AppState,
     uri: &axum::http::Uri,
     id: i64,
-) -> Result<(CachedPayload, u64, String), ApiErrorResponse> {
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(uri);
+) -> Result<Cached, ApiErrorResponse> {
     let mal = state.mal.clone();
-    let cached = entity_or_scrape(state, EntityKind::Producer, id, ttl, move || async move {
-        kuukan_mal::api::producer::get_producer(&mal, id, 1).await
-    })
-    .await?;
-    Ok((cached, ttl, uri))
+    ENDPOINT
+        .entity(state, uri, EntityKind::Producer, id, move || async move {
+            kuukan_mal::api::producer::get_producer(&mal, id, 1).await
+        })
+        .await
 }
 
 async fn main(
@@ -49,14 +48,9 @@ async fn main(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = ProducerLookupCommand::parse(id, &query)?;
-    let (cached, ttl, uri) = load(&state, &uri, command.id).await?;
+    let cached = load(&state, &uri, command.id).await?;
     let data = envelope::data(resource::producer(&cached.payload));
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("producers", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }
 
 async fn full(
@@ -66,14 +60,9 @@ async fn full(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = ProducerFullLookupCommand::parse(id, &query)?;
-    let (cached, ttl, uri) = load(&state, &uri, command.id).await?;
+    let cached = load(&state, &uri, command.id).await?;
     let data = envelope::data(resource::producer_full(&cached.payload));
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("producers", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }
 
 async fn external(
@@ -83,12 +72,7 @@ async fn external(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = ProducerExternalLookupCommand::parse(id, &query)?;
-    let (cached, ttl, uri) = load(&state, &uri, command.id).await?;
+    let cached = load(&state, &uri, command.id).await?;
     let data = envelope::data(resource::external_links(&cached.payload));
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("producers", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }

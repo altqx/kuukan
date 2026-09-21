@@ -54,12 +54,15 @@ use crate::dto::user::{
     UserHistoryLookupCommand, UserProfileLookupCommand, UserRecommendationsLookupCommand,
     UserReviewsLookupCommand, UserStatisticsLookupCommand, UserUpdatesLookupCommand,
 };
+use crate::endpoint::Endpoint;
 use crate::error::ApiErrorResponse;
 use crate::extract::RawQuery;
-use crate::render::json_with_cache_flags;
 use crate::resources::{misc, user as resource};
-use crate::services::scrape::{cache_or_scrape, fingerprint, request_uri};
 use crate::state::AppState;
+
+/// What this module's endpoints are cached and fingerprinted as. The TTL
+/// category still varies per endpoint, so handlers pass it in.
+const ENDPOINT: Endpoint = Endpoint::new("users");
 use kuukan_core::enums::{AnimeListStatus, MangaListStatus};
 use kuukan_core::envelope;
 use kuukan_core::error::ApiError;
@@ -99,7 +102,7 @@ pub fn router() -> Router<AppState> {
 async fn cached_user_response<F, Fut>(
     state: &AppState,
     uri: &axum::http::Uri,
-    ttl: u64,
+    _ttl: u64,
     fetch: F,
     render: impl FnOnce(&Value) -> Value,
 ) -> Result<Response, ApiErrorResponse>
@@ -107,14 +110,8 @@ where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = Result<Value, kuukan_mal::error::MalError>>,
 {
-    let uri = request_uri(uri);
-    let cached = cache_or_scrape(state, "users", &uri, ttl, fetch).await?;
-    Ok(json_with_cache_flags(
-        render(&cached.payload),
-        &fingerprint("users", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    let cached = ENDPOINT.document(state, uri, fetch).await?;
+    Ok(cached.render(render(&cached.payload)))
 }
 
 /// Profile-style lookup: PHP keys these by the user entity (username), so
@@ -123,7 +120,7 @@ where
 async fn cached_profile_response<F, Fut>(
     state: &AppState,
     uri: &axum::http::Uri,
-    ttl: u64,
+    _ttl: u64,
     fetch: F,
     render: impl FnOnce(&Value) -> Value,
 ) -> Result<Response, ApiErrorResponse>
@@ -131,11 +128,10 @@ where
     F: FnOnce() -> Fut,
     Fut: std::future::Future<Output = Result<Value, kuukan_mal::error::MalError>>,
 {
-    let full_uri = request_uri(uri);
     // PHP looks these endpoints up in the user entity (keyed by username), so
     // every `/users/{name}/...` profile variant shares one cached document...
     let canonical = {
-        let path = full_uri.split('?').next().unwrap_or(&full_uri);
+        let path = uri.path();
         let mut segments = path.trim_start_matches('/').splitn(4, '/');
         match (segments.next(), segments.next(), segments.next()) {
             (Some(version), Some(family), Some(username)) => {
@@ -147,14 +143,11 @@ where
             _ => path.to_string(),
         }
     };
-    let cached = cache_or_scrape(state, "users", &canonical, ttl, fetch).await?;
     // ...while `X-Request-Fingerprint` still hashes the actual request URI.
-    Ok(json_with_cache_flags(
-        render(&cached.payload),
-        &fingerprint("users", &full_uri),
-        cached.modified_at,
-        ttl,
-    ))
+    let cached = ENDPOINT
+        .document_keyed(state, uri, &canonical, fetch)
+        .await?;
+    Ok(cached.render(render(&cached.payload)))
 }
 
 /// `QueryAnimeListOfUserCommand::$status` -> MAL list status code.

@@ -32,17 +32,18 @@ use kuukan_core::enums::{TopAnimeFilter, TopMangaFilter};
 use kuukan_core::error::ApiError;
 use kuukan_search::{EntityKind, SearchParams, SortDirection as SearchSort};
 
-use crate::config::CacheCategory;
 use crate::dto::top::{
     QueryTopAnimeItemsCommand, QueryTopCharactersCommand, QueryTopMangaItemsCommand,
     QueryTopPeopleCommand, QueryTopReviewsCommand,
 };
+use crate::endpoint::Endpoint;
 use crate::error::{json_ok, ApiErrorResponse};
 use crate::extract::RawQuery;
-use crate::render::json_with_cache_flags;
 use crate::resources::top as resource;
-use crate::services::scrape::{cache_or_scrape, fingerprint, request_uri};
 use crate::state::AppState;
+
+/// What this module's endpoints are cached and fingerprinted as.
+const ENDPOINT: Endpoint = Endpoint::new("top");
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -180,8 +181,6 @@ async fn reviews(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = QueryTopReviewsCommand::parse(&query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(&uri);
 
     let r#type = command
         .r#type
@@ -193,25 +192,28 @@ async fn reviews(
     let page = command.page;
 
     let mal = state.mal.clone();
-    let cached = cache_or_scrape(&state, "top", &uri, ttl, move || async move {
-        // Port of `QueryTopReviewsHandler`: the handler calls
-        // `new ReviewsRequest($type, $page, $spoilers, $preliminary)`, whose
-        // third parameter is `$sort` — so the boolean spoilers flag lands in
-        // the MAL `sort` query parameter (true -> "1"), the preliminary flag
-        // controls `spoiler`, and `preliminary` stays at its `true` default.
-        // Port the oddity: the fingerprints and cached documents must match.
-        let sort = if spoilers { "1" } else { "" };
-        kuukan_mal::api::reviews::get_reviews(&mal, &r#type, Some(page), sort, preliminary, true)
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            // Port of `QueryTopReviewsHandler`: the handler calls
+            // `new ReviewsRequest($type, $page, $spoilers, $preliminary)`, whose
+            // third parameter is `$sort` — so the boolean spoilers flag lands in
+            // the MAL `sort` query parameter (true -> "1"), the preliminary flag
+            // controls `spoiler`, and `preliminary` stays at its `true` default.
+            // Port the oddity: the fingerprints and cached documents must match.
+            let sort = if spoilers { "1" } else { "" };
+            kuukan_mal::api::reviews::get_reviews(
+                &mal,
+                &r#type,
+                Some(page),
+                sort,
+                preliminary,
+                true,
+            )
             .await
-    })
-    .await?;
+        })
+        .await?;
 
-    Ok(json_with_cache_flags(
-        resource::top_reviews(&cached.payload),
-        &fingerprint("top", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(resource::top_reviews(&cached.payload)))
 }
 
 // ---------------------------------------------------------------------------

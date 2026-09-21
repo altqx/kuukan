@@ -12,20 +12,15 @@
 //! resources (`episodes`, `news`, `userupdates`, `reviews`) already return the
 //! `{pagination, data}` envelope.
 
-use std::future::Future;
-
 use axum::extract::{OriginalUri, Path, State};
 use axum::response::Response;
 use axum::routing::get;
 use axum::Router;
 use kuukan_core::enums::AnimeForumFilter;
 use kuukan_core::envelope;
-use kuukan_core::error::ApiError;
-use kuukan_mal::error::MalError;
 use kuukan_store::EntityKind;
-use serde_json::{json, Value};
+use serde_json::json;
 
-use crate::config::CacheCategory;
 use crate::dto::anime::{
     AnimeCharactersLookupCommand, AnimeEpisodeLookupCommand, AnimeEpisodesLookupCommand,
     AnimeExternalLookupCommand, AnimeForumLookupCommand, AnimeFullLookupCommand,
@@ -35,14 +30,11 @@ use crate::dto::anime::{
     AnimeStreamingLookupCommand, AnimeThemesLookupCommand, AnimeUserUpdatesLookupCommand,
     AnimeVideosEpisodesLookupCommand, AnimeVideosLookupCommand,
 };
+use crate::endpoint::Endpoint;
 use crate::error::ApiErrorResponse;
-use crate::extract::RawQuery;
-use crate::render::json_with_cache_flags;
+use crate::extract::{route_id, RawQuery};
 use crate::resources::anime as resource;
 use crate::resources::misc;
-use crate::services::scrape::{
-    cache_or_scrape, entity_or_scrape, fingerprint, request_uri, CachedPayload,
-};
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
@@ -69,53 +61,9 @@ pub fn router() -> Router<AppState> {
         .route("/anime/{id}/streaming", get(streaming))
 }
 
-/// Laravel route constraints are `[0-9]+`: a non-numeric id never matches the
-/// route and renders as `HttpException` 404, not axum's `Path<i64>` 400. Digit
-/// strings that overflow `i64` saturate like PHP's numeric string cast.
-fn route_id(value: &str) -> Result<i64, ApiErrorResponse> {
-    if value.is_empty() || !value.bytes().all(|byte| byte.is_ascii_digit()) {
-        return Err(ApiErrorResponse(ApiError::not_found()));
-    }
-    Ok(value.parse::<i64>().unwrap_or(i64::MAX))
-}
-
-/// Entity lookup (`ItemLookupHandler::handle` + `CachedScraperService::find`).
-async fn load_entity(
-    state: &AppState,
-    uri: &axum::http::Uri,
-    id: i64,
-) -> Result<(CachedPayload, u64, String), ApiErrorResponse> {
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(uri);
-    let mal = state.mal.clone();
-    let cached = entity_or_scrape(state, EntityKind::Anime, id, ttl, move || async move {
-        kuukan_mal::api::anime::get_anime(&mal, id).await
-    })
-    .await?;
-    Ok((cached, ttl, uri))
-}
-
-/// Fingerprint-cache lookup
-/// (`RequestHandlerWithScraperCache::handle` + `findList`).
-async fn load_cache<F, Fut>(
-    state: &AppState,
-    uri: &axum::http::Uri,
-    fetch: F,
-) -> Result<(CachedPayload, u64, String), ApiErrorResponse>
-where
-    F: FnOnce() -> Fut,
-    Fut: Future<Output = Result<Value, MalError>>,
-{
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(uri);
-    let cached = cache_or_scrape(state, "anime", &uri, ttl, fetch).await?;
-    Ok((cached, ttl, uri))
-}
-
-/// Render a mapper result with the Jikan cache flags for `uri`.
-fn render(data: Value, uri: &str, cached: CachedPayload, ttl: u64) -> Response {
-    json_with_cache_flags(data, &fingerprint("anime", uri), cached.modified_at, ttl)
-}
+/// Everything this module's endpoints share: the request type they are
+/// cached and fingerprinted as, and the TTL category they use.
+const ENDPOINT: Endpoint = Endpoint::new("anime");
 
 async fn main(
     State(state): State<AppState>,
@@ -124,12 +72,18 @@ async fn main(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeLookupCommand::parse(route_id(&id)?, &query)?;
-    let (cached, ttl, uri) = load_entity(&state, &uri, command.id).await?;
+    let mal = state.mal.clone();
+    let id = command.id;
+    let cached = ENDPOINT
+        .entity(&state, &uri, EntityKind::Anime, id, move || async move {
+            kuukan_mal::api::anime::get_anime(&mal, id).await
+        })
+        .await?;
     // `AnimeResource` reads the Eloquent accessors (`season`, `year`,
     // `broadcast`), which the store keeps in their raw JMS shape.
     let payload = crate::collection::materialize_accessors(&cached.payload);
     let data = envelope::data(resource::anime(&payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn full(
@@ -139,10 +93,16 @@ async fn full(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeFullLookupCommand::parse(route_id(&id)?, &query)?;
-    let (cached, ttl, uri) = load_entity(&state, &uri, command.id).await?;
+    let mal = state.mal.clone();
+    let id = command.id;
+    let cached = ENDPOINT
+        .entity(&state, &uri, EntityKind::Anime, id, move || async move {
+            kuukan_mal::api::anime::get_anime(&mal, id).await
+        })
+        .await?;
     let payload = crate::collection::materialize_accessors(&cached.payload);
     let data = envelope::data(resource::anime_full(&payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn characters(
@@ -153,12 +113,13 @@ async fn characters(
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeCharactersLookupCommand::parse(route_id(&id)?, &query)?;
     let mal = state.mal.clone();
-    let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        kuukan_mal::api::anime::get_anime_characters_and_staff(&mal, command.id).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::anime::get_anime_characters_and_staff(&mal, command.id).await
+        })
+        .await?;
     let data = envelope::data(resource::anime_characters(&cached.payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn staff(
@@ -169,12 +130,13 @@ async fn staff(
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeStaffLookupCommand::parse(route_id(&id)?, &query)?;
     let mal = state.mal.clone();
-    let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        kuukan_mal::api::anime::get_anime_characters_and_staff(&mal, command.id).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::anime::get_anime_characters_and_staff(&mal, command.id).await
+        })
+        .await?;
     let data = envelope::data(resource::anime_staff(&cached.payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn episodes(
@@ -186,12 +148,13 @@ async fn episodes(
     let command = AnimeEpisodesLookupCommand::parse(route_id(&id)?, &query)?;
     let mal = state.mal.clone();
     let page = command.page;
-    let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        kuukan_mal::api::anime::get_anime_episodes(&mal, command.id, Some(page)).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::anime::get_anime_episodes(&mal, command.id, Some(page)).await
+        })
+        .await?;
     let data = resource::anime_episodes(&cached.payload);
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn episode(
@@ -202,12 +165,13 @@ async fn episode(
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeEpisodeLookupCommand::parse(route_id(&id)?, route_id(&episode_id)?, &query)?;
     let mal = state.mal.clone();
-    let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        kuukan_mal::api::anime::get_anime_episode(&mal, command.id, command.episode_id).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::anime::get_anime_episode(&mal, command.id, command.episode_id).await
+        })
+        .await?;
     let data = envelope::data(resource::anime_episode(&cached.payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn news(
@@ -219,12 +183,13 @@ async fn news(
     let command = AnimeNewsLookupCommand::parse(route_id(&id)?, &query)?;
     let mal = state.mal.clone();
     let page = command.page;
-    let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        kuukan_mal::api::anime::get_anime_news(&mal, command.id, Some(page)).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::anime::get_anime_news(&mal, command.id, Some(page)).await
+        })
+        .await?;
     let data = resource::anime_news(&cached.payload);
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn forum(
@@ -237,12 +202,13 @@ async fn forum(
     // `AnimeForumLookupHandler` defaults the topic to `all`.
     let topic = command.filter.unwrap_or(AnimeForumFilter::All).as_str();
     let mal = state.mal.clone();
-    let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        kuukan_mal::api::anime::get_anime_forum(&mal, command.id, Some(topic)).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::anime::get_anime_forum(&mal, command.id, Some(topic)).await
+        })
+        .await?;
     let data = envelope::data(resource::anime_forum(&cached.payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn videos(
@@ -253,12 +219,13 @@ async fn videos(
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeVideosLookupCommand::parse(route_id(&id)?, &query)?;
     let mal = state.mal.clone();
-    let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        kuukan_mal::api::anime::get_anime_videos(&mal, command.id).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::anime::get_anime_videos(&mal, command.id).await
+        })
+        .await?;
     let data = envelope::data(resource::anime_videos(&cached.payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn videos_episodes(
@@ -270,12 +237,13 @@ async fn videos_episodes(
     let command = AnimeVideosEpisodesLookupCommand::parse(route_id(&id)?, &query)?;
     let mal = state.mal.clone();
     let page = command.page;
-    let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        kuukan_mal::api::anime::get_anime_videos_episodes(&mal, command.id, Some(page)).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::anime::get_anime_videos_episodes(&mal, command.id, Some(page)).await
+        })
+        .await?;
     let data = resource::anime_episodes(&cached.payload);
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn pictures(
@@ -286,13 +254,14 @@ async fn pictures(
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimePicturesLookupCommand::parse(route_id(&id)?, &query)?;
     let mal = state.mal.clone();
-    let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        let pictures = kuukan_mal::api::anime::get_anime_pictures(&mal, command.id).await?;
-        Ok(json!({ "pictures": pictures }))
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            let pictures = kuukan_mal::api::anime::get_anime_pictures(&mal, command.id).await?;
+            Ok(json!({ "pictures": pictures }))
+        })
+        .await?;
     let data = envelope::data(resource::anime_pictures(&cached.payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn statistics(
@@ -303,12 +272,13 @@ async fn statistics(
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeStatsLookupCommand::parse(route_id(&id)?, &query)?;
     let mal = state.mal.clone();
-    let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        kuukan_mal::api::anime::get_anime_stats(&mal, command.id).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::anime::get_anime_stats(&mal, command.id).await
+        })
+        .await?;
     let data = envelope::data(resource::anime_statistics(&cached.payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn more_info(
@@ -319,12 +289,13 @@ async fn more_info(
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeMoreInfoLookupCommand::parse(route_id(&id)?, &query)?;
     let mal = state.mal.clone();
-    let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        kuukan_mal::api::anime::get_anime_more_info(&mal, command.id).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::anime::get_anime_more_info(&mal, command.id).await
+        })
+        .await?;
     let data = envelope::data(resource::anime_more_info(&cached.payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn recommendations(
@@ -335,13 +306,14 @@ async fn recommendations(
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeRecommendationsLookupCommand::parse(route_id(&id)?, &query)?;
     let mal = state.mal.clone();
-    let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        let items = kuukan_mal::api::anime::get_anime_recommendations(&mal, command.id).await?;
-        Ok(json!({ "recommendations": items }))
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            let items = kuukan_mal::api::anime::get_anime_recommendations(&mal, command.id).await?;
+            Ok(json!({ "recommendations": items }))
+        })
+        .await?;
     let data = envelope::data(resource::anime_recommendations(&cached.payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn user_updates(
@@ -353,14 +325,19 @@ async fn user_updates(
     let command = AnimeUserUpdatesLookupCommand::parse(route_id(&id)?, &query)?;
     let mal = state.mal.clone();
     let page = command.page;
-    let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        kuukan_mal::api::anime::get_anime_recently_updated_by_users(&mal, command.id, Some(page))
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::anime::get_anime_recently_updated_by_users(
+                &mal,
+                command.id,
+                Some(page),
+            )
             .await
-    })
-    .await?;
+        })
+        .await?;
     // `AnimeUserUpdatesLookupHandler` keeps the default `ResultsResource`.
     let data = misc::results(&cached.payload);
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn reviews(
@@ -372,20 +349,21 @@ async fn reviews(
     let command = AnimeReviewsLookupCommand::parse(route_id(&id)?, &query)?;
     let params = command.review_request_params();
     let mal = state.mal.clone();
-    let (cached, ttl, uri) = load_cache(&state, &uri, move || async move {
-        kuukan_mal::api::anime::get_anime_reviews(
-            &mal,
-            command.id,
-            Some(params.page),
-            Some(params.sort.as_str()),
-            Some(params.spoilers),
-            Some(params.preliminary),
-        )
-        .await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::anime::get_anime_reviews(
+                &mal,
+                command.id,
+                Some(params.page),
+                Some(params.sort.as_str()),
+                Some(params.spoilers),
+                Some(params.preliminary),
+            )
+            .await
+        })
+        .await?;
     let data = resource::anime_reviews(&cached.payload);
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn relations(
@@ -395,9 +373,15 @@ async fn relations(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeRelationsLookupCommand::parse(route_id(&id)?, &query)?;
-    let (cached, ttl, uri) = load_entity(&state, &uri, command.id).await?;
+    let mal = state.mal.clone();
+    let id = command.id;
+    let cached = ENDPOINT
+        .entity(&state, &uri, EntityKind::Anime, id, move || async move {
+            kuukan_mal::api::anime::get_anime(&mal, id).await
+        })
+        .await?;
     let data = envelope::data(resource::anime_relations(&cached.payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn themes(
@@ -407,9 +391,15 @@ async fn themes(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeThemesLookupCommand::parse(route_id(&id)?, &query)?;
-    let (cached, ttl, uri) = load_entity(&state, &uri, command.id).await?;
+    let mal = state.mal.clone();
+    let id = command.id;
+    let cached = ENDPOINT
+        .entity(&state, &uri, EntityKind::Anime, id, move || async move {
+            kuukan_mal::api::anime::get_anime(&mal, id).await
+        })
+        .await?;
     let data = envelope::data(resource::anime_themes(&cached.payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn external(
@@ -419,9 +409,15 @@ async fn external(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeExternalLookupCommand::parse(route_id(&id)?, &query)?;
-    let (cached, ttl, uri) = load_entity(&state, &uri, command.id).await?;
+    let mal = state.mal.clone();
+    let id = command.id;
+    let cached = ENDPOINT
+        .entity(&state, &uri, EntityKind::Anime, id, move || async move {
+            kuukan_mal::api::anime::get_anime(&mal, id).await
+        })
+        .await?;
     let data = envelope::data(resource::anime_external_links(&cached.payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }
 
 async fn streaming(
@@ -431,7 +427,13 @@ async fn streaming(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeStreamingLookupCommand::parse(route_id(&id)?, &query)?;
-    let (cached, ttl, uri) = load_entity(&state, &uri, command.id).await?;
+    let mal = state.mal.clone();
+    let id = command.id;
+    let cached = ENDPOINT
+        .entity(&state, &uri, EntityKind::Anime, id, move || async move {
+            kuukan_mal::api::anime::get_anime(&mal, id).await
+        })
+        .await?;
     let data = envelope::data(resource::anime_streaming_links(&cached.payload));
-    Ok(render(data, &uri, cached, ttl))
+    Ok(cached.render(data))
 }

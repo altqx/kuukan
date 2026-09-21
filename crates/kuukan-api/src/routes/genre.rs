@@ -16,11 +16,17 @@ use serde_json::Value;
 use crate::config::CacheCategory;
 use crate::dto::anime::AnimeGenreListCommand;
 use crate::dto::manga::MangaGenreListCommand;
+use crate::endpoint::Endpoint;
 use crate::error::ApiErrorResponse;
 use crate::extract::RawQuery;
 use crate::resources::genre as resource;
-use crate::services::scrape::cache_or_scrape;
 use crate::state::AppState;
+
+/// Genre lists are media-wide documents: pagination query parameters do not
+/// change the cache key, because PHP serves them from unkeyed collections.
+const ENDPOINT: Endpoint = Endpoint::new("genres")
+    .category(CacheCategory::Genre)
+    .path_only();
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -34,16 +40,12 @@ async fn anime(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = AnimeGenreListCommand::parse(&query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Genre);
-    // Genre lists are media-wide documents: pagination query parameters do not
-    // change the cache key (PHP serves them from unkeyed collections).
-    let canonical = uri.path().to_string();
-
     let mal = state.mal.clone();
-    let cached = cache_or_scrape(&state, "genres", &canonical, ttl, move || async move {
-        kuukan_mal::api::genre::get_anime_genres(&mal).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::genre::get_anime_genres(&mal).await
+        })
+        .await?;
 
     let items = select_genres(&cached.payload, command.filter);
     Ok(Json(resource::genre_list_response(&items)).into_response())
@@ -55,16 +57,12 @@ async fn manga(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = MangaGenreListCommand::parse(&query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Genre);
-    // Genre lists are media-wide documents: pagination query parameters do not
-    // change the cache key (PHP serves them from unkeyed collections).
-    let canonical = uri.path().to_string();
-
     let mal = state.mal.clone();
-    let cached = cache_or_scrape(&state, "genres", &canonical, ttl, move || async move {
-        kuukan_mal::api::genre::get_manga_genres(&mal).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::genre::get_manga_genres(&mal).await
+        })
+        .await?;
 
     let items = select_genres(&cached.payload, command.filter);
     Ok(Json(resource::genre_list_response(&items)).into_response())

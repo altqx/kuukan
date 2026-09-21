@@ -16,19 +16,18 @@ use axum::routing::get;
 use axum::Router;
 use serde_json::Value;
 
-use crate::config::CacheCategory;
 use crate::dto::person::{
     PersonAnimeLookupCommand, PersonFullLookupCommand, PersonLookupCommand,
     PersonMangaLookupCommand, PersonPicturesLookupCommand, PersonVoicesLookupCommand,
 };
+use crate::endpoint::{Cached, Endpoint};
 use crate::error::ApiErrorResponse;
 use crate::extract::RawQuery;
-use crate::render::json_with_cache_flags;
 use crate::resources::person as resource;
-use crate::services::scrape::{
-    cache_or_scrape, entity_or_scrape, fingerprint, request_uri, CachedPayload,
-};
 use crate::state::AppState;
+
+/// What this module's endpoints are cached and fingerprinted as.
+const ENDPOINT: Endpoint = Endpoint::new("people");
 use kuukan_core::envelope;
 use kuukan_store::EntityKind;
 
@@ -48,15 +47,13 @@ async fn load_person(
     state: &AppState,
     uri: &axum::http::Uri,
     id: i64,
-) -> Result<(CachedPayload, u64, String), ApiErrorResponse> {
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(uri);
+) -> Result<Cached, ApiErrorResponse> {
     let mal = state.mal.clone();
-    let cached = entity_or_scrape(state, EntityKind::Person, id, ttl, move || async move {
-        kuukan_mal::api::person::get_person(&mal, id).await
-    })
-    .await?;
-    Ok((cached, ttl, uri))
+    ENDPOINT
+        .entity(state, uri, EntityKind::Person, id, move || async move {
+            kuukan_mal::api::person::get_person(&mal, id).await
+        })
+        .await
 }
 
 /// `$results->get(<key>)` as a JSON array (`[]` when the key is absent).
@@ -75,14 +72,9 @@ async fn main(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = PersonLookupCommand::parse(id, &query)?;
-    let (cached, ttl, uri) = load_person(&state, &uri, command.id).await?;
+    let cached = load_person(&state, &uri, command.id).await?;
     let data = envelope::data(resource::person(&cached.payload));
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("people", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }
 
 async fn full(
@@ -92,14 +84,9 @@ async fn full(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = PersonFullLookupCommand::parse(id, &query)?;
-    let (cached, ttl, uri) = load_person(&state, &uri, command.id).await?;
+    let cached = load_person(&state, &uri, command.id).await?;
     let data = envelope::data(resource::person_full(&cached.payload));
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("people", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }
 
 async fn anime(
@@ -109,17 +96,12 @@ async fn anime(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = PersonAnimeLookupCommand::parse(id, &query)?;
-    let (cached, ttl, uri) = load_person(&state, &uri, command.id).await?;
+    let cached = load_person(&state, &uri, command.id).await?;
     let data = envelope::data(resource::person_anime_collection(&items(
         &cached.payload,
         "anime_staff_positions",
     )));
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("people", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }
 
 async fn manga(
@@ -129,17 +111,12 @@ async fn manga(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = PersonMangaLookupCommand::parse(id, &query)?;
-    let (cached, ttl, uri) = load_person(&state, &uri, command.id).await?;
+    let cached = load_person(&state, &uri, command.id).await?;
     let data = envelope::data(resource::person_manga_collection(&items(
         &cached.payload,
         "published_manga",
     )));
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("people", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }
 
 async fn voices(
@@ -149,17 +126,12 @@ async fn voices(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = PersonVoicesLookupCommand::parse(id, &query)?;
-    let (cached, ttl, uri) = load_person(&state, &uri, command.id).await?;
+    let cached = load_person(&state, &uri, command.id).await?;
     let data = envelope::data(resource::person_voices_collection(&items(
         &cached.payload,
         "voice_acting_roles",
     )));
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("people", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }
 
 async fn pictures(
@@ -169,19 +141,13 @@ async fn pictures(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = PersonPicturesLookupCommand::parse(id, &query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(&uri);
     let mal = state.mal.clone();
-    let cached = cache_or_scrape(&state, "people", &uri, ttl, move || async move {
-        let pictures = kuukan_mal::api::person::get_person_pictures(&mal, command.id).await?;
-        Ok(serde_json::json!({ "pictures": pictures }))
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            let pictures = kuukan_mal::api::person::get_person_pictures(&mal, command.id).await?;
+            Ok(serde_json::json!({ "pictures": pictures }))
+        })
+        .await?;
     let data = envelope::data(resource::person_pictures(&cached.payload));
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("people", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }

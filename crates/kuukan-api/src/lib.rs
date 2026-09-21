@@ -1,6 +1,7 @@
 pub mod collection;
 pub mod config;
 pub mod dto;
+pub mod endpoint;
 pub mod error;
 pub mod extract;
 pub mod middleware;
@@ -8,5 +9,4 @@ pub mod render;
 pub mod resources;
 pub mod routes;
 pub mod server;
-pub mod services;
 pub mod state;

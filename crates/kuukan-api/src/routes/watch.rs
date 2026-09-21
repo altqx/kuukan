@@ -10,17 +10,18 @@ use axum::response::Response;
 use axum::routing::get;
 use axum::Router;
 
-use crate::config::CacheCategory;
 use crate::dto::watch::{
     QueryPopularEpisodesCommand, QueryPopularPromoVideosCommand, QueryRecentlyAddedEpisodesCommand,
     QueryRecentlyAddedPromoVideosCommand,
 };
+use crate::endpoint::Endpoint;
 use crate::error::ApiErrorResponse;
 use crate::extract::RawQuery;
-use crate::render::json_with_cache_flags;
 use crate::resources::watch as resource;
-use crate::services::scrape::{cache_or_scrape, fingerprint, request_uri};
 use crate::state::AppState;
+
+/// What this module's endpoints are cached and fingerprinted as.
+const ENDPOINT: Endpoint = Endpoint::new("watch");
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -36,22 +37,15 @@ async fn recent_episodes(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     QueryRecentlyAddedEpisodesCommand::parse(&query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(&uri);
-
     let mal = state.mal.clone();
-    let cached = cache_or_scrape(&state, "watch", &uri, ttl, move || async move {
-        kuukan_mal::api::watch::get_recent_episodes(&mal).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::watch::get_recent_episodes(&mal).await
+        })
+        .await?;
 
     let data = resource::watch_episodes(&cached.payload);
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("watch", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }
 
 async fn popular_episodes(
@@ -60,22 +54,15 @@ async fn popular_episodes(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     QueryPopularEpisodesCommand::parse(&query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(&uri);
-
     let mal = state.mal.clone();
-    let cached = cache_or_scrape(&state, "watch", &uri, ttl, move || async move {
-        kuukan_mal::api::watch::get_popular_episodes(&mal).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::watch::get_popular_episodes(&mal).await
+        })
+        .await?;
 
     let data = resource::watch_episodes(&cached.payload);
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("watch", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }
 
 async fn recent_promos(
@@ -84,23 +71,17 @@ async fn recent_promos(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     let command = QueryRecentlyAddedPromoVideosCommand::parse(&query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(&uri);
 
     let mal = state.mal.clone();
     let page = command.page;
-    let cached = cache_or_scrape(&state, "watch", &uri, ttl, move || async move {
-        kuukan_mal::api::watch::get_recent_promotional_videos(&mal, page).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::watch::get_recent_promotional_videos(&mal, page).await
+        })
+        .await?;
 
     let data = resource::watch_promos(&cached.payload);
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("watch", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }
 
 async fn popular_promos(
@@ -109,20 +90,13 @@ async fn popular_promos(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     QueryPopularPromoVideosCommand::parse(&query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(&uri);
-
     let mal = state.mal.clone();
-    let cached = cache_or_scrape(&state, "watch", &uri, ttl, move || async move {
-        kuukan_mal::api::watch::get_popular_promotional_videos(&mal).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::watch::get_popular_promotional_videos(&mal).await
+        })
+        .await?;
 
     let data = resource::watch_promos(&cached.payload);
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("watch", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }

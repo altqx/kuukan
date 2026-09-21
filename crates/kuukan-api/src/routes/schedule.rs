@@ -15,14 +15,15 @@ use kuukan_core::error::ApiError;
 use serde_json::Value;
 
 use crate::collection::{AnimeCollection, Members};
-use crate::config::CacheCategory;
 use crate::dto::schedule::QueryAnimeSchedulesCommand;
+use crate::endpoint::Endpoint;
 use crate::error::ApiErrorResponse;
 use crate::extract::RawQuery;
-use crate::render::json_with_cache_flags;
 use crate::resources::schedule as resource;
-use crate::services::scrape::{fingerprint, request_uri};
 use crate::state::AppState;
+
+/// What this module's endpoints are fingerprinted as.
+const ENDPOINT: Endpoint = Endpoint::new("schedules");
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -60,8 +61,6 @@ async fn handle(
     query: &kuukan_core::params::Query,
 ) -> Result<Response, ApiErrorResponse> {
     let command = QueryAnimeSchedulesCommand::parse(filter, query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(uri);
 
     // `getCurrentlyAiring`: type = TV, status = Currently Airing, optional
     // broadcast day filter, ordered by members ascending.
@@ -79,12 +78,7 @@ async fn handle(
     let data = resource::schedules(&pagination, &page_items);
 
     // Repository responses carry no cached document: epoch headers.
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("schedules", &uri),
-        0,
-        ttl,
-    ))
+    Ok(ENDPOINT.flags(state, uri, 0).render(data))
 }
 
 /// `getCurrentlyAiring` broadcast predicate:

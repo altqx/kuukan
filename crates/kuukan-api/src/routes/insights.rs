@@ -207,7 +207,7 @@ fn list_page(page: u64, has_more: bool, count: u64) -> Pagination {
     Pagination::list(last_visible_page, has_more)
 }
 
-/// Same rendering as `services::scrape` for storage failures.
+/// Same rendering as `crate::endpoint` for storage failures.
 fn storage_error(error: kuukan_store::StoreError) -> ApiErrorResponse {
     ApiErrorResponse(ApiError::Storage {
         error: Some(error.to_string()),

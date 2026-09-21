@@ -24,18 +24,19 @@ use kuukan_core::pagination::Pagination;
 use serde_json::Value;
 
 use crate::collection::{AnimeCollection, Members};
-use crate::config::CacheCategory;
 use crate::dto::base::QueryAnimeSeasonCommand;
 use crate::dto::seasonal::{
     QueryAnimeSeasonListCommand, QueryCurrentAnimeSeasonCommand, QuerySpecificAnimeSeasonCommand,
     QueryUpcomingAnimeSeasonCommand,
 };
+use crate::endpoint::Endpoint;
 use crate::error::ApiErrorResponse;
 use crate::extract::RawQuery;
-use crate::render::json_with_cache_flags;
 use crate::resources::season as resource;
-use crate::services::scrape::{cache_or_scrape, fingerprint, request_uri};
 use crate::state::AppState;
+
+/// What this module's endpoints are cached and fingerprinted as.
+const ENDPOINT: Endpoint = Endpoint::new("seasons");
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -52,22 +53,15 @@ async fn archive(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiErrorResponse> {
     QueryAnimeSeasonListCommand::parse(&query)?;
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(&uri);
-
     let mal = state.mal.clone();
-    let cached = cache_or_scrape(&state, "seasons", &uri, ttl, move || async move {
-        kuukan_mal::api::season_list::get_season_list(&mal).await
-    })
-    .await?;
+    let cached = ENDPOINT
+        .document(&state, &uri, move || async move {
+            kuukan_mal::api::season_list::get_season_list(&mal).await
+        })
+        .await?;
 
     let data = resource::season_archive(&cached.payload);
-    Ok(json_with_cache_flags(
-        data,
-        &fingerprint("seasons", &uri),
-        cached.modified_at,
-        ttl,
-    ))
+    Ok(cached.render(data))
 }
 
 /// `/seasons/now` — current season in Asia/Tokyo (`QueryCurrentAnimeSeasonHandler`).
@@ -327,11 +321,9 @@ fn render(
     collection: AnimeCollection,
     map: fn(&Pagination, &[Value]) -> Value,
 ) -> Response {
-    let ttl = state.config.cache_ttl(CacheCategory::Default);
-    let uri = request_uri(uri);
     let (pagination, page_items) = collection.page(command.page, command.limit);
     let data = map(&pagination, &page_items);
-    json_with_cache_flags(data, &fingerprint("seasons", &uri), 0, ttl)
+    ENDPOINT.flags(state, uri, 0).render(data)
 }
 
 #[cfg(test)]
