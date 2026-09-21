@@ -15,7 +15,6 @@
 
 use serde_json::{json, Value};
 
-use crate::client::MalClient;
 use crate::error::MalError;
 use crate::parser::anime::{
     AnimeEpisodeParser, AnimeError, AnimeParser, AnimeRecentlyUpdatedByUsersParser,
@@ -25,6 +24,7 @@ use crate::parser::anime::{
 use crate::parser::{common, forum, news};
 use crate::request::anime as req;
 use crate::request::MalRequest;
+use crate::source::{MalSource, MalSourceExt};
 
 /// Wrap a parser failure like `ParserException::fromRequest()`.
 fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
@@ -32,7 +32,7 @@ fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
 }
 
 /// `MalClient::getAnime(AnimeRequest $request)`.
-pub async fn get_anime(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_anime(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = req::AnimeRequest::new(id).path();
     let doc = client.get_html(&path).await?;
     AnimeParser::new(doc)
@@ -45,7 +45,7 @@ pub async fn get_anime(client: &MalClient, id: i64) -> Result<Value, MalError> {
 /// The episode page returns 404 when there are no results; PHP returns an empty
 /// `Episodes` model in that case.
 pub async fn get_anime_episodes(
-    client: &MalClient,
+    client: &dyn MalSource,
     id: i64,
     page: Option<u64>,
 ) -> Result<Value, MalError> {
@@ -68,7 +68,7 @@ pub async fn get_anime_episodes(
 
 /// `MalClient::getAnimeEpisode(AnimeEpisodeRequest $request)`.
 pub async fn get_anime_episode(
-    client: &MalClient,
+    client: &dyn MalSource,
     id: i64,
     episode_id: i64,
 ) -> Result<Value, MalError> {
@@ -85,7 +85,7 @@ pub async fn get_anime_episode(
 }
 
 /// `MalClient::getAnimeVideos(AnimeVideosRequest $request)`.
-pub async fn get_anime_videos(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_anime_videos(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = req::AnimeVideosRequest::new(id).path();
     let doc = client.get_html(&path).await?;
     VideosParser::new(doc)
@@ -95,7 +95,7 @@ pub async fn get_anime_videos(client: &MalClient, id: i64) -> Result<Value, MalE
 
 /// `MalClient::getAnimeVideosEpisodes(AnimeVideosEpisodesRequest $request)`.
 pub async fn get_anime_videos_episodes(
-    client: &MalClient,
+    client: &dyn MalSource,
     id: i64,
     page: Option<u64>,
 ) -> Result<Value, MalError> {
@@ -108,7 +108,7 @@ pub async fn get_anime_videos_episodes(
 
 /// `MalClient::getAnimeCharactersAndStaff(AnimeCharactersAndStaffRequest)`.
 pub async fn get_anime_characters_and_staff(
-    client: &MalClient,
+    client: &dyn MalSource,
     id: i64,
 ) -> Result<Value, MalError> {
     let path = req::AnimeCharactersAndStaffRequest::new(id).path();
@@ -119,7 +119,7 @@ pub async fn get_anime_characters_and_staff(
 }
 
 /// `MalClient::getAnimePictures(AnimePicturesRequest $request)` (array).
-pub async fn get_anime_pictures(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_anime_pictures(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = req::AnimePicturesRequest::new(id).path();
     let doc = client.get_html(&path).await?;
     common::pictures_page(&doc)
@@ -132,7 +132,7 @@ pub async fn get_anime_pictures(client: &MalClient, id: i64) -> Result<Value, Ma
 /// `MalClient` returns the bare string; `AnimeMoreInfoLookupHandler` stores it
 /// as `{"moreinfo": string|null}` (the shape `MoreInfoResource` reads), so the
 /// wrapper is part of the returned document (same as `api::manga`).
-pub async fn get_anime_more_info(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_anime_more_info(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = req::AnimeMoreInfoRequest::new(id).path();
     let doc = client.get_html(&path).await?;
     let more_info = MoreInfoParser::new(doc)
@@ -142,7 +142,7 @@ pub async fn get_anime_more_info(client: &MalClient, id: i64) -> Result<Value, M
 }
 
 /// `MalClient::getAnimeStats(AnimeStatsRequest $request)`.
-pub async fn get_anime_stats(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_anime_stats(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = req::AnimeStatsRequest::new(id).path();
     let doc = client.get_html(&path).await?;
     AnimeStatsParser::new(doc)
@@ -152,7 +152,7 @@ pub async fn get_anime_stats(client: &MalClient, id: i64) -> Result<Value, MalEr
 
 /// `MalClient::getAnimeForum(AnimeForumRequest $request)` (array of topics).
 pub async fn get_anime_forum(
-    client: &MalClient,
+    client: &dyn MalSource,
     id: i64,
     topic: Option<&str>,
 ) -> Result<Value, MalError> {
@@ -167,7 +167,7 @@ pub async fn get_anime_forum(
 ///
 /// Returns the `NewsListItem[]` payload (`parse_news`), like `api::manga`.
 pub async fn get_anime_news(
-    client: &MalClient,
+    client: &dyn MalSource,
     id: i64,
     page: Option<u64>,
 ) -> Result<Value, MalError> {
@@ -180,7 +180,7 @@ pub async fn get_anime_news(
 
 /// `MalClient::getAnimeRecentlyUpdatedByUsers(...)`.
 pub async fn get_anime_recently_updated_by_users(
-    client: &MalClient,
+    client: &dyn MalSource,
     id: i64,
     page: Option<u64>,
 ) -> Result<Value, MalError> {
@@ -192,7 +192,7 @@ pub async fn get_anime_recently_updated_by_users(
 }
 
 /// `MalClient::getAnimeRecommendations(AnimeRecommendationsRequest)` (array).
-pub async fn get_anime_recommendations(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_anime_recommendations(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = req::AnimeRecommendationsRequest::new(id).path();
     let doc = client.get_html(&path).await?;
     common::recommendations(&doc)
@@ -202,7 +202,7 @@ pub async fn get_anime_recommendations(client: &MalClient, id: i64) -> Result<Va
 
 /// `MalClient::getAnimeReviews(AnimeReviewsRequest $request)`.
 pub async fn get_anime_reviews(
-    client: &MalClient,
+    client: &dyn MalSource,
     id: i64,
     page: Option<u64>,
     sort: Option<&str>,
@@ -224,11 +224,15 @@ pub async fn get_anime_reviews(
 }
 
 /// `MalClient::getAnimeGenres(AnimeGenresRequest $request)` (full genre list).
-pub async fn get_anime_genres(client: &MalClient) -> Result<Value, MalError> {
+pub async fn get_anime_genres(client: &dyn MalSource) -> Result<Value, MalError> {
     crate::api::genre::get_anime_genres(client).await
 }
 
 /// `MalClient::getAnimeGenre(AnimeGenreRequest $request)` (genre listing).
-pub async fn get_anime_genre(client: &MalClient, id: i64, page: u64) -> Result<Value, MalError> {
+pub async fn get_anime_genre(
+    client: &dyn MalSource,
+    id: i64,
+    page: u64,
+) -> Result<Value, MalError> {
     crate::api::genre::get_anime_genre(client, id, page).await
 }

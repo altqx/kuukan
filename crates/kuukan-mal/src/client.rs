@@ -11,7 +11,6 @@ use std::time::Duration;
 use bytes::Bytes;
 
 use crate::error::MalError;
-use crate::parser::helper::HtmlDoc;
 
 /// MAL client configuration, built from the jikan environment variables.
 #[derive(Debug, Clone)]
@@ -110,12 +109,6 @@ impl MalClient {
         &self.http
     }
 
-    /// GET a page and parse it with libxml2.
-    pub async fn get_html(&self, url: &str) -> Result<HtmlDoc, MalError> {
-        let bytes = self.get_bytes(url).await?;
-        HtmlDoc::parse(&bytes).map_err(MalError::from)
-    }
-
     /// GET a page as text (charset-aware, UTF-8 fallback).
     pub async fn get_text(&self, url: &str) -> Result<String, MalError> {
         let response = self.send(url).await?;
@@ -123,15 +116,6 @@ impl MalClient {
             .text()
             .await
             .map_err(|e| MalError::Transport(e.to_string()))
-    }
-
-    /// GET a JSON document.
-    pub async fn get_json(&self, url: &str) -> Result<serde_json::Value, MalError> {
-        let response = self.send(url).await?;
-        response
-            .json()
-            .await
-            .map_err(|e| MalError::Json(e.to_string()))
     }
 
     /// GET raw response bytes.
@@ -182,6 +166,13 @@ impl MalClient {
     }
 }
 
+#[async_trait::async_trait]
+impl crate::source::MalSource for MalClient {
+    async fn get_bytes(&self, url: &str) -> Result<Bytes, MalError> {
+        MalClient::get_bytes(self, url).await
+    }
+}
+
 fn should_retry_status(status: u16) -> bool {
     status == 429 || (500..600).contains(&status)
 }
@@ -200,6 +191,7 @@ async fn backoff(retry: u32) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::source::MalSourceExt;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 

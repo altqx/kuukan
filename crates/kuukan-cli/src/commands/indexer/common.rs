@@ -20,8 +20,8 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use kuukan_api::state::AppState;
 use kuukan_core::util::{jikan_request_fingerprint, sha1_hex};
-use kuukan_mal::client::MalClient;
 use kuukan_mal::error::MalError;
+use kuukan_mal::MalSource;
 use kuukan_search::EntityKind as SearchKind;
 use kuukan_store::{EntityKind as StoreKind, StoreConfig, StoredEntity};
 use serde_json::Value;
@@ -76,7 +76,7 @@ impl Media {
     }
 
     /// Scrape one entry (`MalClient::getAnime` / `getManga`).
-    pub async fn fetch(self, client: &MalClient, id: i64) -> Result<Value, MalError> {
+    pub async fn fetch(self, client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
         match self {
             Media::Anime => kuukan_mal::api::anime::get_anime(client, id).await,
             Media::Manga => kuukan_mal::api::manga::get_manga(client, id).await,
@@ -162,27 +162,18 @@ pub fn save_failed_ids(path: &Path, ids: &[i64]) -> Result<()> {
 // ---------------------------------------------------------------------------
 
 /// Fetch the raw id-cache document (also used for incremental snapshots).
-pub async fn fetch_id_cache_bytes(client: &MalClient, media: Media) -> Result<Vec<u8>> {
+pub async fn fetch_id_cache_bytes(client: &dyn MalSource, media: Media) -> Result<Vec<u8>> {
     let url = media.id_cache_url();
     tracing::info!(url, "fetching MAL ID cache");
-    let response = client
-        .http()
-        .get(url)
-        .send()
+    let bytes = client
+        .get_bytes(url)
         .await
         .with_context(|| format!("requesting {url}"))?;
-    if !response.status().is_success() {
-        anyhow::bail!("{url} returned HTTP {}", response.status());
-    }
-    let bytes = response
-        .bytes()
-        .await
-        .with_context(|| format!("reading {url}"))?;
     Ok(bytes.to_vec())
 }
 
 /// Download and merge the purarue cache into a sorted id list.
-pub async fn fetch_id_cache(client: &MalClient, media: Media) -> Result<Vec<i64>> {
+pub async fn fetch_id_cache(client: &dyn MalSource, media: Media) -> Result<Vec<i64>> {
     let bytes = fetch_id_cache_bytes(client, media).await?;
     parse_id_cache(&bytes)
 }

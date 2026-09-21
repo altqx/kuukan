@@ -10,7 +10,6 @@
 
 use serde_json::{json, Value};
 
-use crate::client::MalClient;
 use crate::error::MalError;
 use crate::parser::search::{
     AnimeSearchParser, CharacterSearchParser, MangaSearchParser, PersonSearchParser,
@@ -21,6 +20,7 @@ use crate::request::search::{
     UserSearchRequest,
 };
 use crate::request::MalRequest;
+use crate::source::{MalSource, MalSourceExt};
 
 /// Wrap a parser failure like `ParserException::fromRequest()`.
 fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
@@ -38,7 +38,7 @@ fn empty_search_model() -> Value {
 
 /// `MalClient::getAnimeSearch(AnimeSearchRequest $request)`.
 pub async fn get_anime_search(
-    client: &MalClient,
+    client: &dyn MalSource,
     request: &AnimeSearchRequest,
 ) -> Result<Value, MalError> {
     let path = request.path();
@@ -54,7 +54,7 @@ pub async fn get_anime_search(
 /// separate `AnimeSearchAlt` model), so the payload is identical to
 /// [`get_anime_search`].
 pub async fn get_anime_search_alt(
-    client: &MalClient,
+    client: &dyn MalSource,
     request: &AnimeSearchRequest,
 ) -> Result<Value, MalError> {
     get_anime_search(client, request).await
@@ -62,7 +62,7 @@ pub async fn get_anime_search_alt(
 
 /// `MalClient::getMangaSearch(MangaSearchRequest $request)`.
 pub async fn get_manga_search(
-    client: &MalClient,
+    client: &dyn MalSource,
     request: &MangaSearchRequest,
 ) -> Result<Value, MalError> {
     let path = request.path();
@@ -76,7 +76,7 @@ pub async fn get_manga_search(
 ///
 /// A MAL 404 becomes `CharacterSearch::mock()` (empty results).
 pub async fn get_character_search(
-    client: &MalClient,
+    client: &dyn MalSource,
     request: &CharacterSearchRequest,
 ) -> Result<Value, MalError> {
     let path = request.path();
@@ -94,7 +94,7 @@ pub async fn get_character_search(
 ///
 /// A MAL 404 becomes `PersonSearch::mock()` (empty results).
 pub async fn get_person_search(
-    client: &MalClient,
+    client: &dyn MalSource,
     request: &PersonSearchRequest,
 ) -> Result<Value, MalError> {
     let path = request.path();
@@ -112,7 +112,7 @@ pub async fn get_person_search(
 ///
 /// A MAL 404 becomes an empty `UserSearch` (the "no results" case).
 pub async fn get_user_search(
-    client: &MalClient,
+    client: &dyn MalSource,
     request: &UserSearchRequest,
 ) -> Result<Value, MalError> {
     let path = request.path();

@@ -7,7 +7,6 @@
 
 use serde_json::{json, Value};
 
-use crate::client::MalClient;
 use crate::error::MalError;
 use crate::parser::manga::{
     CharactersParser, MangaParser, MangaRecentlyUpdatedByUsersParser, MangaReviewsParser,
@@ -19,20 +18,21 @@ use crate::request::manga::{
     MangaRequest, MangaReviewsRequest, MangaStatsRequest,
 };
 use crate::request::MalRequest;
+use crate::source::{MalSource, MalSourceExt};
 
 fn parse_error(path: &str) -> impl FnOnce(crate::error::ParseError) -> MalError + '_ {
     move |err| MalError::parse_failed(path, err.to_string())
 }
 
 /// `MalClient::getManga()` — `/manga/{id}`.
-pub async fn get_manga(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_manga(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = MangaRequest::new(id).path();
     let doc = client.get_html(&path).await?;
     MangaParser::new(doc).model().map_err(parse_error(&path))
 }
 
 /// `MalClient::getMangaCharacters()` — array of `{character, role}`.
-pub async fn get_manga_characters(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_manga_characters(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = MangaCharactersRequest::new(id).path();
     let doc = client.get_html(&path).await?;
     CharactersParser::new(doc)
@@ -42,7 +42,7 @@ pub async fn get_manga_characters(client: &MalClient, id: i64) -> Result<Value, 
 }
 
 /// `MalClient::getMangaPictures()` — array of image resources.
-pub async fn get_manga_pictures(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_manga_pictures(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = MangaPicturesRequest::new(id).path();
     let doc = client.get_html(&path).await?;
     crate::parser::common::pictures_page(&doc)
@@ -55,7 +55,7 @@ pub async fn get_manga_pictures(client: &MalClient, id: i64) -> Result<Value, Ma
 /// `MalClient` returns the raw string; `MangaMoreInfoLookupHandler` stores it
 /// wrapped as `{"moreinfo": string|null}` (the shape `MoreInfoResource` reads),
 /// so the wrapper is part of the returned document.
-pub async fn get_manga_more_info(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_manga_more_info(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = MangaMoreInfoRequest::new(id).path();
     let doc = client.get_html(&path).await?;
     let more_info = MoreInfoParser::new(doc)
@@ -65,7 +65,7 @@ pub async fn get_manga_more_info(client: &MalClient, id: i64) -> Result<Value, M
 }
 
 /// `MalClient::getMangaStats()` — `/manga/{id}/stats`.
-pub async fn get_manga_stats(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_manga_stats(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = MangaStatsRequest::new(id).path();
     let doc = client.get_html(&path).await?;
     MangaStatsParser::new(doc)
@@ -75,7 +75,7 @@ pub async fn get_manga_stats(client: &MalClient, id: i64) -> Result<Value, MalEr
 
 /// `MalClient::getMangaForum()` — array of forum topics.
 pub async fn get_manga_forum(
-    client: &MalClient,
+    client: &dyn MalSource,
     id: i64,
     topic: Option<&str>,
 ) -> Result<Value, MalError> {
@@ -88,7 +88,7 @@ pub async fn get_manga_forum(
 
 /// `MalClient::getNewsList(new MangaNewsRequest(...))`.
 pub async fn get_manga_news(
-    client: &MalClient,
+    client: &dyn MalSource,
     id: i64,
     page: Option<u64>,
 ) -> Result<Value, MalError> {
@@ -103,7 +103,7 @@ pub async fn get_manga_news(
 
 /// `MalClient::getMangaRecentlyUpdatedByUsers()` — page starts at 1.
 pub async fn get_manga_recently_updated_by_users(
-    client: &MalClient,
+    client: &dyn MalSource,
     id: i64,
     page: Option<u64>,
 ) -> Result<Value, MalError> {
@@ -115,7 +115,7 @@ pub async fn get_manga_recently_updated_by_users(
 }
 
 /// `MalClient::getMangaRecommendations()` — array of recommendations.
-pub async fn get_manga_recommendations(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_manga_recommendations(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = MangaRecommendationsRequest::new(id).path();
     let doc = client.get_html(&path).await?;
     crate::parser::common::recommendations(&doc)
@@ -125,7 +125,7 @@ pub async fn get_manga_recommendations(client: &MalClient, id: i64) -> Result<Va
 
 /// `MalClient::getMangaReviews()`.
 pub async fn get_manga_reviews(
-    client: &MalClient,
+    client: &dyn MalSource,
     id: i64,
     page: Option<u64>,
     sort: Option<&str>,
@@ -140,11 +140,15 @@ pub async fn get_manga_reviews(
 }
 
 /// `MalClient::getMangaGenres()` (full genre list).
-pub async fn get_manga_genres(client: &MalClient) -> Result<Value, MalError> {
+pub async fn get_manga_genres(client: &dyn MalSource) -> Result<Value, MalError> {
     crate::api::genre::get_manga_genres(client).await
 }
 
 /// `MalClient::getMangaGenre()` (genre listing).
-pub async fn get_manga_genre(client: &MalClient, id: i64, page: u64) -> Result<Value, MalError> {
+pub async fn get_manga_genre(
+    client: &dyn MalSource,
+    id: i64,
+    page: u64,
+) -> Result<Value, MalError> {
     crate::api::genre::get_manga_genre(client, id, page).await
 }

@@ -2,6 +2,7 @@
 
 use crate::config::Config;
 use kuukan_mal::client::{MalClient, MalConfig};
+use kuukan_mal::MalSource;
 use kuukan_search::{IndexPipeline, SearchIndex};
 use kuukan_store::Store;
 use std::sync::Arc;
@@ -24,12 +25,18 @@ pub struct AppState {
     pub store: Arc<Store>,
     /// Search indexing pipeline (also gives access to the search index).
     pub pipeline: Arc<IndexPipeline>,
-    /// MyAnimeList HTTP client.
-    pub mal: Arc<MalClient>,
+    /// The MyAnimeList source. Production wires the HTTP adapter; tests wire
+    /// a recorded one, which is what makes an endpoint drivable end to end.
+    pub mal: Arc<dyn MalSource>,
 }
 
 impl AppState {
-    pub fn new(config: Config, store: Store, pipeline: IndexPipeline, mal: MalClient) -> Self {
+    pub fn new(
+        config: Config,
+        store: Store,
+        pipeline: IndexPipeline,
+        mal: impl MalSource + 'static,
+    ) -> Self {
         AppState {
             config: Arc::new(config),
             store: Arc::new(store),

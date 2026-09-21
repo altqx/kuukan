@@ -4,7 +4,13 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+# Exposes `kuukan_mal::testing::RecordedSource`, the in-memory adapter at the
+# `MalSource` seam. Off in release builds; enabled by dependents' dev-deps.
+testing = []
+
 [dependencies]
+async-trait = "0.1.89"
 kuukan-core = { path = "../kuukan-core" }
 serde.workspace = true
 serde_json.workspace = true
@@ -24,4 +30,5 @@ futures = "0.3.34"
 libxml = "0.3.21"
 
 [dev-dependencies]
+kuukan-mal = { path = ".", features = ["testing"] }
 wiremock = "0.6.5"

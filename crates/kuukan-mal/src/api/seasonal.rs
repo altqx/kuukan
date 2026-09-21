@@ -2,11 +2,11 @@
 
 use serde_json::Value;
 
-use crate::client::MalClient;
 use crate::error::MalError;
 use crate::parser::seasonal::SeasonalParser;
 use crate::request::seasonal::SeasonalRequest;
 use crate::request::MalRequest;
+use crate::source::{MalSource, MalSourceExt};
 
 /// Wrap a parser failure like `ParserException::fromRequest()`.
 fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
@@ -18,7 +18,7 @@ fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
 /// `later = true` requests `/anime/season/later`; the year/season are ignored
 /// (PHP keeps the constructor validation).
 pub async fn get_seasonal(
-    client: &MalClient,
+    client: &dyn MalSource,
     year: u32,
     season: &str,
     later: bool,

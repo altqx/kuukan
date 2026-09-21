@@ -2,7 +2,6 @@
 
 use serde_json::Value;
 
-use crate::client::MalClient;
 use crate::error::MalError;
 use crate::parser::watch::{WatchEpisodesParser, WatchPromotionalVideosParser};
 use crate::request::watch::{
@@ -10,6 +9,7 @@ use crate::request::watch::{
     RecentPromotionalVideosRequest,
 };
 use crate::request::MalRequest;
+use crate::source::{MalSource, MalSourceExt};
 
 /// Wrap a parser failure like `ParserException::fromRequest()`.
 fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
@@ -17,7 +17,7 @@ fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
 }
 
 /// `MalClient::getRecentEpisodes(RecentEpisodesRequest $request)`.
-pub async fn get_recent_episodes(client: &MalClient) -> Result<Value, MalError> {
+pub async fn get_recent_episodes(client: &dyn MalSource) -> Result<Value, MalError> {
     let path = RecentEpisodesRequest::new().path();
     let doc = client.get_html(&path).await?;
     WatchEpisodesParser::new(&doc)
@@ -26,7 +26,7 @@ pub async fn get_recent_episodes(client: &MalClient) -> Result<Value, MalError> 
 }
 
 /// `MalClient::getPopularEpisodes(PopularEpisodesRequest $request)`.
-pub async fn get_popular_episodes(client: &MalClient) -> Result<Value, MalError> {
+pub async fn get_popular_episodes(client: &dyn MalSource) -> Result<Value, MalError> {
     let path = PopularEpisodesRequest::new().path();
     let doc = client.get_html(&path).await?;
     WatchEpisodesParser::new(&doc)
@@ -36,7 +36,7 @@ pub async fn get_popular_episodes(client: &MalClient) -> Result<Value, MalError>
 
 /// `MalClient::getRecentPromotionalVideos(RecentPromotionalVideosRequest $request)`.
 pub async fn get_recent_promotional_videos(
-    client: &MalClient,
+    client: &dyn MalSource,
     page: u64,
 ) -> Result<Value, MalError> {
     let path = RecentPromotionalVideosRequest::new(page).path();
@@ -47,7 +47,7 @@ pub async fn get_recent_promotional_videos(
 }
 
 /// `MalClient::getPopularPromotionalVideos(PopularPromotionalVideosRequest $request)`.
-pub async fn get_popular_promotional_videos(client: &MalClient) -> Result<Value, MalError> {
+pub async fn get_popular_promotional_videos(client: &dyn MalSource) -> Result<Value, MalError> {
     let path = PopularPromotionalVideosRequest::new().path();
     let doc = client.get_html(&path).await?;
     WatchPromotionalVideosParser::new(&doc)

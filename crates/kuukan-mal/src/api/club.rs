@@ -2,14 +2,14 @@
 
 use serde_json::Value;
 
-use crate::client::MalClient;
 use crate::error::MalError;
 use crate::parser::club::{ClubParser, UserListParser};
 use crate::request::club::{ClubRequest, UserListRequest};
 use crate::request::MalRequest;
+use crate::source::{MalSource, MalSourceExt};
 
 /// `MalClient::getClub()`.
-pub async fn get_club(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_club(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = ClubRequest::new(id).path();
     let doc = client.get_html(&path).await?;
     ClubParser::new(doc)
@@ -18,7 +18,7 @@ pub async fn get_club(client: &MalClient, id: i64) -> Result<Value, MalError> {
 }
 
 /// `MalClient::getClubUsers()` — page starts at 1.
-pub async fn get_club_users(client: &MalClient, id: i64, page: u64) -> Result<Value, MalError> {
+pub async fn get_club_users(client: &dyn MalSource, id: i64, page: u64) -> Result<Value, MalError> {
     let path = UserListRequest::new(id, page).path();
     let doc = client.get_html(&path).await?;
     UserListParser::new(doc)

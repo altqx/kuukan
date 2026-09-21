@@ -2,17 +2,17 @@
 
 use serde_json::Value;
 
-use crate::client::MalClient;
 use crate::error::MalError;
 use crate::parser::character::CharacterParser;
 use crate::request::character::{CharacterPicturesRequest, CharacterRequest};
 use crate::request::MalRequest;
+use crate::source::{MalSource, MalSourceExt};
 
 /// `MalClient::getCharacter()`.
 ///
 /// MAL returns `Invalid ID provided.` instead of a 404 for invalid characters,
 /// so the `badresult` div becomes a 404 exactly like in PHP.
-pub async fn get_character(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_character(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = CharacterRequest::new(id).path();
     if id == 0 {
         return Err(MalError::BadResponse {
@@ -33,7 +33,7 @@ pub async fn get_character(client: &MalClient, id: i64) -> Result<Value, MalErro
 }
 
 /// `MalClient::getCharacterPictures()` — array of `PersonImageResource`.
-pub async fn get_character_pictures(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_character_pictures(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let path = CharacterPicturesRequest::new(id).path();
     let doc = client.get_html(&path).await?;
     crate::parser::common::default_pictures_page(&doc)

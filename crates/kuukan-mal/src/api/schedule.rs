@@ -2,11 +2,11 @@
 
 use serde_json::Value;
 
-use crate::client::MalClient;
 use crate::error::MalError;
 use crate::parser::schedule::ScheduleParser;
 use crate::request::schedule::ScheduleRequest;
 use crate::request::MalRequest;
+use crate::source::{MalSource, MalSourceExt};
 
 /// Wrap a parser failure like `ParserException::fromRequest()`.
 fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
@@ -14,7 +14,7 @@ fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
 }
 
 /// `MalClient::getSchedule(ScheduleRequest $request)`.
-pub async fn get_schedule(client: &MalClient) -> Result<Value, MalError> {
+pub async fn get_schedule(client: &dyn MalSource) -> Result<Value, MalError> {
     let path = ScheduleRequest::new().path();
     let doc = client.get_html(&path).await?;
     ScheduleParser::new(&doc)

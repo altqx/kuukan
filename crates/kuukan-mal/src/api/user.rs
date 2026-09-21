@@ -8,7 +8,6 @@
 
 use serde_json::{json, Value};
 
-use crate::client::MalClient;
 use crate::error::{MalError, ParseError};
 use crate::parser::search::UserSearchParser;
 use crate::parser::user::{
@@ -21,6 +20,7 @@ use crate::request::user::{
     UserReviewsRequest, UsernameByIdRequest, USER_LIST_ALL,
 };
 use crate::request::MalRequest;
+use crate::source::{MalSource, MalSourceExt};
 
 /// Run a parser and turn its [`ParseError`] into the PHP `ParserException`
 /// message for `path`.
@@ -36,7 +36,7 @@ where
 }
 
 /// `MalClient::getUserProfile()`.
-pub async fn get_user_profile(client: &MalClient, username: &str) -> Result<Value, MalError> {
+pub async fn get_user_profile(client: &dyn MalSource, username: &str) -> Result<Value, MalError> {
     let request = UserProfileRequest::new(username);
     let path = request.path();
     let doc = client.get_html(&path).await?;
@@ -45,7 +45,7 @@ pub async fn get_user_profile(client: &MalClient, username: &str) -> Result<Valu
 
 /// `MalClient::getUserFriends()`.
 pub async fn get_user_friends(
-    client: &MalClient,
+    client: &dyn MalSource,
     username: &str,
     page: Option<u32>,
 ) -> Result<Value, MalError> {
@@ -60,7 +60,7 @@ pub async fn get_user_friends(
 /// `type_` is `anime`, `manga` or `None` (the PHP request rejects any other
 /// value with `InvalidArgumentException`).
 pub async fn get_user_history(
-    client: &MalClient,
+    client: &dyn MalSource,
     username: &str,
     type_: Option<&str>,
 ) -> Result<Value, MalError> {
@@ -75,7 +75,7 @@ pub async fn get_user_history(
 /// `status` defaults to `Constants::USER_ANIME_LIST_ALL` (7), `page` to 1;
 /// MAL receives `offset = (page - 1) * 300`.
 pub async fn get_user_anime_list(
-    client: &MalClient,
+    client: &dyn MalSource,
     username: &str,
     page: Option<u32>,
     status: Option<i64>,
@@ -106,7 +106,7 @@ pub async fn get_user_anime_list(
 /// `status` defaults to `Constants::USER_MANGA_LIST_ALL` (7), `page` to 1;
 /// MAL receives `offset = (page - 1) * 300`.
 pub async fn get_user_manga_list(
-    client: &MalClient,
+    client: &dyn MalSource,
     username: &str,
     page: Option<u32>,
     status: Option<i64>,
@@ -131,7 +131,7 @@ pub async fn get_user_manga_list(
 }
 
 /// `MalClient::getUserClubs()`: a 404 (no clubs) yields an empty array.
-pub async fn get_user_clubs(client: &MalClient, username: &str) -> Result<Value, MalError> {
+pub async fn get_user_clubs(client: &dyn MalSource, username: &str) -> Result<Value, MalError> {
     let request = UserClubsRequest::new(username);
     let path = request.path();
     let doc = match client.get_html(&path).await {
@@ -144,7 +144,7 @@ pub async fn get_user_clubs(client: &MalClient, username: &str) -> Result<Value,
 
 /// `MalClient::getUserRecommendations()`.
 pub async fn get_user_recommendations(
-    client: &MalClient,
+    client: &dyn MalSource,
     username: &str,
     page: Option<u32>,
 ) -> Result<Value, MalError> {
@@ -156,7 +156,7 @@ pub async fn get_user_recommendations(
 
 /// `MalClient::getUserReviews()`: a 404 yields `UserReviews::mock()`.
 pub async fn get_user_reviews(
-    client: &MalClient,
+    client: &dyn MalSource,
     username: &str,
     page: Option<u32>,
 ) -> Result<Value, MalError> {
@@ -177,7 +177,7 @@ pub async fn get_user_reviews(
 }
 
 /// `MalClient::getUsernameById()`.
-pub async fn get_username_by_id(client: &MalClient, id: i64) -> Result<Value, MalError> {
+pub async fn get_username_by_id(client: &dyn MalSource, id: i64) -> Result<Value, MalError> {
     let request = UsernameByIdRequest::new(id);
     let path = request.path();
     let doc = client.get_html(&path).await?;
@@ -185,7 +185,7 @@ pub async fn get_username_by_id(client: &MalClient, id: i64) -> Result<Value, Ma
 }
 
 /// `MalClient::getRecentOnlineUsers()`.
-pub async fn get_recent_online_users(client: &MalClient) -> Result<Value, MalError> {
+pub async fn get_recent_online_users(client: &dyn MalSource) -> Result<Value, MalError> {
     let request = RecentlyOnlineUsersRequest::new();
     let path = request.path();
     let doc = client.get_html(&path).await?;

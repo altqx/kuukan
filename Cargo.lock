@@ -1682,8 +1682,10 @@ dependencies = [
  "moka",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
  "tokio",
+ "tower",
  "tower-http 0.7.1",
  "tracing",
 ]
@@ -1724,11 +1726,13 @@ dependencies = [
 name = "kuukan-mal"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "bytes",
  "chrono",
  "encoding_rs",
  "futures",
  "kuukan-core",
+ "kuukan-mal",
  "libxml",
  "percent-encoding",
  "rand",

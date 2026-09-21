@@ -2,7 +2,6 @@
 
 use serde_json::Value;
 
-use crate::client::MalClient;
 use crate::error::MalError;
 use crate::parser::genre::{
     AnimeGenreListParser, AnimeGenreParser, MangaGenreListParser, MangaGenreParser,
@@ -11,6 +10,7 @@ use crate::request::genre::{
     AnimeGenreRequest, AnimeGenresRequest, MangaGenreRequest, MangaGenresRequest,
 };
 use crate::request::MalRequest;
+use crate::source::{MalSource, MalSourceExt};
 
 /// Wrap a parser failure like `ParserException::fromRequest()`.
 fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
@@ -18,7 +18,7 @@ fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
 }
 
 /// `MalClient::getAnimeGenres(AnimeGenresRequest $request)` (full list).
-pub async fn get_anime_genres(client: &MalClient) -> Result<Value, MalError> {
+pub async fn get_anime_genres(client: &dyn MalSource) -> Result<Value, MalError> {
     let path = AnimeGenresRequest::new().path();
     let doc = client.get_html(&path).await?;
     AnimeGenreListParser::new(doc)
@@ -27,7 +27,11 @@ pub async fn get_anime_genres(client: &MalClient) -> Result<Value, MalError> {
 }
 
 /// `MalClient::getAnimeGenre(AnimeGenreRequest $request)` (genre listing).
-pub async fn get_anime_genre(client: &MalClient, id: i64, page: u64) -> Result<Value, MalError> {
+pub async fn get_anime_genre(
+    client: &dyn MalSource,
+    id: i64,
+    page: u64,
+) -> Result<Value, MalError> {
     let path = AnimeGenreRequest::new(id, page).path();
     let doc = client.get_html(&path).await?;
     AnimeGenreParser::new(doc)
@@ -36,7 +40,7 @@ pub async fn get_anime_genre(client: &MalClient, id: i64, page: u64) -> Result<V
 }
 
 /// `MalClient::getMangaGenres(MangaGenresRequest $request)` (full list).
-pub async fn get_manga_genres(client: &MalClient) -> Result<Value, MalError> {
+pub async fn get_manga_genres(client: &dyn MalSource) -> Result<Value, MalError> {
     let path = MangaGenresRequest::new().path();
     let doc = client.get_html(&path).await?;
     MangaGenreListParser::new(doc)
@@ -45,7 +49,11 @@ pub async fn get_manga_genres(client: &MalClient) -> Result<Value, MalError> {
 }
 
 /// `MalClient::getMangaGenre(MangaGenreRequest $request)` (genre listing).
-pub async fn get_manga_genre(client: &MalClient, id: i64, page: u64) -> Result<Value, MalError> {
+pub async fn get_manga_genre(
+    client: &dyn MalSource,
+    id: i64,
+    page: u64,
+) -> Result<Value, MalError> {
     let path = MangaGenreRequest::new(id, page).path();
     let doc = client.get_html(&path).await?;
     MangaGenreParser::new(doc)

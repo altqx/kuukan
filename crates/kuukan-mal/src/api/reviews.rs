@@ -2,11 +2,11 @@
 
 use serde_json::Value;
 
-use crate::client::MalClient;
 use crate::error::MalError;
 use crate::parser::reviews::ReviewsParser;
 use crate::request::reviews::ReviewsRequest;
 use crate::request::MalRequest;
+use crate::source::{MalSource, MalSourceExt};
 
 /// Wrap a parser failure like `ParserException::fromRequest()`.
 fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
@@ -15,7 +15,7 @@ fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
 
 /// `MalClient::getReviews(ReviewsRequest $request)` (global reviews).
 pub async fn get_reviews(
-    client: &MalClient,
+    client: &dyn MalSource,
     r#type: &str,
     page: Option<u64>,
     sort: &str,

@@ -2,11 +2,11 @@
 
 use serde_json::Value;
 
-use crate::client::MalClient;
 use crate::error::MalError;
 use crate::parser::recommendations::RecentRecommendationsParser;
 use crate::request::recommendations::RecentRecommendationsRequest;
 use crate::request::MalRequest;
+use crate::source::{MalSource, MalSourceExt};
 
 /// Wrap a parser failure like `ParserException::fromRequest()`.
 fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
@@ -15,7 +15,7 @@ fn parse_failed(path: &str, error: impl std::fmt::Display) -> MalError {
 
 /// `MalClient::getRecentRecommendations(RecentRecommendationsRequest $request)`.
 pub async fn get_recent_recommendations(
-    client: &MalClient,
+    client: &dyn MalSource,
     r#type: &str,
     page: Option<u64>,
 ) -> Result<Value, MalError> {
