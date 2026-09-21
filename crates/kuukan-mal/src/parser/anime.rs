@@ -20,12 +20,13 @@ use serde_json::{json, Map, Value};
 
 use crate::error::ParseError;
 use crate::parser::date;
-use crate::parser::helper::{
-    generate_youtube_url_from_id, parse_image_quality, parse_image_thumb_to_hq, xpath_literal,
-    youtube_id_from_url, youtube_image_resource, HtmlDoc, HtmlNode,
-};
+use crate::parser::helper::{xpath_literal, HtmlDoc, HtmlNode};
 use crate::parser::jstring::{cleanse, is_string_float, utf8_nbsp_trim};
 use crate::parser::mal_url::{id_from_url, MalUrlParser};
+use crate::parser::media_url::{
+    generate_youtube_url_from_id, parse_image_quality, parse_image_thumb_to_hq,
+    youtube_id_from_url, youtube_image_resource,
+};
 
 type PResult<T> = Result<T, ParseError>;
 
@@ -293,7 +294,7 @@ fn person_meta(name: &str, url: &str, image_url: &str) -> Value {
 }
 
 /// `\Jikan\Model\Common\CharacterMeta`.
-fn character_meta(name: &str, url: &str, image_url: &str) -> Value {
+pub(crate) fn character_meta(name: &str, url: &str, image_url: &str) -> Value {
     let image = parse_image_quality(image_url);
     json!({
         "mal_id": id_from_url(url),
@@ -389,32 +390,32 @@ pub struct AnimeParser {
 }
 
 impl AnimeParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         AnimeParser { doc }
     }
 
     /// `AnimeParser::getId()`.
-    pub fn get_id(&self) -> PResult<i64> {
+    pub(crate) fn get_id(&self) -> PResult<i64> {
         Ok(id_from_url(&self.get_url()?))
     }
 
     /// `AnimeParser::getURL()`.
-    pub fn get_url(&self) -> PResult<String> {
+    pub(crate) fn get_url(&self) -> PResult<String> {
         required_attr(&self.doc, "//meta[@property='og:url']", "content")
     }
 
     /// `AnimeParser::getTitle()`.
-    pub fn get_title(&self) -> PResult<String> {
+    fn get_title(&self) -> PResult<String> {
         required_attr(&self.doc, "//meta[@property='og:title']", "content")
     }
 
     /// `AnimeParser::getImageURL()`.
-    pub fn get_image_url(&self) -> PResult<String> {
+    fn get_image_url(&self) -> PResult<String> {
         required_attr(&self.doc, "//meta[@property='og:image']", "content")
     }
 
     /// `AnimeParser::getSynopsis()`.
-    pub fn get_synopsis(&self) -> PResult<Option<String>> {
+    fn get_synopsis(&self) -> PResult<Option<String>> {
         let Some(html) = self.doc.html("//p[@itemprop='description']")? else {
             return Ok(None);
         };
@@ -427,7 +428,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getApproved()`.
-    pub fn get_approved(&self) -> PResult<bool> {
+    fn get_approved(&self) -> PResult<bool> {
         let count = self
             .doc
             .count("//*[@id=\"addtolist\"]/span[contains(text(), \"pending approval\")]")?;
@@ -435,7 +436,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getTitleEnglish()`.
-    pub fn get_title_english(&self) -> PResult<Option<String>> {
+    fn get_title_english(&self) -> PResult<Option<String>> {
         let Some(span) = self.doc.first("//span[text()=\"English:\"]")? else {
             return Ok(None);
         };
@@ -445,7 +446,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getTitleSynonyms()`.
-    pub fn get_title_synonyms(&self) -> PResult<Vec<String>> {
+    fn get_title_synonyms(&self) -> PResult<Vec<String>> {
         let Some(span) = self.doc.first("//span[text()=\"Synonyms:\"]")? else {
             return Ok(Vec::new());
         };
@@ -454,7 +455,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getTitleJapanese()`.
-    pub fn get_title_japanese(&self) -> PResult<Option<String>> {
+    fn get_title_japanese(&self) -> PResult<Option<String>> {
         let Some(span) = self.doc.first("//span[text()=\"Japanese:\"]")? else {
             return Ok(None);
         };
@@ -464,7 +465,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getTitles()`.
-    pub fn get_titles(&self) -> PResult<Vec<Value>> {
+    fn get_titles(&self) -> PResult<Vec<Value>> {
         let mut titles = vec![json!({ "type": "Default", "title": self.get_title()? })];
 
         let containers = self.doc.nodes(
@@ -511,7 +512,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getType()`.
-    pub fn get_type(&self) -> PResult<Option<String>> {
+    pub(crate) fn get_type(&self) -> PResult<Option<String>> {
         let Some((_, value)) = self.labelled_raw("Type:")? else {
             return Ok(None);
         };
@@ -524,7 +525,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getEpisodes()`.
-    pub fn get_episodes(&self) -> PResult<Option<i64>> {
+    fn get_episodes(&self) -> PResult<Option<i64>> {
         let Some((label, value)) = self.labelled_raw("Episodes:")? else {
             return Ok(None);
         };
@@ -536,14 +537,14 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getStatus()`.
-    pub fn get_status(&self) -> PResult<Option<String>> {
+    fn get_status(&self) -> PResult<Option<String>> {
         Ok(self
             .labelled_raw("Status:")?
             .map(|(_, value)| cleanse(&value)))
     }
 
     /// `AnimeParser::getPremiered()`.
-    pub fn get_premiered(&self) -> PResult<Option<String>> {
+    fn get_premiered(&self) -> PResult<Option<String>> {
         let Some((_, value)) = self.labelled_raw("Premiered:")? else {
             return Ok(None);
         };
@@ -556,7 +557,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getBroadcast()`.
-    pub fn get_broadcast(&self) -> PResult<Option<String>> {
+    fn get_broadcast(&self) -> PResult<Option<String>> {
         Ok(self
             .labelled_raw("Broadcast:")?
             .map(|(_, value)| cleanse(&value)))
@@ -583,22 +584,22 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getProducers()`.
-    pub fn get_producers(&self) -> PResult<Vec<Value>> {
+    fn get_producers(&self) -> PResult<Vec<Value>> {
         self.labelled_mal_urls("Producers:")
     }
 
     /// `AnimeParser::getLicensors()`.
-    pub fn get_licensors(&self) -> PResult<Vec<Value>> {
+    fn get_licensors(&self) -> PResult<Vec<Value>> {
         self.labelled_mal_urls("Licensors:")
     }
 
     /// `AnimeParser::getStudios()`.
-    pub fn get_studios(&self) -> PResult<Vec<Value>> {
+    fn get_studios(&self) -> PResult<Vec<Value>> {
         self.labelled_mal_urls("Studios:")
     }
 
     /// `AnimeParser::getSource()`.
-    pub fn get_source(&self) -> PResult<Option<String>> {
+    fn get_source(&self) -> PResult<Option<String>> {
         Ok(self
             .labelled_raw("Source:")?
             .map(|(_, value)| cleanse(&value)))
@@ -627,27 +628,27 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getGenres()`.
-    pub fn get_genres(&self) -> PResult<Vec<Value>> {
+    fn get_genres(&self) -> PResult<Vec<Value>> {
         self.genres_with_message_check(&["Genres:", "Genre:"])
     }
 
     /// `AnimeParser::getExplicitGenres()`.
-    pub fn get_explicit_genres(&self) -> PResult<Vec<Value>> {
+    fn get_explicit_genres(&self) -> PResult<Vec<Value>> {
         self.genres_with_message_check(&["Explicit Genres:", "Explicit Genre:"])
     }
 
     /// `AnimeParser::getDemographics()`.
-    pub fn get_demographics(&self) -> PResult<Vec<Value>> {
+    fn get_demographics(&self) -> PResult<Vec<Value>> {
         self.genres_with_message_check(&["Demographic:", "Demographics:"])
     }
 
     /// `AnimeParser::getThemes()`.
-    pub fn get_themes(&self) -> PResult<Vec<Value>> {
+    fn get_themes(&self) -> PResult<Vec<Value>> {
         self.genres_with_message_check(&["Theme:", "Themes:"])
     }
 
     /// `AnimeParser::getDuration()`.
-    pub fn get_duration(&self) -> PResult<Option<String>> {
+    fn get_duration(&self) -> PResult<Option<String>> {
         let Some((label, value)) = self.labelled_raw("Duration:")? else {
             return Ok(None);
         };
@@ -655,7 +656,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getRating()`.
-    pub fn get_rating(&self) -> PResult<Option<String>> {
+    fn get_rating(&self) -> PResult<Option<String>> {
         let Some((_, value)) = self.labelled_raw("Rating:")? else {
             return Ok(None);
         };
@@ -668,7 +669,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getScore()`.
-    pub fn get_score(&self) -> PResult<Option<f64>> {
+    fn get_score(&self) -> PResult<Option<f64>> {
         let Some(node) = self.doc.first("//span[@itemprop=\"ratingValue\"]")? else {
             return Ok(None);
         };
@@ -680,7 +681,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getScoredBy()`.
-    pub fn get_scored_by(&self) -> PResult<Option<i64>> {
+    fn get_scored_by(&self) -> PResult<Option<i64>> {
         let Some(node) = self.doc.first("//span[@itemprop=\"ratingCount\"]")? else {
             return Ok(None);
         };
@@ -695,7 +696,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getRank()`.
-    pub fn get_rank(&self) -> PResult<Option<i64>> {
+    fn get_rank(&self) -> PResult<Option<i64>> {
         let Some(span) = self.doc.first("//span[text()=\"Ranked:\"]")? else {
             return Ok(None);
         };
@@ -711,7 +712,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getPopularity()`.
-    pub fn get_popularity(&self) -> PResult<Option<i64>> {
+    fn get_popularity(&self) -> PResult<Option<i64>> {
         let Some((label, value)) = self.labelled_raw("Popularity:")? else {
             return Ok(None);
         };
@@ -721,7 +722,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getMembers()`.
-    pub fn get_members(&self) -> PResult<Option<i64>> {
+    fn get_members(&self) -> PResult<Option<i64>> {
         let Some((label, value)) = self.labelled_raw("Members:")? else {
             return Ok(None);
         };
@@ -731,7 +732,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getFavorites()`.
-    pub fn get_favorites(&self) -> PResult<Option<i64>> {
+    fn get_favorites(&self) -> PResult<Option<i64>> {
         let Some((label, value)) = self.labelled_raw("Favorites:")? else {
             return Ok(None);
         };
@@ -741,7 +742,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getExternalLinks()`.
-    pub fn get_external_links(&self) -> PResult<Vec<Value>> {
+    fn get_external_links(&self) -> PResult<Vec<Value>> {
         let xpath = "//*[@id=\"content\"]/table//div[contains(@class, \"external_links\")]//a[contains(@class, \"link\") and not(contains(@class, \"js-more-links\"))]";
         let mut out = Vec::new();
         for anchor in self.doc.nodes(xpath)? {
@@ -751,7 +752,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getStreamingLinks()`.
-    pub fn get_streaming_links(&self) -> PResult<Vec<Value>> {
+    fn get_streaming_links(&self) -> PResult<Vec<Value>> {
         let xpath = "//*[@id=\"content\"]/table/tr/td[1]/div/div[contains(@class, \"broadcast\")]//div[contains(@class, \"broadcast\")]";
         let links = self.doc.nodes(xpath)?;
         if links.is_empty() {
@@ -767,7 +768,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getRelated()`.
-    pub fn get_related(&self) -> PResult<Value> {
+    fn get_related(&self) -> PResult<Value> {
         let mut related: Vec<(String, Value)> = Vec::new();
 
         let tiles = self.doc.nodes(
@@ -847,7 +848,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getBackground()`.
-    pub fn get_background(&self) -> PResult<Option<String>> {
+    fn get_background(&self) -> PResult<Option<String>> {
         let Some(parent) = self.doc.first("//p[@itemprop=\"description\"]/..")? else {
             return Ok(None);
         };
@@ -865,7 +866,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getOpeningThemes()`.
-    pub fn get_opening_themes(&self) -> PResult<Vec<String>> {
+    fn get_opening_themes(&self) -> PResult<Vec<String>> {
         self.theme_songs(
             "//div[@class=\"theme-songs js-theme-songs opnening\"]/table/tr",
             "No opening themes",
@@ -873,7 +874,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getEndingThemes()`.
-    pub fn get_ending_themes(&self) -> PResult<Vec<String>> {
+    fn get_ending_themes(&self) -> PResult<Vec<String>> {
         self.theme_songs(
             "//div[@class=\"theme-songs js-theme-songs ending\"]/table/tr",
             "No ending themes",
@@ -894,12 +895,12 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getAired()`.
-    pub fn get_aired(&self) -> PResult<Value> {
+    fn get_aired(&self) -> PResult<Value> {
         Ok(date_range_value_opt(&self.get_anime_aired_string()?))
     }
 
     /// `AnimeParser::getAnimeAiredString()`.
-    pub fn get_anime_aired_string(&self) -> PResult<String> {
+    fn get_anime_aired_string(&self) -> PResult<String> {
         let Some(html) = self.doc.html("//span[contains(text(), \"Aired\")]/..")? else {
             return Ok(String::new());
         };
@@ -912,7 +913,7 @@ impl AnimeParser {
     }
 
     /// `AnimeParser::getPreview()`.
-    pub fn get_preview(&self) -> PResult<Option<String>> {
+    fn get_preview(&self) -> PResult<Option<String>> {
         let Some(node) = self
             .doc
             .first("//div[contains(@class, \"video-promotion\")]/a")?
@@ -928,7 +929,7 @@ impl AnimeParser {
     /// `getBackground()` is destructive: `Parser::removeChildNodes()` deletes
     /// every element child of the description's parent, so `background` must be
     /// read last (PHP does exactly that).
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         let trailer = youtube_meta(self.get_preview()?.as_deref());
         let title = self.get_title()?;
         let url = self.get_url()?;
@@ -1047,12 +1048,12 @@ pub struct EpisodesParser {
 }
 
 impl EpisodesParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         EpisodesParser { doc }
     }
 
     /// `EpisodesParser::getEpisodes()`.
-    pub fn get_episodes(&self) -> PResult<Vec<Value>> {
+    fn get_episodes(&self) -> PResult<Vec<Value>> {
         let rows = self
             .doc
             .nodes("//table[contains(@class, 'js-watch-episode-list')]/tbody//tr")?;
@@ -1064,7 +1065,7 @@ impl EpisodesParser {
     }
 
     /// `EpisodesParser::getLastPage()`.
-    pub fn get_last_page(&self) -> PResult<i64> {
+    fn get_last_page(&self) -> PResult<i64> {
         let xpath = "//*[@id=\"content\"]/table/tr/td[2]/div[2]/div[2]/div[2]/div//a[contains(@class, \"link\")]";
         let pages = self.doc.nodes(xpath)?;
         let Some(last) = pages.last() else {
@@ -1083,7 +1084,7 @@ impl EpisodesParser {
     }
 
     /// `EpisodesParser::getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> PResult<bool> {
+    fn get_has_next_page(&self) -> PResult<bool> {
         let beyond = self
             .doc
             .nodes("//*[@id=\"content\"]/table/tr/td[2]/div/div[2]/table/tbody/tr/td/div[2]")?;
@@ -1110,7 +1111,7 @@ impl EpisodesParser {
     }
 
     /// `Episodes::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({
             "results": self.get_episodes()?,
             "has_next_page": self.get_has_next_page()?,
@@ -1130,18 +1131,18 @@ pub struct EpisodeListItemParser {
 }
 
 impl EpisodeListItemParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         EpisodeListItemParser { node }
     }
 
     /// `EpisodeListItemParser::getEpisodeId()`.
-    pub fn get_episode_id(&self) -> PResult<i64> {
+    fn get_episode_id(&self) -> PResult<i64> {
         let text = required_text_node(&self.node, "//td[contains(@class, 'episode-number')]")?;
         Ok(php_int(&text))
     }
 
     /// `EpisodeListItemParser::getEpisodeUrl()`.
-    pub fn get_episode_url(&self) -> PResult<String> {
+    fn get_episode_url(&self) -> PResult<String> {
         required_node_attr(
             &self.node,
             "//td[contains(@class,\"episode-title\")]/a",
@@ -1150,12 +1151,12 @@ impl EpisodeListItemParser {
     }
 
     /// `EpisodeListItemParser::getTitle()`.
-    pub fn get_title(&self) -> PResult<String> {
+    fn get_title(&self) -> PResult<String> {
         required_text_node(&self.node, "//td[contains(@class, \"episode-title\")]/a")
     }
 
     /// `EpisodeListItemParser::getTitleJapanese()`.
-    pub fn get_title_japanese(&self) -> PResult<Option<String>> {
+    fn get_title_japanese(&self) -> PResult<Option<String>> {
         let text = first_text_node(
             &self.node,
             "//td[contains(@class, \"episode-title\")]/span[@class='di-ib']",
@@ -1167,7 +1168,7 @@ impl EpisodeListItemParser {
     }
 
     /// `EpisodeListItemParser::getTitleRomanji()`.
-    pub fn get_title_romanji(&self) -> PResult<Option<String>> {
+    fn get_title_romanji(&self) -> PResult<Option<String>> {
         let text = first_text_node(
             &self.node,
             "//td[contains(@class, \"episode-title\")]/span[@class='di-ib']",
@@ -1179,7 +1180,7 @@ impl EpisodeListItemParser {
     }
 
     /// `EpisodeListItemParser::getAired()`.
-    pub fn get_aired(&self) -> PResult<Option<DateTime<FixedOffset>>> {
+    fn get_aired(&self) -> PResult<Option<DateTime<FixedOffset>>> {
         let text = required_text_node(&self.node, "//td[contains(@class, 'episode-aired')]")?;
         if text == "N/A" {
             return Ok(None);
@@ -1188,7 +1189,7 @@ impl EpisodeListItemParser {
     }
 
     /// `EpisodeListItemParser::getScore()`.
-    pub fn get_score(&self) -> PResult<Option<f64>> {
+    fn get_score(&self) -> PResult<Option<f64>> {
         let node = self
             .node
             .first("//td[contains(@class, 'episode-poll')]/@data-raw")?;
@@ -1203,7 +1204,7 @@ impl EpisodeListItemParser {
     }
 
     /// `EpisodeListItemParser::getFiller()`.
-    pub fn get_filler(&self) -> PResult<bool> {
+    fn get_filler(&self) -> PResult<bool> {
         let count = self.node.count(
             "//td[contains(@class,\"episode-title\")]/span[contains(@class, 'icon-episode-type-bg') and contains(text(), 'Filler')]",
         )?;
@@ -1211,7 +1212,7 @@ impl EpisodeListItemParser {
     }
 
     /// `EpisodeListItemParser::getRecap()`.
-    pub fn get_recap(&self) -> PResult<bool> {
+    fn get_recap(&self) -> PResult<bool> {
         let count = self.node.count(
             "//td[contains(@class,\"episode-title\")]/span[contains(@class, 'icon-episode-type-bg') and contains(text(), 'Recap')]",
         )?;
@@ -1219,7 +1220,7 @@ impl EpisodeListItemParser {
     }
 
     /// `EpisodeListItemParser::getVideoUrl()`.
-    pub fn get_video_url(&self) -> PResult<Option<String>> {
+    fn get_video_url(&self) -> PResult<Option<String>> {
         Ok(self
             .node
             .first("//td[contains(@class, 'episode-video')]/a")?
@@ -1227,7 +1228,7 @@ impl EpisodeListItemParser {
     }
 
     /// `EpisodeListItemParser::getForumUrl()`.
-    pub fn get_forum_url(&self) -> PResult<Option<String>> {
+    fn get_forum_url(&self) -> PResult<Option<String>> {
         Ok(self
             .node
             .first("//td[contains(@class, 'episode-forum')]/a")?
@@ -1235,7 +1236,7 @@ impl EpisodeListItemParser {
     }
 
     /// `EpisodeListItem::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({
             "mal_id": self.get_episode_id()?,
             "url": self.get_video_url()?,
@@ -1274,12 +1275,12 @@ pub struct AnimeEpisodeParser {
 }
 
 impl AnimeEpisodeParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         AnimeEpisodeParser { doc }
     }
 
     /// `AnimeEpisodeParser::getEpisodeId()`.
-    pub fn get_episode_id(&self) -> Result<i64, AnimeError> {
+    fn get_episode_id(&self) -> Result<i64, AnimeError> {
         let Some(node) = self.doc.first("//h2[contains(@class, 'fs18')]/span")? else {
             // MAL returns HTTP 200 for a page that doesn't exist, so we fail
             // the parsing here in order to send a mock 404.
@@ -1289,12 +1290,12 @@ impl AnimeEpisodeParser {
     }
 
     /// `AnimeEpisodeParser::getEpisodeUrl()`.
-    pub fn get_episode_url(&self) -> PResult<String> {
+    fn get_episode_url(&self) -> PResult<String> {
         required_attr(&self.doc, "//meta[@property='og:url']", "content")
     }
 
     /// `AnimeEpisodeParser::getTitle()`.
-    pub fn get_title(&self) -> PResult<String> {
+    fn get_title(&self) -> PResult<String> {
         let Some(node) = self.doc.first("//h2[contains(@class, 'fs18')]")? else {
             return Ok(String::new());
         };
@@ -1303,7 +1304,7 @@ impl AnimeEpisodeParser {
     }
 
     /// `AnimeEpisodeParser::getTitleJapanese()`.
-    pub fn get_title_japanese(&self) -> PResult<Option<String>> {
+    fn get_title_japanese(&self) -> PResult<Option<String>> {
         let Some(node) = self.doc.first("//p[contains(@class, 'fn-grey2')]")? else {
             return Ok(None);
         };
@@ -1313,7 +1314,7 @@ impl AnimeEpisodeParser {
     }
 
     /// `AnimeEpisodeParser::getTitleRomanji()`.
-    pub fn get_title_romanji(&self) -> PResult<Option<String>> {
+    fn get_title_romanji(&self) -> PResult<Option<String>> {
         let Some(node) = self.doc.first("//p[contains(@class, 'fn-grey2')]")? else {
             return Ok(None);
         };
@@ -1323,7 +1324,7 @@ impl AnimeEpisodeParser {
     }
 
     /// `AnimeEpisodeParser::getAired()`.
-    pub fn get_aired(&self) -> PResult<Option<DateTime<FixedOffset>>> {
+    fn get_aired(&self) -> PResult<Option<DateTime<FixedOffset>>> {
         let Some(node) = self
             .doc
             .first("//div[contains(@class, 'di-tc pt4 pb4 pl8 pr8 ar fn-grey2')]")?
@@ -1337,7 +1338,7 @@ impl AnimeEpisodeParser {
     }
 
     /// `AnimeEpisodeParser::getFiller()`.
-    pub fn get_filler(&self) -> PResult<bool> {
+    fn get_filler(&self) -> PResult<bool> {
         let Some(node) = self
             .doc
             .first("//span[contains(@class, 'icon-episode-type-bg')]")?
@@ -1348,7 +1349,7 @@ impl AnimeEpisodeParser {
     }
 
     /// `AnimeEpisodeParser::getRecap()`.
-    pub fn get_recap(&self) -> PResult<bool> {
+    fn get_recap(&self) -> PResult<bool> {
         let Some(node) = self
             .doc
             .first("//span[contains(@class, 'icon-episode-type-bg')]")?
@@ -1359,7 +1360,7 @@ impl AnimeEpisodeParser {
     }
 
     /// `AnimeEpisodeParser::getForumUrl()`.
-    pub fn get_forum_url(&self) -> PResult<Option<String>> {
+    fn get_forum_url(&self) -> PResult<Option<String>> {
         Ok(self
             .doc
             .first("//td[contains(@class, 'episode-forum')]/a")?
@@ -1367,7 +1368,7 @@ impl AnimeEpisodeParser {
     }
 
     /// `AnimeEpisodeParser::getSynopsis()`.
-    pub fn get_synopsis(&self) -> PResult<Option<String>> {
+    fn get_synopsis(&self) -> PResult<Option<String>> {
         let Some(node) = self.doc.first("//meta[@property='og:description']")? else {
             return Ok(None);
         };
@@ -1381,7 +1382,7 @@ impl AnimeEpisodeParser {
     }
 
     /// `AnimeEpisodeParser::getDuration()`.
-    pub fn get_duration(&self) -> PResult<Option<i64>> {
+    fn get_duration(&self) -> PResult<Option<i64>> {
         let Some(node) = self
             .doc
             .first("//div[contains(@class, 'di-tc pt4 pb4 pl8 pr8 ar fn-grey2')]")?
@@ -1395,7 +1396,7 @@ impl AnimeEpisodeParser {
     }
 
     /// `AnimeEpisode::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> Result<Value, AnimeError> {
+    pub(crate) fn get_model(&self) -> Result<Value, AnimeError> {
         let mal_id = self.get_episode_id()?;
         Ok(json!({
             "mal_id": mal_id,
@@ -1473,12 +1474,12 @@ pub struct VideosParser {
 }
 
 impl VideosParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         VideosParser { doc }
     }
 
     /// `VideosParser::getEpisodes()`.
-    pub fn get_episodes(&self) -> PResult<Vec<Value>> {
+    fn get_episodes(&self) -> PResult<Vec<Value>> {
         let nodes = self.doc.nodes(
             "//*[@id=\"content\"]/table/tr/td[2]/div[2]/div[2]/div[contains(@class, \"video-block episode-video\")]//*[contains(@class, \"video-list-outer\")]",
         )?;
@@ -1490,7 +1491,7 @@ impl VideosParser {
     }
 
     /// `VideosParser::getPromos()`.
-    pub fn get_promos(&self) -> PResult<Vec<Value>> {
+    fn get_promos(&self) -> PResult<Vec<Value>> {
         let nodes = self
             .doc
             .nodes("//div[contains(@class, \"video-block promotional-video\")]/section/div")?;
@@ -1502,7 +1503,7 @@ impl VideosParser {
     }
 
     /// `VideosParser::getMusic()`.
-    pub fn get_music(&self) -> PResult<Vec<Value>> {
+    fn get_music(&self) -> PResult<Vec<Value>> {
         let nodes = self
             .doc
             .nodes("//div[contains(@class, \"video-block music-video\")]/section/div")?;
@@ -1514,7 +1515,7 @@ impl VideosParser {
     }
 
     /// `VideosParser::getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> PResult<bool> {
+    fn get_has_next_page(&self) -> PResult<bool> {
         let count = self.doc.count(
             "//div[contains(@class, \"video-block episode-video\")]//div[contains(@class, \"pagination\")]/a[text()[contains(.,\"More\")]]",
         )?;
@@ -1522,7 +1523,7 @@ impl VideosParser {
     }
 
     /// `VideosParser::getLastPage()`.
-    pub fn get_last_page(&self) -> PResult<i64> {
+    fn get_last_page(&self) -> PResult<i64> {
         let pagination = "//div[contains(@class, \"video-block episode-video\")]//div[contains(@class, \"pagination\")]";
 
         // All pages except the last page returns "Last" button.
@@ -1572,7 +1573,7 @@ impl VideosParser {
     }
 
     /// `AnimeVideos::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({
             "promo": self.get_promos()?,
             "episodes": self.get_episodes()?,
@@ -1581,7 +1582,7 @@ impl VideosParser {
     }
 
     /// `AnimeVideosEpisodes::fromParser($parser)` serialized by JMS.
-    pub fn get_results_model(&self) -> PResult<Value> {
+    pub(crate) fn get_results_model(&self) -> PResult<Value> {
         Ok(json!({
             "results": self.get_episodes()?,
             "has_next_page": self.get_has_next_page()?,
@@ -1596,12 +1597,12 @@ pub struct StreamEpisodeListItemParser {
 }
 
 impl StreamEpisodeListItemParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         StreamEpisodeListItemParser { node }
     }
 
     /// `StreamEpisodeListItemParser::getMalId()`.
-    pub fn get_mal_id(&self) -> PResult<Option<i64>> {
+    fn get_mal_id(&self) -> PResult<Option<i64>> {
         let url = self.get_url()?;
         Ok(suffix_digits_re()
             .captures(&url)
@@ -1609,12 +1610,12 @@ impl StreamEpisodeListItemParser {
     }
 
     /// `StreamEpisodeListItemParser::getTitle()`.
-    pub fn get_title(&self) -> PResult<String> {
+    fn get_title(&self) -> PResult<String> {
         required_text_node(&self.node, "//a/div/span/span[@class=\"episode-title\"]")
     }
 
     /// `StreamEpisodeListItemParser::getEpisode()`.
-    pub fn get_episode(&self) -> PResult<String> {
+    fn get_episode(&self) -> PResult<String> {
         let Some(node) = self
             .node
             .first("//a/div/span[contains(@class,\"title\")]")?
@@ -1626,12 +1627,12 @@ impl StreamEpisodeListItemParser {
     }
 
     /// `StreamEpisodeListItemParser::getUrl()`.
-    pub fn get_url(&self) -> PResult<String> {
+    pub(crate) fn get_url(&self) -> PResult<String> {
         required_node_attr(&self.node, "//a", "href")
     }
 
     /// `StreamEpisodeListItemParser::getImageUrl()`.
-    pub fn get_image_url(&self) -> PResult<Option<String>> {
+    fn get_image_url(&self) -> PResult<Option<String>> {
         let image = self.node.attr("//a/img", "data-src")?;
         if image.as_deref() == Some("https://cdn.myanimelist.net/images/icon-banned-youtube.png") {
             return Ok(None);
@@ -1640,7 +1641,7 @@ impl StreamEpisodeListItemParser {
     }
 
     /// `StreamEpisodeListItem::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({
             "mal_id": self.get_mal_id()?,
             "title": self.get_title()?,
@@ -1662,27 +1663,27 @@ pub struct PromoListItemParser {
 }
 
 impl PromoListItemParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         PromoListItemParser { node }
     }
 
     /// `PromoListItemParser::getTitle()`.
-    pub fn get_title(&self) -> PResult<String> {
+    fn get_title(&self) -> PResult<String> {
         required_text_node(&self.node, "//a/div/span")
     }
 
     /// `PromoListItemParser::getImageUrl()`.
-    pub fn get_image_url(&self) -> PResult<String> {
+    fn get_image_url(&self) -> PResult<String> {
         required_node_attr(&self.node, "//a/img", "data-src")
     }
 
     /// `PromoListItemParser::getVideoUrl()`.
-    pub fn get_video_url(&self) -> PResult<String> {
+    fn get_video_url(&self) -> PResult<String> {
         required_node_attr(&self.node, "//a", "href")
     }
 
     /// `PromoListItem::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({
             "title": self.get_title()?,
             "trailer": youtube_meta(Some(&self.get_video_url()?)),
@@ -1696,22 +1697,22 @@ pub struct MusicVideoListItemParser {
 }
 
 impl MusicVideoListItemParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         MusicVideoListItemParser { node }
     }
 
     /// `MusicVideoListItemParser::getTitle()`.
-    pub fn get_title(&self) -> PResult<String> {
+    fn get_title(&self) -> PResult<String> {
         required_text_node(&self.node, "//a/div/span")
     }
 
     /// `MusicVideoListItemParser::getVideoUrl()`.
-    pub fn get_video_url(&self) -> PResult<String> {
+    fn get_video_url(&self) -> PResult<String> {
         required_node_attr(&self.node, "//a", "href")
     }
 
     /// `MusicVideoListItemParser::getMusic()`.
-    pub fn get_music(&self) -> PResult<Value> {
+    fn get_music(&self) -> PResult<Value> {
         let Some(node) = self.node.first("//div/div")? else {
             return Ok(music_meta(None, None));
         };
@@ -1725,7 +1726,7 @@ impl MusicVideoListItemParser {
     }
 
     /// `MusicVideoListItem::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({
             "title": self.get_title()?,
             "video": youtube_meta(Some(&self.get_video_url()?)),
@@ -1753,12 +1754,12 @@ pub struct CharactersAndStaffParser {
 }
 
 impl CharactersAndStaffParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         CharactersAndStaffParser { doc }
     }
 
     /// `CharactersAndStaffParser::getCharacters()`.
-    pub fn get_characters(&self) -> PResult<Vec<Value>> {
+    fn get_characters(&self) -> PResult<Vec<Value>> {
         let tables = self
             .doc
             .nodes("//div[contains(@class, \"anime-character-container\")]/table")?;
@@ -1770,7 +1771,7 @@ impl CharactersAndStaffParser {
     }
 
     /// `CharactersAndStaffParser::getStaff()`.
-    pub fn get_staff(&self) -> PResult<Vec<Value>> {
+    fn get_staff(&self) -> PResult<Vec<Value>> {
         let Some(heading) = self.doc.first("//h2[text()=\"Staff\"]")? else {
             return Ok(Vec::new());
         };
@@ -1789,7 +1790,7 @@ impl CharactersAndStaffParser {
     }
 
     /// `AnimeCharactersAndStaff::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({
             "characters": self.get_characters()?,
             "staff": self.get_staff()?,
@@ -1803,18 +1804,18 @@ pub struct StaffListItemParser {
 }
 
 impl StaffListItemParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         StaffListItemParser { node }
     }
 
     /// `StaffListItemParser::getPositions()`.
-    pub fn get_positions(&self) -> PResult<Vec<String>> {
+    fn get_positions(&self) -> PResult<Vec<String>> {
         let text = required_text_node(&self.node, "//small")?;
         Ok(text.split(", ").map(str::to_string).collect())
     }
 
     /// `StaffListItemParser::getMalUrl()`: the first anchor without an `<img>`.
-    pub fn get_mal_url(&self) -> PResult<Value> {
+    fn get_mal_url(&self) -> PResult<Value> {
         let anchor = self.node.nodes("//a")?.into_iter().find(|anchor| {
             anchor
                 .count("//img")
@@ -1828,23 +1829,23 @@ impl StaffListItemParser {
     }
 
     /// `StaffListItemParser::getName()`.
-    pub fn get_name(&self) -> PResult<String> {
+    fn get_name(&self) -> PResult<String> {
         Ok(required_attr_from_value(&self.get_mal_url()?, "name"))
     }
 
     /// `StaffListItemParser::getUrl()`.
-    pub fn get_url(&self) -> PResult<String> {
+    pub(crate) fn get_url(&self) -> PResult<String> {
         Ok(required_attr_from_value(&self.get_mal_url()?, "url"))
     }
 
     /// `StaffListItemParser::getImage()`.
-    pub fn get_image(&self) -> PResult<String> {
+    fn get_image(&self) -> PResult<String> {
         let image = required_node_attr(&self.node, "//img", "data-src")?;
         Ok(parse_image_quality(&image))
     }
 
     /// `StaffListItemParser::getPersonMeta()`.
-    pub fn get_person_meta(&self) -> PResult<Value> {
+    fn get_person_meta(&self) -> PResult<Value> {
         Ok(person_meta(
             &self.get_name()?,
             &self.get_url()?,
@@ -1853,7 +1854,7 @@ impl StaffListItemParser {
     }
 
     /// `StaffListItem::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({
             "person": self.get_person_meta()?,
             "positions": self.get_positions()?,
@@ -1875,12 +1876,12 @@ pub struct CharacterListItemParser {
 }
 
 impl CharacterListItemParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         CharacterListItemParser { node }
     }
 
     /// `CharacterListItemParser::getVoiceActors()`.
-    pub fn get_voice_actors(&self) -> PResult<Vec<Value>> {
+    fn get_voice_actors(&self) -> PResult<Vec<Value>> {
         let rows = self.node.nodes("//table[2]/tr")?;
         let mut out = Vec::new();
         for row in &rows {
@@ -1890,34 +1891,34 @@ impl CharacterListItemParser {
     }
 
     /// `CharacterListItemParser::getCharacterUrl()`.
-    pub fn get_character_url(&self) -> PResult<String> {
+    fn get_character_url(&self) -> PResult<String> {
         required_node_attr(&self.node, "//td[2]/div[3]/a", "href")
     }
 
     /// `CharacterListItemParser::getMalId()`.
-    pub fn get_mal_id(&self) -> PResult<i64> {
+    fn get_mal_id(&self) -> PResult<i64> {
         Ok(id_from_url(&self.get_character_url()?))
     }
 
     /// `CharacterListItemParser::getName()`.
-    pub fn get_name(&self) -> PResult<String> {
+    fn get_name(&self) -> PResult<String> {
         required_text_node(&self.node, "//h3[contains(@class, \"h3_character_name\")]")
     }
 
     /// `CharacterListItemParser::getImage()`.
-    pub fn get_image(&self) -> PResult<String> {
+    fn get_image(&self) -> PResult<String> {
         let image = required_node_attr(&self.node, "//img[1]", "data-src")?;
         Ok(parse_image_quality(&image))
     }
 
     /// `CharacterListItemParser::getRole()`.
-    pub fn get_role(&self) -> PResult<String> {
+    fn get_role(&self) -> PResult<String> {
         let text = required_text_node(&self.node, "//td[2]/div[4]")?;
         Ok(utf8_nbsp_trim(&cleanse(&text)))
     }
 
     /// `CharacterListItemParser::getFavorites()`.
-    pub fn get_favorites(&self) -> PResult<i64> {
+    fn get_favorites(&self) -> PResult<i64> {
         let Some(node) = self.node.first("//td[2]/div[5]")? else {
             return Ok(0);
         };
@@ -1925,7 +1926,7 @@ impl CharacterListItemParser {
     }
 
     /// `CharacterListItemParser::getCharacterMeta()`.
-    pub fn get_character_meta(&self) -> PResult<Value> {
+    fn get_character_meta(&self) -> PResult<Value> {
         Ok(character_meta(
             &self.get_name()?,
             &self.get_character_url()?,
@@ -1934,7 +1935,7 @@ impl CharacterListItemParser {
     }
 
     /// `CharacterListItem::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         let role = self.get_role()?;
         let character = self.get_character_meta()?;
         let favorites = self.get_favorites()?;
@@ -1955,7 +1956,7 @@ pub struct VoiceActorParser {
 }
 
 impl VoiceActorParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         VoiceActorParser { node }
     }
 
@@ -1968,7 +1969,7 @@ impl VoiceActorParser {
     }
 
     /// `VoiceActorParser::getName()`.
-    pub fn get_name(&self) -> PResult<String> {
+    fn get_name(&self) -> PResult<String> {
         Ok(self
             .person_anchor()?
             .map(|anchor| anchor.node_text())
@@ -1976,17 +1977,17 @@ impl VoiceActorParser {
     }
 
     /// `VoiceActorParser::getUrl()`.
-    pub fn get_url(&self) -> PResult<String> {
+    pub(crate) fn get_url(&self) -> PResult<String> {
         required_node_attr(&self.node, "//a", "href")
     }
 
     /// `VoiceActorParser::getMalId()`.
-    pub fn get_mal_id(&self) -> PResult<i64> {
+    fn get_mal_id(&self) -> PResult<i64> {
         Ok(id_from_url(&self.get_url()?))
     }
 
     /// `VoiceActorParser::getImage()`.
-    pub fn get_image(&self) -> PResult<String> {
+    fn get_image(&self) -> PResult<String> {
         let image = self
             .node
             .attr("//img", "src")?
@@ -1996,7 +1997,7 @@ impl VoiceActorParser {
     }
 
     /// `VoiceActorParser::getLanguage()`.
-    pub fn get_language(&self) -> PResult<String> {
+    fn get_language(&self) -> PResult<String> {
         if let Some(node) = self
             .node
             .first("//div[contains(@class, \"js-anime-character-language\")]")?
@@ -2008,7 +2009,7 @@ impl VoiceActorParser {
     }
 
     /// `VoiceActorParser::getPersonMeta()`.
-    pub fn get_person_meta(&self) -> PResult<Value> {
+    fn get_person_meta(&self) -> PResult<Value> {
         Ok(person_meta(
             &self.get_name()?,
             &self.get_url()?,
@@ -2017,7 +2018,7 @@ impl VoiceActorParser {
     }
 
     /// `VoiceActor::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({
             "person": self.get_person_meta()?,
             "language": self.get_language()?,
@@ -2035,12 +2036,12 @@ pub struct MoreInfoParser {
 }
 
 impl MoreInfoParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         MoreInfoParser { doc }
     }
 
     /// `MoreInfoParser::getMoreInfo()`.
-    pub fn get_more_info(&self) -> PResult<Option<String>> {
+    pub(crate) fn get_more_info(&self) -> PResult<Option<String>> {
         let Some(node) = self.doc.first("//div[contains(@class, \"rightside\")]")? else {
             return Ok(None);
         };
@@ -2054,7 +2055,7 @@ impl MoreInfoParser {
     }
 
     /// `AnimeMoreInfo::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({ "more_info": self.get_more_info()? }))
     }
 }
@@ -2069,7 +2070,7 @@ pub struct AnimeStatsParser {
 }
 
 impl AnimeStatsParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         AnimeStatsParser { doc }
     }
 
@@ -2091,37 +2092,37 @@ impl AnimeStatsParser {
     }
 
     /// `AnimeStatsParser::getWatching()`.
-    pub fn get_watching(&self) -> i64 {
+    fn get_watching(&self) -> i64 {
         self.sanitized_count("Watching:")
     }
 
     /// `AnimeStatsParser::getCompleted()`.
-    pub fn get_completed(&self) -> i64 {
+    fn get_completed(&self) -> i64 {
         self.sanitized_count("Completed:")
     }
 
     /// `AnimeStatsParser::getOnHold()`.
-    pub fn get_on_hold(&self) -> i64 {
+    fn get_on_hold(&self) -> i64 {
         self.sanitized_count("On-Hold:")
     }
 
     /// `AnimeStatsParser::getDropped()`.
-    pub fn get_dropped(&self) -> i64 {
+    fn get_dropped(&self) -> i64 {
         self.sanitized_count("Dropped:")
     }
 
     /// `AnimeStatsParser::getPlanToWatch()`.
-    pub fn get_plan_to_watch(&self) -> i64 {
+    fn get_plan_to_watch(&self) -> i64 {
         self.sanitized_count("Plan to Watch:")
     }
 
     /// `AnimeStatsParser::getTotal()`.
-    pub fn get_total(&self) -> i64 {
+    fn get_total(&self) -> i64 {
         self.sanitized_count("Total:")
     }
 
     /// `AnimeStatsParser::getScores()`.
-    pub fn get_scores(&self) -> PResult<Value> {
+    fn get_scores(&self) -> PResult<Value> {
         let marker = self
             .doc
             .nodes("//h2[text()=\"Score Stats\"]/following-sibling::text()")?;
@@ -2176,7 +2177,7 @@ impl AnimeStatsParser {
     }
 
     /// `AnimeStats::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({
             "watching": self.get_watching(),
             "completed": self.get_completed(),
@@ -2199,12 +2200,12 @@ pub struct AnimeReviewsParser {
 }
 
 impl AnimeReviewsParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         AnimeReviewsParser { doc }
     }
 
     /// `AnimeReviewsParser::getResults()`.
-    pub fn get_results(&self) -> PResult<Vec<Value>> {
+    pub(crate) fn get_results(&self) -> PResult<Vec<Value>> {
         let nodes = self.doc.nodes(
             "//div[contains(@class, \"rightside\")]//div[contains(@class, \"review-element\")]",
         )?;
@@ -2216,7 +2217,7 @@ impl AnimeReviewsParser {
     }
 
     /// `AnimeReviewsParser::hasNextPage()`.
-    pub fn has_next_page(&self) -> PResult<bool> {
+    fn has_next_page(&self) -> PResult<bool> {
         let count = self
             .doc
             .count("//*[@id=\"content\"]/table//a[contains(text(), \"More Reviews\")]")?;
@@ -2224,7 +2225,7 @@ impl AnimeReviewsParser {
     }
 
     /// `AnimeReviews::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": self.has_next_page()?,
@@ -2239,7 +2240,7 @@ pub struct AnimeReviewItemParser {
 }
 
 impl AnimeReviewItemParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         AnimeReviewItemParser { node }
     }
 
@@ -2248,7 +2249,7 @@ impl AnimeReviewItemParser {
     }
 
     /// `AnimeReviewParser::getId()`.
-    pub fn get_id(&self) -> PResult<i64> {
+    pub(crate) fn get_id(&self) -> PResult<i64> {
         let url = self.get_url()?;
         Ok(query_param(&url, "id")
             .map(|value| php_int(&value))
@@ -2256,7 +2257,7 @@ impl AnimeReviewItemParser {
     }
 
     /// `AnimeReviewParser::getUrl()`.
-    pub fn get_url(&self) -> PResult<String> {
+    pub(crate) fn get_url(&self) -> PResult<String> {
         required_node_attr(
             &self.node,
             "//div/div[2]/div[contains(@class, \"bottom-navi\")]/div[@class=\"open\"]/a",
@@ -2265,7 +2266,7 @@ impl AnimeReviewItemParser {
     }
 
     /// `AnimeReviewParser::getDate()`.
-    pub fn get_date(&self) -> PResult<Option<DateTime<FixedOffset>>> {
+    pub(crate) fn get_date(&self) -> PResult<Option<DateTime<FixedOffset>>> {
         let Some(node) = self.field_first("//div/div[2]/div[contains(@class, \"update_at\")]")?
         else {
             return Ok(None);
@@ -2276,7 +2277,7 @@ impl AnimeReviewItemParser {
     }
 
     /// `AnimeReviewParser::getContent()`.
-    pub fn get_content(&self) -> PResult<String> {
+    pub(crate) fn get_content(&self) -> PResult<String> {
         let Some(node) = self.field_first("//div/div[2]/div[contains(@class, \"text\")]")? else {
             return Ok(String::new());
         };
@@ -2293,7 +2294,7 @@ impl AnimeReviewItemParser {
     }
 
     /// `AnimeReviewParser::getReviewer()`.
-    pub fn get_reviewer(&self) -> PResult<Value> {
+    pub(crate) fn get_reviewer(&self) -> PResult<Value> {
         let anchor = self.field_first("//div/div[2]/div[contains(@class, \"username\")]/a")?;
         let anchor = match anchor {
             Some(anchor) => Some(anchor),
@@ -2318,7 +2319,7 @@ impl AnimeReviewItemParser {
     }
 
     /// `AnimeReviewParser::getType()`.
-    pub fn get_type(&self) -> PResult<Option<String>> {
+    pub(crate) fn get_type(&self) -> PResult<Option<String>> {
         let node = match self.field_first("//div/div/div[2]/div[2]/small")? {
             Some(node) => Some(node),
             None => self.field_first("//div/small")?,
@@ -2327,7 +2328,7 @@ impl AnimeReviewItemParser {
     }
 
     /// `AnimeReviewParser::getEpisodesWatched()`.
-    pub fn get_episodes_watched(&self) -> PResult<Option<i64>> {
+    pub(crate) fn get_episodes_watched(&self) -> PResult<Option<i64>> {
         let Some(node) = self.field_first(
             "//div/div[2]/div[contains(@class, \"tags\")]/div[contains(@class, \"preliminary\")]/span",
         )? else {
@@ -2340,7 +2341,7 @@ impl AnimeReviewItemParser {
     }
 
     /// `AnimeReviewParser::getReactions()`.
-    pub fn get_reactions(&self) -> Value {
+    pub(crate) fn get_reactions(&self) -> Value {
         let raw = self
             .node
             .node_attr("data-reactions")
@@ -2375,13 +2376,13 @@ impl AnimeReviewItemParser {
     }
 
     /// `AnimeReviewParser::getReviewerScore()`.
-    pub fn get_reviewer_score(&self) -> PResult<i64> {
+    pub(crate) fn get_reviewer_score(&self) -> PResult<i64> {
         let node = self.field_first("//div/div[2]/div[contains(@class, \"rating\")]/span")?;
         Ok(node.map(|node| php_int(&node.node_text())).unwrap_or(0))
     }
 
     /// `AnimeReviewParser::getReviewTag()`.
-    pub fn get_review_tags(&self) -> PResult<Vec<String>> {
+    fn get_review_tags(&self) -> PResult<Vec<String>> {
         let nodes = self
             .node
             .nodes("//div/div[2]/div[contains(@class, \"tags\")]/div")?;
@@ -2394,7 +2395,7 @@ impl AnimeReviewItemParser {
     }
 
     /// `AnimeReviewParser::isPreliminary()`.
-    pub fn is_preliminary(&self) -> PResult<bool> {
+    pub(crate) fn is_preliminary(&self) -> PResult<bool> {
         let count = self.node.count(
             "//div/div[2]/div[contains(@class, \"tags\")]/div[contains(@class, \"preliminary\")]",
         )?;
@@ -2402,7 +2403,7 @@ impl AnimeReviewItemParser {
     }
 
     /// `AnimeReviewParser::isSpoiler()`.
-    pub fn is_spoiler(&self) -> PResult<bool> {
+    pub(crate) fn is_spoiler(&self) -> PResult<bool> {
         let count = self.node.count(
             "//div/div[2]/div[contains(@class, \"tags\")]/div[contains(@class, \"spoiler\")]",
         )?;
@@ -2410,7 +2411,7 @@ impl AnimeReviewItemParser {
     }
 
     /// `\Jikan\Model\Anime\AnimeReview::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({
             "mal_id": self.get_id()?,
             "url": self.get_url()?,
@@ -2443,12 +2444,12 @@ pub struct AnimeRecentlyUpdatedByUsersParser {
 }
 
 impl AnimeRecentlyUpdatedByUsersParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         AnimeRecentlyUpdatedByUsersParser { doc }
     }
 
     /// `AnimeRecentlyUpdatedByUsersParser::getResults()`.
-    pub fn get_results(&self) -> PResult<Vec<Value>> {
+    pub(crate) fn get_results(&self) -> PResult<Vec<Value>> {
         let Some(header) = self
             .doc
             .first("//table[@class=\"table-recently-updated\"]/tr[1]")?
@@ -2463,17 +2464,17 @@ impl AnimeRecentlyUpdatedByUsersParser {
     }
 
     /// `AnimeRecentlyUpdatedByUsersParser::getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> bool {
+    fn get_has_next_page(&self) -> bool {
         false
     }
 
     /// `AnimeRecentlyUpdatedByUsersParser::getLastPage()`.
-    pub fn get_last_page(&self) -> i64 {
+    fn get_last_page(&self) -> i64 {
         1
     }
 
     /// `AnimeUserUpdates::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": self.get_has_next_page(),
@@ -2488,22 +2489,22 @@ pub struct AnimeRecentlyUpdatedByUsersListParser {
 }
 
 impl AnimeRecentlyUpdatedByUsersListParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         AnimeRecentlyUpdatedByUsersListParser { node }
     }
 
     /// `AnimeRecentlyUpdatedByUsersListParser::getUsername()`.
-    pub fn get_username(&self) -> PResult<String> {
+    fn get_username(&self) -> PResult<String> {
         required_text_node(&self.node, "//td[1]/div[2]/a")
     }
 
     /// `AnimeRecentlyUpdatedByUsersListParser::getUrl()`.
-    pub fn get_url(&self) -> PResult<String> {
+    pub(crate) fn get_url(&self) -> PResult<String> {
         required_node_attr(&self.node, "//td[1]/div[2]/a", "href")
     }
 
     /// `AnimeRecentlyUpdatedByUsersListParser::getImageUrl()`.
-    pub fn get_image_url(&self) -> PResult<String> {
+    fn get_image_url(&self) -> PResult<String> {
         let style = required_node_attr(&self.node, "//td[1]/div[1]/a", "style")?;
         Ok(style
             .replace("thumbs/", "")
@@ -2513,7 +2514,7 @@ impl AnimeRecentlyUpdatedByUsersListParser {
     }
 
     /// `AnimeRecentlyUpdatedByUsersListParser::getScore()`.
-    pub fn get_score(&self) -> PResult<Option<i64>> {
+    fn get_score(&self) -> PResult<Option<i64>> {
         let text = required_text_node(&self.node, "//td[2]")?;
         if text == "-" {
             return Ok(None);
@@ -2522,12 +2523,12 @@ impl AnimeRecentlyUpdatedByUsersListParser {
     }
 
     /// `AnimeRecentlyUpdatedByUsersListParser::getStatus()`.
-    pub fn get_status(&self) -> PResult<String> {
+    fn get_status(&self) -> PResult<String> {
         required_text_node(&self.node, "//td[3]")
     }
 
     /// `AnimeRecentlyUpdatedByUsersListParser::getEpisodesSeen()`.
-    pub fn get_episodes_seen(&self) -> PResult<Option<i64>> {
+    fn get_episodes_seen(&self) -> PResult<Option<i64>> {
         let Some(text) = self.episodes_text()? else {
             return Ok(None);
         };
@@ -2539,7 +2540,7 @@ impl AnimeRecentlyUpdatedByUsersListParser {
     }
 
     /// `AnimeRecentlyUpdatedByUsersListParser::getEpisodesTotal()`.
-    pub fn get_episodes_total(&self) -> PResult<Option<i64>> {
+    fn get_episodes_total(&self) -> PResult<Option<i64>> {
         let Some(text) = self.episodes_text()? else {
             return Ok(None);
         };
@@ -2562,13 +2563,13 @@ impl AnimeRecentlyUpdatedByUsersListParser {
     }
 
     /// `AnimeRecentlyUpdatedByUsersListParser::getDate()`.
-    pub fn get_date(&self) -> PResult<Option<DateTime<FixedOffset>>> {
+    pub(crate) fn get_date(&self) -> PResult<Option<DateTime<FixedOffset>>> {
         let text = required_text_node(&self.node, "//td[5]")?;
         Ok(date::parse_date(&text))
     }
 
     /// `AnimeRecentlyUpdatedByUsersListParser::getUserMeta()`.
-    pub fn get_user_meta(&self) -> PResult<Value> {
+    fn get_user_meta(&self) -> PResult<Value> {
         Ok(user_meta(
             &self.get_username()?,
             &self.get_url()?,
@@ -2577,7 +2578,7 @@ impl AnimeRecentlyUpdatedByUsersListParser {
     }
 
     /// `AnimeRecentlyUpdatedByUser::fromParser($parser)` serialized by JMS.
-    pub fn get_model(&self) -> PResult<Value> {
+    pub(crate) fn get_model(&self) -> PResult<Value> {
         Ok(json!({
             "user": self.get_user_meta()?,
             "score": self.get_score()?,

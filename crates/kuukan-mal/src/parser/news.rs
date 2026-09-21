@@ -10,14 +10,15 @@ use std::sync::OnceLock;
 
 use crate::error::ParseError;
 use crate::parser::date::{format_atom, parse_date};
-use crate::parser::helper::{parse_image_quality, HtmlDoc, HtmlNode};
+use crate::parser::helper::{HtmlDoc, HtmlNode};
 use crate::parser::jstring::cleanse;
 use crate::parser::mal_url::MalUrlParser;
+use crate::parser::media_url::parse_image_quality;
 
 /// `Parser\News\NewsListParser::getResults()`.
 ///
 /// Shared entry point for anime/manga news.
-pub fn parse_news(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
+pub(crate) fn parse_news(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
     NewsListParser::new(doc).get_results()
 }
 
@@ -27,12 +28,12 @@ pub struct NewsListParser<'a> {
 }
 
 impl<'a> NewsListParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         NewsListParser { doc }
     }
 
     /// `NewsListParser::getResults()`.
-    pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_results(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self
             .doc
@@ -44,14 +45,14 @@ impl<'a> NewsListParser<'a> {
     }
 
     /// `NewsListParser::getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> Result<bool, ParseError> {
+    fn get_has_next_page(&self) -> Result<bool, ParseError> {
         Ok(self.doc.count(
             "//*[@id=\"content\"]/table/tr/td[2]/div[1]/a[contains(text(), \"More News\")]",
         )? > 0)
     }
 
     /// `NewsList::fromParser()`: `{results, has_next_page, last_visible_page}`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": self.get_has_next_page()?,
@@ -66,12 +67,12 @@ pub struct NewsListItemParser<'a> {
 }
 
 impl<'a> NewsListItemParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         NewsListItemParser { node }
     }
 
     /// `NewsListItem::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "mal_id": self.get_mal_id()?,
             "url": self.get_url()?,
@@ -91,12 +92,12 @@ impl<'a> NewsListItemParser<'a> {
     }
 
     /// `NewsListItemParser::getTitle()`.
-    pub fn get_title(&self) -> Result<String, ParseError> {
+    fn get_title(&self) -> Result<String, ParseError> {
         Ok(self.node.text("//p/a/strong")?.unwrap_or_default())
     }
 
     /// `NewsListItemParser::getMalId()`.
-    pub fn get_mal_id(&self) -> Result<Option<i64>, ParseError> {
+    fn get_mal_id(&self) -> Result<Option<i64>, ParseError> {
         let url = self.get_url()?;
         Ok(mal_id_re()
             .captures(&url)
@@ -105,7 +106,7 @@ impl<'a> NewsListItemParser<'a> {
     }
 
     /// `NewsListItemParser::getUrl()`.
-    pub fn get_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         let href = self
             .node
             .first("//p/a/strong/..")?
@@ -115,7 +116,7 @@ impl<'a> NewsListItemParser<'a> {
     }
 
     /// `NewsListItemParser::getImage()`.
-    pub fn get_image(&self) -> Result<Option<String>, ParseError> {
+    fn get_image(&self) -> Result<Option<String>, ParseError> {
         match self.node.first("//img[1]")? {
             Some(image) => Ok(Some(parse_image_quality(
                 image.node_attr("data-src").as_deref().unwrap_or_default(),
@@ -125,14 +126,16 @@ impl<'a> NewsListItemParser<'a> {
     }
 
     /// `NewsListItemParser::getDate()`.
-    pub fn get_date(&self) -> Result<Option<chrono::DateTime<chrono::FixedOffset>>, ParseError> {
+    pub(crate) fn get_date(
+        &self,
+    ) -> Result<Option<chrono::DateTime<chrono::FixedOffset>>, ParseError> {
         let text = self.node.text("//p[last()]")?.unwrap_or_default();
         let date = text.split(" by").next().unwrap_or_default();
         Ok(parse_date(date))
     }
 
     /// `NewsListItemParser::getAuthor()`.
-    pub fn get_author(&self) -> Result<crate::parser::mal_url::MalUrl, ParseError> {
+    fn get_author(&self) -> Result<crate::parser::mal_url::MalUrl, ParseError> {
         let node = self
             .node
             .first("//a[contains(@href, \"profile\")][1]")?
@@ -141,7 +144,7 @@ impl<'a> NewsListItemParser<'a> {
     }
 
     /// `NewsListItemParser::getDiscussionLink()`.
-    pub fn get_discussion_link(&self) -> Result<String, ParseError> {
+    fn get_discussion_link(&self) -> Result<String, ParseError> {
         let href = self
             .node
             .first("//a[last()]")?
@@ -151,7 +154,7 @@ impl<'a> NewsListItemParser<'a> {
     }
 
     /// `NewsListItemParser::getComments()`.
-    pub fn get_comments(&self) -> Result<i64, ParseError> {
+    fn get_comments(&self) -> Result<i64, ParseError> {
         let text = self.node.text("//a[last()]")?.unwrap_or_default();
         Ok(comments_re()
             .captures(&text)
@@ -161,7 +164,7 @@ impl<'a> NewsListItemParser<'a> {
     }
 
     /// `NewsListItemParser::getIntro()`.
-    pub fn get_intro(&self) -> Result<String, ParseError> {
+    fn get_intro(&self) -> Result<String, ParseError> {
         let node = self.node.first("//p[2]")?;
         if let Some(node) = node {
             node.remove_child_nodes()?;

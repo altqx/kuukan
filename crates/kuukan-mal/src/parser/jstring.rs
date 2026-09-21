@@ -8,7 +8,7 @@
 /// Port of `JString::cleanse()`.
 ///
 /// Converts MAL HTML snippets into the plain string Jikan serializes.
-pub fn cleanse(string: &str) -> String {
+pub(crate) fn cleanse(string: &str) -> String {
     // convert any html before hand to new line
     // (PHP uses "\\n" / '\\n': a literal backslash followed by `n`)
     let mut out = string
@@ -38,7 +38,7 @@ pub fn cleanse(string: &str) -> String {
 /// PHP trims *bytes*, so this can produce invalid UTF-8 for inputs that end in
 /// a multi-byte character whose continuation byte is `0xA0` (e.g. `€`).
 /// Kuukan returns a lossy UTF-8 string instead of panicking.
-pub fn utf8_nbsp_trim(string: &str) -> String {
+pub(crate) fn utf8_nbsp_trim(string: &str) -> String {
     let bytes = string.as_bytes();
     let mut start = 0;
     let mut end = bytes.len();
@@ -57,7 +57,7 @@ pub fn utf8_nbsp_trim(string: &str) -> String {
 /// and slashes with underscores. The `/u` modifier makes PCRE's POSIX classes
 /// Unicode aware (`[:alnum:]` keeps `Pokémon`/`日本語`, `[:space:]` keeps
 /// NBSP), which `is_alphabetic`/`is_numeric`/`is_whitespace` reproduce.
-pub fn str_to_canonical(string: &str) -> String {
+pub(crate) fn str_to_canonical(string: &str) -> String {
     let filtered: String = string
         .chars()
         .filter(|c| {
@@ -68,7 +68,7 @@ pub fn str_to_canonical(string: &str) -> String {
 }
 
 /// Port of `JString::isStringFloat()`.
-pub fn is_string_float(string: &str) -> bool {
+pub(crate) fn is_string_float(string: &str) -> bool {
     is_numeric_php(string) && string.contains('.')
 }
 
@@ -140,7 +140,7 @@ fn is_php_space(b: u8) -> bool {
 // The C `switch` cases are kept as nested `if`s on purpose: the port must stay
 // line-by-line comparable with `php_strip_tags_ex()`.
 #[allow(clippy::collapsible_match)]
-pub fn strip_tags(string: &str) -> String {
+pub(crate) fn strip_tags(string: &str) -> String {
     let buf = string.as_bytes();
     let end = buf.len();
     let mut out: Vec<u8> = Vec::with_capacity(end);

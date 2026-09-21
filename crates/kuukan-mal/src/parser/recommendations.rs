@@ -7,9 +7,10 @@ use std::sync::OnceLock;
 
 use crate::error::ParseError;
 use crate::parser::date::{format_atom, parse_date};
-use crate::parser::helper::{parse_image_quality, HtmlDoc, HtmlNode};
+use crate::parser::helper::{HtmlDoc, HtmlNode};
 use crate::parser::jstring::cleanse;
 use crate::parser::mal_url::{id_from_url, BASE_URL};
+use crate::parser::media_url::parse_image_quality;
 
 /// `CommonImageResource::factory()`.
 fn common_image_resource(image_url: Option<&str>) -> Value {
@@ -50,12 +51,12 @@ pub struct RecentRecommendationsParser<'a> {
 }
 
 impl<'a> RecentRecommendationsParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         RecentRecommendationsParser { doc }
     }
 
     /// `RecentRecommendations::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.get_recent_recommendations()?,
             "has_next_page": self.has_next_page()?,
@@ -64,7 +65,7 @@ impl<'a> RecentRecommendationsParser<'a> {
     }
 
     /// `RecentRecommendationsParser::getRecentRecommendations()`.
-    pub fn get_recent_recommendations(&self) -> Result<Vec<Value>, ParseError> {
+    fn get_recent_recommendations(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self
             .doc
@@ -76,7 +77,7 @@ impl<'a> RecentRecommendationsParser<'a> {
     }
 
     /// `RecentRecommendationsParser::getUserRecommendations()`.
-    pub fn get_user_recommendations(&self) -> Result<Vec<Value>, ParseError> {
+    fn get_user_recommendations(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self.doc.nodes(
             "//*[@id=\"content\"]/div/div[2]/div/div[2]/div[contains(@class, \"spaceit borderClass\")]",
@@ -87,7 +88,7 @@ impl<'a> RecentRecommendationsParser<'a> {
     }
 
     /// `RecentRecommendationsParser::hasNextPage()`.
-    pub fn has_next_page(&self) -> Result<bool, ParseError> {
+    fn has_next_page(&self) -> Result<bool, ParseError> {
         let Some(text) = self.doc.text("//*[@id=\"horiznav_nav\"]/div/span")? else {
             return Ok(false);
         };
@@ -95,7 +96,7 @@ impl<'a> RecentRecommendationsParser<'a> {
     }
 
     /// `RecentRecommendationsParser::getLastPage()`.
-    pub fn get_last_page(&self) -> Result<i64, ParseError> {
+    fn get_last_page(&self) -> Result<i64, ParseError> {
         let Some(text) = self.doc.text("//*[@id=\"horiznav_nav\"]/div/span")? else {
             return Ok(1);
         };
@@ -110,12 +111,12 @@ pub struct RecommendationListItemParser<'a> {
 }
 
 impl<'a> RecommendationListItemParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         RecommendationListItemParser { node }
     }
 
     /// `RecommendationListItem::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         let entry = self.get_recommendations()?;
         let mal_id = format!(
             "{}-{}",
@@ -139,7 +140,7 @@ impl<'a> RecommendationListItemParser<'a> {
     }
 
     /// `RecommendationListItemParser::getRecommendations()`.
-    pub fn get_recommendations(&self) -> Result<Vec<Value>, ParseError> {
+    fn get_recommendations(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self.node.nodes("//table/tr/td")? {
             out.push(common_meta(
@@ -152,7 +153,7 @@ impl<'a> RecommendationListItemParser<'a> {
     }
 
     /// `RecommendationListItemParser::getContent()`.
-    pub fn get_content(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_content(&self) -> Result<String, ParseError> {
         // User Profile Recommendations
         if let Some(node) = self
             .node
@@ -172,7 +173,7 @@ impl<'a> RecommendationListItemParser<'a> {
     /// PHP reads the date through `str_replace`-like `removeChildNodes`, then
     /// `preg_match('~- (.*)$~')`. If the regex does not match, `$time[1]` is
     /// null and `new DateTimeImmutable(null, UTC)` returns *now*.
-    pub fn get_date(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
+    pub(crate) fn get_date(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
         let node = match self.node.first("//div[contains(@class, \"lightLink\")]")? {
             Some(node) => node,
             None => return Ok(None),
@@ -186,7 +187,7 @@ impl<'a> RecommendationListItemParser<'a> {
     }
 
     /// `RecommendationListItemParser::getRecommender()`.
-    pub fn get_recommender(&self) -> Result<Value, ParseError> {
+    fn get_recommender(&self) -> Result<Value, ParseError> {
         let href = self
             .node
             .attr("//div[contains(@class, \"lightLink\")]/a", "href")?

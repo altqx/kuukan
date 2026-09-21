@@ -8,9 +8,10 @@ use std::sync::OnceLock;
 
 use crate::error::ParseError;
 use crate::parser::date::{format_atom, parse_date};
-use crate::parser::helper::{parse_image_quality, HtmlDoc, HtmlNode};
+use crate::parser::helper::{HtmlDoc, HtmlNode};
 use crate::parser::jstring::cleanse;
 use crate::parser::mal_url::MalUrlParser;
+use crate::parser::media_url::parse_image_quality;
 use crate::parser::search::php_intval;
 
 /// `CommonImageResource::factory()`.
@@ -63,12 +64,12 @@ pub struct TopListItemParser<'a> {
 }
 
 impl<'a> TopListItemParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         TopListItemParser { node }
     }
 
     /// `TopListItemParser::getMalUrl()`.
-    pub fn get_mal_url(&self) -> Result<crate::parser::mal_url::MalUrl, ParseError> {
+    fn get_mal_url(&self) -> Result<crate::parser::mal_url::MalUrl, ParseError> {
         // For Anime
         if let Some(node) = self
             .node
@@ -96,7 +97,7 @@ impl<'a> TopListItemParser<'a> {
     }
 
     /// `TopListItemParser::getImage()`.
-    pub fn get_image(&self) -> Result<Option<String>, ParseError> {
+    fn get_image(&self) -> Result<Option<String>, ParseError> {
         Ok(self
             .node
             .attr("//img[1]", "data-src")?
@@ -104,14 +105,14 @@ impl<'a> TopListItemParser<'a> {
     }
 
     /// `TopListItemParser::getRank()`.
-    pub fn get_rank(&self) -> Result<i64, ParseError> {
+    fn get_rank(&self) -> Result<i64, ParseError> {
         Ok(php_intval(
             &self.node.text("//td[1]/span")?.unwrap_or_default(),
         ))
     }
 
     /// `TopListItemParser::getScore()`.
-    pub fn get_score(&self) -> Result<f64, ParseError> {
+    fn get_score(&self) -> Result<f64, ParseError> {
         Ok(self
             .node
             .text("//td[3]/div/span")?
@@ -122,7 +123,7 @@ impl<'a> TopListItemParser<'a> {
     }
 
     /// `TopListItemParser::getType()`.
-    pub fn get_type(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_type(&self) -> Result<String, ParseError> {
         let text = self.get_text_array()?;
         let first = text.first().map(String::as_str).unwrap_or_default();
         Ok(type_re().replace(first, "$1").to_string())
@@ -156,7 +157,7 @@ impl<'a> TopListItemParser<'a> {
     }
 
     /// `TopListItemParser::getEpisodes()`.
-    pub fn get_episodes(&self) -> Result<Option<i64>, ParseError> {
+    fn get_episodes(&self) -> Result<Option<i64>, ParseError> {
         let text = self.get_text_array()?;
         let first = text.first().map(String::as_str).unwrap_or_default();
         let episodes = match episodes_re().captures(first) {
@@ -167,7 +168,7 @@ impl<'a> TopListItemParser<'a> {
     }
 
     /// `TopListItemParser::getVolumes()`.
-    pub fn get_volumes(&self) -> Result<Option<i64>, ParseError> {
+    fn get_volumes(&self) -> Result<Option<i64>, ParseError> {
         let text = self.get_text_array()?;
         let first = text.first().map(String::as_str).unwrap_or_default();
         Ok(volumes_re()
@@ -176,14 +177,14 @@ impl<'a> TopListItemParser<'a> {
     }
 
     /// `TopListItemParser::getMembers()`.
-    pub fn get_members(&self) -> Result<i64, ParseError> {
+    fn get_members(&self) -> Result<i64, ParseError> {
         let text = self.get_text_array()?;
         let part = text.get(2).map(String::as_str).unwrap_or_default();
         Ok(php_intval(&non_digits_re().replace_all(part, "")))
     }
 
     /// `TopListItemParser::getStartDate()`.
-    pub fn get_start_date(&self) -> Result<Option<String>, ParseError> {
+    fn get_start_date(&self) -> Result<Option<String>, ParseError> {
         let text = self.get_text_array()?;
         let part = text.get(1).map(String::as_str).unwrap_or_default();
         let date = cleanse(part.split('-').next().unwrap_or_default());
@@ -191,7 +192,7 @@ impl<'a> TopListItemParser<'a> {
     }
 
     /// `TopListItemParser::getEndDate()`.
-    pub fn get_end_date(&self) -> Result<Option<String>, ParseError> {
+    fn get_end_date(&self) -> Result<Option<String>, ParseError> {
         let text = self.get_text_array()?;
         let part = text.get(1).map(String::as_str).unwrap_or_default();
         // `explode('-', ...)[1] ?? '?'`
@@ -200,7 +201,7 @@ impl<'a> TopListItemParser<'a> {
     }
 
     /// `TopListItemParser::getKanjiName()`.
-    pub fn get_kanji_name(&self) -> Result<Option<String>, ParseError> {
+    fn get_kanji_name(&self) -> Result<Option<String>, ParseError> {
         match self.node.first("//span[@class=\"fs12 fn-grey6\"][1]")? {
             Some(node) => {
                 let text = node.node_text();
@@ -211,7 +212,7 @@ impl<'a> TopListItemParser<'a> {
     }
 
     /// `TopListItemParser::getAnimeography()`.
-    pub fn get_animeography(&self) -> Result<Vec<Value>, ParseError> {
+    fn get_animeography(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self.node.nodes("//td[3]/div/a")? {
             out.push(MalUrlParser::new(node).get_model()?.to_json());
@@ -220,7 +221,7 @@ impl<'a> TopListItemParser<'a> {
     }
 
     /// `TopListItemParser::getMangaography()`.
-    pub fn get_mangaography(&self) -> Result<Vec<Value>, ParseError> {
+    fn get_mangaography(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self.node.nodes("//td[4]/div/a")? {
             out.push(MalUrlParser::new(node).get_model()?.to_json());
@@ -229,21 +230,19 @@ impl<'a> TopListItemParser<'a> {
     }
 
     /// `TopListItemParser::getFavorites()`.
-    pub fn get_favorites(&self) -> Result<i64, ParseError> {
+    fn get_favorites(&self) -> Result<i64, ParseError> {
         let text = self.node.text("//td[5]")?.unwrap_or_default();
         Ok(php_intval(&non_digits_re().replace_all(&text, "")))
     }
 
     /// `TopListItemParser::getPeopleFavorites()`.
-    pub fn get_people_favorites(&self) -> Result<i64, ParseError> {
+    fn get_people_favorites(&self) -> Result<i64, ParseError> {
         let text = self.node.text("//td[4]")?.unwrap_or_default();
         Ok(php_intval(&non_digits_re().replace_all(&text, "")))
     }
 
     /// `TopListItemParser::getBirthday()`.
-    pub fn get_birthday(
-        &self,
-    ) -> Result<Option<chrono::DateTime<chrono::FixedOffset>>, ParseError> {
+    fn get_birthday(&self) -> Result<Option<chrono::DateTime<chrono::FixedOffset>>, ParseError> {
         let text = self.node.text("//td[3]")?.unwrap_or_default();
         Ok(parse_date(&text))
     }
@@ -255,12 +254,12 @@ pub struct TopAnimeParser<'a> {
 }
 
 impl<'a> TopAnimeParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         TopAnimeParser { doc }
     }
 
     /// `TopAnime::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": self.get_has_next_page()?,
@@ -269,7 +268,7 @@ impl<'a> TopAnimeParser<'a> {
     }
 
     /// `TopAnimeParser::getResults()`.
-    pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_results(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self.doc.nodes("//tr[@class=\"ranking-list\"]")? {
             let item = TopListItemParser::new(&node);
@@ -293,7 +292,7 @@ impl<'a> TopAnimeParser<'a> {
     }
 
     /// `TopAnimeParser::getLastPage()`.
-    pub fn get_last_page(&self) -> Result<i64, ParseError> {
+    fn get_last_page(&self) -> Result<i64, ParseError> {
         next_page_limit(
             self.doc,
             "//*[@id=\"content\"]/div[4]/h2/span[1]/a[contains(@class, \"next\")]",
@@ -301,7 +300,7 @@ impl<'a> TopAnimeParser<'a> {
     }
 
     /// `TopAnimeParser::getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> Result<bool, ParseError> {
+    fn get_has_next_page(&self) -> Result<bool, ParseError> {
         Ok(self
             .doc
             .count("//*[@id=\"content\"]/div[4]/h2/span[1]/a[contains(@class, \"next\")]")?
@@ -315,12 +314,12 @@ pub struct TopMangaParser<'a> {
 }
 
 impl<'a> TopMangaParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         TopMangaParser { doc }
     }
 
     /// `TopManga::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": self.get_has_next_page()?,
@@ -329,7 +328,7 @@ impl<'a> TopMangaParser<'a> {
     }
 
     /// `TopMangaParser::getResults()`.
-    pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_results(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self.doc.nodes("//tr[@class=\"ranking-list\"]")? {
             let item = TopListItemParser::new(&node);
@@ -353,7 +352,7 @@ impl<'a> TopMangaParser<'a> {
     }
 
     /// `TopMangaParser::getLastPage()`.
-    pub fn get_last_page(&self) -> Result<i64, ParseError> {
+    fn get_last_page(&self) -> Result<i64, ParseError> {
         next_page_limit(
             self.doc,
             "//*[@id=\"content\"]/div[4]/h2/span[1]/a[contains(@class, \"next\")]",
@@ -361,7 +360,7 @@ impl<'a> TopMangaParser<'a> {
     }
 
     /// `TopMangaParser::getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> Result<bool, ParseError> {
+    fn get_has_next_page(&self) -> Result<bool, ParseError> {
         Ok(self
             .doc
             .count("//*[@id=\"content\"]/div[4]/h2/span[1]/a[contains(@class, \"next\")]")?
@@ -375,12 +374,12 @@ pub struct TopCharactersParser<'a> {
 }
 
 impl<'a> TopCharactersParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         TopCharactersParser { doc }
     }
 
     /// `TopCharacters::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": self.get_has_next_page()?,
@@ -389,7 +388,7 @@ impl<'a> TopCharactersParser<'a> {
     }
 
     /// `TopCharactersParser::getResults()`.
-    pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_results(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self.doc.nodes("//tr[@class=\"ranking-list\"]")? {
             let item = TopListItemParser::new(&node);
@@ -411,7 +410,7 @@ impl<'a> TopCharactersParser<'a> {
     }
 
     /// `TopCharactersParser::getLastPage()`.
-    pub fn get_last_page(&self) -> Result<i64, ParseError> {
+    fn get_last_page(&self) -> Result<i64, ParseError> {
         next_page_limit(
             self.doc,
             "//*[@id=\"content\"]/h2/div/span/a[contains(@class, \"next\")]",
@@ -419,7 +418,7 @@ impl<'a> TopCharactersParser<'a> {
     }
 
     /// `TopCharactersParser::getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> Result<bool, ParseError> {
+    fn get_has_next_page(&self) -> Result<bool, ParseError> {
         Ok(self
             .doc
             .count("//*[@id=\"content\"]/h2/div/span/a[contains(@class, \"next\")]")?
@@ -433,12 +432,12 @@ pub struct TopPeopleParser<'a> {
 }
 
 impl<'a> TopPeopleParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         TopPeopleParser { doc }
     }
 
     /// `TopPeople::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": self.get_has_next_page()?,
@@ -447,7 +446,7 @@ impl<'a> TopPeopleParser<'a> {
     }
 
     /// `TopPeopleParser::getResults()`.
-    pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_results(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self.doc.nodes("//tr[@class=\"ranking-list\"]")? {
             let item = TopListItemParser::new(&node);
@@ -468,7 +467,7 @@ impl<'a> TopPeopleParser<'a> {
     }
 
     /// `TopPeopleParser::getLastPage()`.
-    pub fn get_last_page(&self) -> Result<i64, ParseError> {
+    fn get_last_page(&self) -> Result<i64, ParseError> {
         next_page_limit(
             self.doc,
             "//*[@id=\"content\"]/h2/div/span/a[contains(@class, \"next\")]",
@@ -476,7 +475,7 @@ impl<'a> TopPeopleParser<'a> {
     }
 
     /// `TopPeopleParser::getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> Result<bool, ParseError> {
+    fn get_has_next_page(&self) -> Result<bool, ParseError> {
         Ok(self
             .doc
             .count("//*[@id=\"content\"]/h2/div/span/a[contains(@class, \"next\")]")?

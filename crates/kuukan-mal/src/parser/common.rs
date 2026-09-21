@@ -50,16 +50,17 @@ use serde_json::{json, Value};
 
 use crate::error::ParseError;
 use crate::parser::date::format_atom;
-use crate::parser::helper::{parse_image_quality, HtmlDoc, HtmlNode};
+use crate::parser::helper::{HtmlDoc, HtmlNode};
 use crate::parser::jstring::cleanse;
 use crate::parser::mal_url::{id_from_url, MalUrl, MalUrlParser, BASE_URL};
+use crate::parser::media_url::parse_image_quality;
 
 // ---------------------------------------------------------------------------
 // MalUrlParser / UrlParser
 // ---------------------------------------------------------------------------
 
 /// `MalUrlParser::parseId()`: first `/(\d+)` group in the URL, `0` when absent.
-pub fn parse_mal_id(url: &str) -> i64 {
+pub(crate) fn parse_mal_id(url: &str) -> i64 {
     MalUrlParser::parse_id(url)
 }
 
@@ -67,7 +68,7 @@ pub fn parse_mal_id(url: &str) -> i64 {
 ///
 /// The href is normalized exactly like the PHP (`str_replace` of the MAL base
 /// URL) and the name goes through `JString::cleanse`.
-pub fn mal_url(node: &HtmlNode) -> Result<Value, ParseError> {
+pub(crate) fn mal_url(node: &HtmlNode) -> Result<Value, ParseError> {
     Ok(MalUrlParser::new(node.clone()).get_model()?.to_json())
 }
 
@@ -78,7 +79,7 @@ pub fn mal_url(node: &HtmlNode) -> Result<Value, ParseError> {
 /// `kind` overrides the `type` field (which is otherwise derived from the URL
 /// by `MalUrl::getType()`), for callers whose href does not match
 /// `https://myanimelist.net/<type>/...`.
-pub fn mal_url_from_parts(href: &str, text: &str, kind: Option<&str>) -> Value {
+pub(crate) fn mal_url_from_parts(href: &str, text: &str, kind: Option<&str>) -> Value {
     let href = href.replace(BASE_URL, "");
     let url = format!("{BASE_URL}{href}");
     let mut value = MalUrl::new(cleanse(text), url).to_json();
@@ -92,7 +93,7 @@ pub fn mal_url_from_parts(href: &str, text: &str, kind: Option<&str>) -> Value {
 ///
 /// Unlike `MalUrlParser`, the href is cleansed too; a missing attribute is
 /// `null` in PHP and is coerced to `""` here.
-pub fn url_parser(node: &HtmlNode) -> Result<Value, ParseError> {
+pub(crate) fn url_parser(node: &HtmlNode) -> Result<Value, ParseError> {
     Ok(json!({
         "name": cleanse(&node.node_text()),
         "url": cleanse(&node.node_attr("href").unwrap_or_default()),
@@ -109,7 +110,7 @@ pub fn url_parser(node: &HtmlNode) -> Result<Value, ParseError> {
 ///
 /// The caller is responsible for prepending the `Default` title (which the PHP
 /// family parsers do before merging these entries).
-pub fn alternative_titles(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
+pub(crate) fn alternative_titles(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
     let containers = doc.nodes(
         "//h2[text()=\"Alternative Titles\"]/following-sibling::div[following::h2[text()=\"Information\"]]",
     )?;
@@ -148,7 +149,7 @@ fn alternative_title_entries(text: &str) -> Vec<Value> {
 /// `(new PictureParser($node))->getModel()` as JSON:
 /// `{image_url, large_image_url}` (`image_url` is the `data-src` thumbnail,
 /// `large_image_url` the `<a href>`).
-pub fn picture(node: &HtmlNode) -> Result<Value, ParseError> {
+pub(crate) fn picture(node: &HtmlNode) -> Result<Value, ParseError> {
     let (image_url, large_image_url) = picture_urls(node)?;
     Ok(json!({
         "image_url": image_url,
@@ -158,7 +159,7 @@ pub fn picture(node: &HtmlNode) -> Result<Value, ParseError> {
 
 /// `PicturesPageParser::getModel()`: every `a.js-picture-gallery` as a
 /// `CommonImageResource` built from its `data-src` thumbnail.
-pub fn pictures_page(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
+pub(crate) fn pictures_page(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
     let mut pictures = Vec::new();
     for anchor in doc.nodes("//a[@class=\"js-picture-gallery\"]")? {
         let (image_url, _) = picture_urls(&anchor)?;
@@ -172,7 +173,7 @@ pub fn pictures_page(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
 ///
 /// `DefaultPicture::fromParser()` only asks for `getSmall()` (`data-src`), so
 /// the `<a href>` is not required here (unlike [`pictures_page`]).
-pub fn default_pictures_page(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
+pub(crate) fn default_pictures_page(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
     let mut pictures = Vec::new();
     for anchor in doc.nodes("//a[@class=\"js-picture-gallery\"]")? {
         let image_url = required_attr(&anchor, "//img", "data-src")?;
@@ -200,7 +201,7 @@ fn picture_urls(node: &HtmlNode) -> Result<(String, String), ParseError> {
 /// The getters are declared `?string`, so a missing `<a>`/`<img>` stays `null`
 /// (the concrete PHP model would raise a `TypeError`, the closest analogue of
 /// which is a null in Kuukan's dynamic payload).
-pub fn item_meta(node: &HtmlNode) -> Result<Value, ParseError> {
+pub(crate) fn item_meta(node: &HtmlNode) -> Result<Value, ParseError> {
     let url = node
         .first("//a")?
         .and_then(|anchor| anchor.node_attr("href"));
@@ -239,7 +240,7 @@ fn item_meta_mal_id(url: &str) -> i64 {
 
 /// `(new AnimeCardParser($node))->getModel()` as the JMS-shaped
 /// `Jikan\Model\Common\AnimeCard` JSON.
-pub fn anime_card(node: &HtmlNode) -> Result<Value, ParseError> {
+pub(crate) fn anime_card(node: &HtmlNode) -> Result<Value, ParseError> {
     let url = anime_url(node)?;
     let image = anime_image(node)?;
     let score = anime_score(node)?;
@@ -277,7 +278,7 @@ pub fn anime_card(node: &HtmlNode) -> Result<Value, ParseError> {
 ///
 /// Needed by the seasonal crew for `Jikan\Model\Seasonal\SeasonalAnime`
 /// (`continuing`); the `AnimeCard` payload itself has no such field.
-pub fn anime_card_continuing(node: &HtmlNode) -> bool {
+pub(crate) fn anime_card_continuing(node: &HtmlNode) -> bool {
     match node.ancestors().first() {
         Some(ancestor) => ancestor.node_text().contains("(Continuing)"),
         None => false,
@@ -393,7 +394,7 @@ fn anime_score(node: &HtmlNode) -> Result<Option<f64>, ParseError> {
 
 /// `(new MangaCardParser($node))->getModel()` as the JMS-shaped
 /// `Jikan\Model\Common\MangaCard` JSON.
-pub fn manga_card(node: &HtmlNode) -> Result<Value, ParseError> {
+pub(crate) fn manga_card(node: &HtmlNode) -> Result<Value, ParseError> {
     let url = manga_url(node)?;
     let image = manga_image(node)?;
     let score = manga_score(node)?;
@@ -545,7 +546,7 @@ fn manga_serialization(node: &HtmlNode) -> Result<Vec<Value>, ParseError> {
 
 /// `(new Recommendation($node))->getModel()` as the JMS-shaped JSON:
 /// `{entry: {mal_id, url, images, title}, url, votes}`.
-pub fn recommendation(node: &HtmlNode) -> Result<Value, ParseError> {
+pub(crate) fn recommendation(node: &HtmlNode) -> Result<Value, ParseError> {
     let url = required_attr(node, "//table/tr/td[2]/div[2]/a[1]", "href")?;
     let image_url = required_attr(node, "//table/tr/td[1]/div[1]/a/img", "data-src")?;
     let recommendation_url = format!(
@@ -579,7 +580,7 @@ pub fn recommendation(node: &HtmlNode) -> Result<Value, ParseError> {
 }
 
 /// `(new Recommendations($doc))->getModel()`: every `div.borderClass`.
-pub fn recommendations(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
+pub(crate) fn recommendations(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
     let mut recommendations = Vec::new();
     for node in doc.nodes("//div[@class=\"borderClass\"]")? {
         recommendations.push(recommendation(&node)?);

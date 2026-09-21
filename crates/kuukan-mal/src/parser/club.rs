@@ -7,9 +7,10 @@ use std::sync::OnceLock;
 use crate::error::ParseError;
 use crate::parser::character::wrap_image_resource;
 use crate::parser::date::{format_atom, parse_date};
-use crate::parser::helper::{parse_image_quality, parse_image_thumb_to_hq, HtmlDoc};
+use crate::parser::helper::HtmlDoc;
 use crate::parser::jstring::cleanse;
 use crate::parser::mal_url::{club_id_from_url, MalUrl};
+use crate::parser::media_url::{parse_image_quality, parse_image_thumb_to_hq};
 
 /// `Jikan\Model\Common\UserMetaBasic` (`{url, username}`).
 fn user_meta_basic(username: &str, url: &str) -> Value {
@@ -22,12 +23,12 @@ pub struct ClubParser {
 }
 
 impl ClubParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         ClubParser { doc }
     }
 
     /// `ClubParser::getUrl()`.
-    pub fn url(&self) -> Result<String, ParseError> {
+    pub(crate) fn url(&self) -> Result<String, ParseError> {
         Ok(self
             .doc
             .attr("//meta[@property='og:url']", "content")?
@@ -35,12 +36,12 @@ impl ClubParser {
     }
 
     /// `ClubParser::getMalId()`.
-    pub fn mal_id(&self) -> Result<i64, ParseError> {
+    pub(crate) fn mal_id(&self) -> Result<i64, ParseError> {
         Ok(club_id_from_url(&self.url()?))
     }
 
     /// `ClubParser::getImageUrl()`.
-    pub fn image_url(&self) -> Result<String, ParseError> {
+    fn image_url(&self) -> Result<String, ParseError> {
         Ok(self
             .doc
             .attr(
@@ -52,7 +53,7 @@ impl ClubParser {
     }
 
     /// `ClubParser::getTitle()`.
-    pub fn title(&self) -> Result<String, ParseError> {
+    pub(crate) fn title(&self) -> Result<String, ParseError> {
         Ok(self
             .doc
             .text("//div[@id=\"contentWrapper\"]/div[1]/h1")?
@@ -60,17 +61,17 @@ impl ClubParser {
     }
 
     /// `ClubParser::getMembersCount()`.
-    pub fn members_count(&self) -> Result<i64, ParseError> {
+    fn members_count(&self) -> Result<i64, ParseError> {
         self.int_from_div(4)
     }
 
     /// `ClubParser::getPicturesCount()`.
-    pub fn pictures_count(&self) -> Result<i64, ParseError> {
+    fn pictures_count(&self) -> Result<i64, ParseError> {
         self.int_from_div(5)
     }
 
     /// `ClubParser::getCategory()`.
-    pub fn category(&self) -> Result<String, ParseError> {
+    fn category(&self) -> Result<String, ParseError> {
         let Some(node) = self
             .doc
             .first("//div[@id=\"content\"]/table/tr/td[2]/div/div[6]")?
@@ -82,7 +83,7 @@ impl ClubParser {
     }
 
     /// `ClubParser::getCreated()`.
-    pub fn created(&self) -> Result<Option<String>, ParseError> {
+    fn created(&self) -> Result<Option<String>, ParseError> {
         let Some(node) = self
             .doc
             .first("//div[@id=\"content\"]/table/tr/td[2]/div/div[contains(., \"Created\")]")?
@@ -95,7 +96,7 @@ impl ClubParser {
     }
 
     /// `ClubParser::getType()` (serialized as `access`).
-    pub fn access(&self) -> Result<String, ParseError> {
+    fn access(&self) -> Result<String, ParseError> {
         let Some(node) = self
             .doc
             .first("//div[@id=\"content\"]/table/tr/td[2]/div")?
@@ -110,22 +111,22 @@ impl ClubParser {
     }
 
     /// `ClubParser::getAnimeRelations()`.
-    pub fn anime_relations(&self) -> Result<Vec<Value>, ParseError> {
+    fn anime_relations(&self) -> Result<Vec<Value>, ParseError> {
         self.relations("Anime")
     }
 
     /// `ClubParser::getMangaRelations()`.
-    pub fn manga_relations(&self) -> Result<Vec<Value>, ParseError> {
+    fn manga_relations(&self) -> Result<Vec<Value>, ParseError> {
         self.relations("Manga")
     }
 
     /// `ClubParser::getCharacterRelations()`.
-    pub fn character_relations(&self) -> Result<Vec<Value>, ParseError> {
+    fn character_relations(&self) -> Result<Vec<Value>, ParseError> {
         self.relations("Character")
     }
 
     /// `ClubParser::getStaff()`.
-    pub fn staff(&self) -> Result<Vec<Value>, ParseError> {
+    fn staff(&self) -> Result<Vec<Value>, ParseError> {
         let Some(header) = self
             .doc
             .first("//div[contains(text(), \"Club Staff\") and @class=\"normal_header\"]")?
@@ -153,7 +154,7 @@ impl ClubParser {
     }
 
     /// `ClubParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "mal_id": self.mal_id()?,
             "url": self.url()?,
@@ -224,12 +225,12 @@ pub struct UserListParser {
 }
 
 impl UserListParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         UserListParser { doc }
     }
 
     /// `UserListParser::getResults()`.
-    pub fn results(&self) -> Result<Vec<Value>, ParseError> {
+    fn results(&self) -> Result<Vec<Value>, ParseError> {
         self.doc
             .nodes("//*[@id=\"content\"]/table/tr/td")?
             .iter()
@@ -238,7 +239,7 @@ impl UserListParser {
     }
 
     /// `UserListParser::hasNextPage()`.
-    pub fn has_next_page(&self) -> Result<bool, ParseError> {
+    fn has_next_page(&self) -> Result<bool, ParseError> {
         if self
             .doc
             .count("//*[@id=\"content\"]/div/a[contains(., \"Last\")]")?
@@ -253,7 +254,7 @@ impl UserListParser {
     }
 
     /// `UserListParser::getLastPage()`.
-    pub fn last_page(&self) -> Result<i64, ParseError> {
+    fn last_page(&self) -> Result<i64, ParseError> {
         let Some(node) = self.doc.first("//*[@id=\"content\"]/div")? else {
             return Ok(1);
         };
@@ -264,7 +265,7 @@ impl UserListParser {
     }
 
     /// `UserListParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.results()?,
             "has_next_page": self.has_next_page()?,
@@ -279,17 +280,17 @@ pub struct UserProfileParser {
 }
 
 impl UserProfileParser {
-    pub fn new(node: crate::parser::helper::HtmlNode) -> Self {
+    pub(crate) fn new(node: crate::parser::helper::HtmlNode) -> Self {
         UserProfileParser { node }
     }
 
     /// `UserProfileParser::getUsername()`.
-    pub fn username(&self) -> Result<String, ParseError> {
+    fn username(&self) -> Result<String, ParseError> {
         Ok(self.node.text("//a[1]")?.unwrap_or_default())
     }
 
     /// `UserProfileParser::getUrl()`.
-    pub fn url(&self) -> Result<String, ParseError> {
+    pub(crate) fn url(&self) -> Result<String, ParseError> {
         Ok(format!(
             "{}{}",
             crate::request::BASE_URL,
@@ -298,7 +299,7 @@ impl UserProfileParser {
     }
 
     /// `UserProfileParser::getImage()`.
-    pub fn image(&self) -> Result<String, ParseError> {
+    fn image(&self) -> Result<String, ParseError> {
         let image_url = self
             .node
             .attr("//img[1]", "data-src")?
@@ -315,7 +316,7 @@ impl UserProfileParser {
     }
 
     /// `UserProfileParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         let image = self.image()?;
         Ok(json!({
             "username": self.username()?,

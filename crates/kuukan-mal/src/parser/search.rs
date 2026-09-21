@@ -11,10 +11,11 @@ use std::sync::OnceLock;
 
 use crate::error::ParseError;
 use crate::parser::date::{format_atom, parse_date, parse_date_mdy, parse_date_time_pst};
-use crate::parser::helper::{parse_image_quality, parse_image_thumb_to_hq, HtmlDoc, HtmlNode};
+use crate::parser::helper::{HtmlDoc, HtmlNode};
 use crate::parser::jstring::{cleanse, utf8_nbsp_trim};
 use crate::parser::mal_url::MalUrl;
 use crate::parser::mal_url::{id_from_url, MalUrlParser, BASE_URL};
+use crate::parser::media_url::{parse_image_quality, parse_image_thumb_to_hq};
 
 // ---------------------------------------------------------------------------
 // Shared image resources (private to this module)
@@ -87,13 +88,13 @@ pub struct AnimeSearchParser<'a> {
 }
 
 impl<'a> AnimeSearchParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         AnimeSearchParser { doc }
     }
 
     /// `AnimeSearch::fromParser()`:
     /// `{results, has_next_page, last_visible_page}`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": self.get_has_next_page()?,
@@ -102,7 +103,7 @@ impl<'a> AnimeSearchParser<'a> {
     }
 
     /// `AnimeSearchParser::getResults()`.
-    pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_results(&self) -> Result<Vec<Value>, ParseError> {
         let Some(header) = self
             .doc
             .first("//div[contains(@class, \"js-categories-seasonal\")]/table/tr[1]")?
@@ -117,7 +118,7 @@ impl<'a> AnimeSearchParser<'a> {
     }
 
     /// `AnimeSearchParser::getLastPage()`.
-    pub fn get_last_page(&self) -> Result<i64, ParseError> {
+    fn get_last_page(&self) -> Result<i64, ParseError> {
         let Some(text) = self
             .doc
             .text("//div[contains(@class, \"normal_header\")]/div/div/span")?
@@ -128,7 +129,7 @@ impl<'a> AnimeSearchParser<'a> {
     }
 
     /// `AnimeSearchParser::getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> Result<bool, ParseError> {
+    fn get_has_next_page(&self) -> Result<bool, ParseError> {
         let Some(text) = self
             .doc
             .text("//div[contains(@class, \"normal_header\")]/div/div/span")?
@@ -145,12 +146,12 @@ pub struct AnimeSearchListItemParser<'a> {
 }
 
 impl<'a> AnimeSearchListItemParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         AnimeSearchListItemParser { node }
     }
 
     /// `AnimeSearchListItem::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         let image_url = self.get_image_url()?;
         Ok(json!({
             "mal_id": id_from_url(&self.get_url()?),
@@ -170,17 +171,17 @@ impl<'a> AnimeSearchListItemParser<'a> {
     }
 
     /// `AnimeSearchListItemParser::getUrl()`.
-    pub fn get_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         Ok(self.node.attr("//td[2]//a", "href")?.unwrap_or_default())
     }
 
     /// `AnimeSearchListItemParser::getTitle()`.
-    pub fn get_title(&self) -> Result<String, ParseError> {
+    fn get_title(&self) -> Result<String, ParseError> {
         Ok(self.node.text("//td[2]//a/strong")?.unwrap_or_default())
     }
 
     /// `AnimeSearchListItemParser::getImageUrl()`.
-    pub fn get_image_url(&self) -> Result<String, ParseError> {
+    fn get_image_url(&self) -> Result<String, ParseError> {
         let src = self
             .node
             .attr("//td[1]/div/a/img", "data-src")?
@@ -189,7 +190,7 @@ impl<'a> AnimeSearchListItemParser<'a> {
     }
 
     /// `AnimeSearchListItemParser::getSynopsis()`.
-    pub fn get_synopsis(&self) -> Result<String, ParseError> {
+    fn get_synopsis(&self) -> Result<String, ParseError> {
         match self.node.first("//td[2]/div[@class=\"pt4\"]")? {
             Some(node) => {
                 node.remove_child_nodes()?;
@@ -200,24 +201,24 @@ impl<'a> AnimeSearchListItemParser<'a> {
     }
 
     /// `AnimeSearchListItemParser::getType()`.
-    pub fn get_type(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_type(&self) -> Result<String, ParseError> {
         Ok(cleanse(&self.node.text("//td[3]")?.unwrap_or_default()))
     }
 
     /// `AnimeSearchListItemParser::getEpisodes()`.
-    pub fn get_episodes(&self) -> Result<i64, ParseError> {
+    fn get_episodes(&self) -> Result<i64, ParseError> {
         Ok(php_intval(&self.node.text("//td[4]")?.unwrap_or_default()))
     }
 
     /// `AnimeSearchListItemParser::getScore()`.
-    pub fn get_score(&self) -> Result<f64, ParseError> {
+    fn get_score(&self) -> Result<f64, ParseError> {
         Ok(php_floatval(
             &self.node.text("//td[5]")?.unwrap_or_default(),
         ))
     }
 
     /// `AnimeSearchListItemParser::getMembers()`.
-    pub fn get_members(&self) -> Result<i64, ParseError> {
+    fn get_members(&self) -> Result<i64, ParseError> {
         Ok(php_intval(
             &self
                 .node
@@ -228,7 +229,7 @@ impl<'a> AnimeSearchListItemParser<'a> {
     }
 
     /// `AnimeSearchListItemParser::getRated()`.
-    pub fn get_rated(&self) -> Result<Option<String>, ParseError> {
+    fn get_rated(&self) -> Result<Option<String>, ParseError> {
         let rated = cleanse(&self.node.text("//td[9]")?.unwrap_or_default());
         if rated == "-" {
             return Ok(None);
@@ -237,7 +238,7 @@ impl<'a> AnimeSearchListItemParser<'a> {
     }
 
     /// `AnimeSearchListItemParser::getStartDateString()`.
-    pub fn get_start_date_string(&self) -> Result<Option<String>, ParseError> {
+    fn get_start_date_string(&self) -> Result<Option<String>, ParseError> {
         let date = cleanse(&self.node.text("//td[6]")?.unwrap_or_default());
         if date == "-" {
             return Ok(None);
@@ -246,7 +247,7 @@ impl<'a> AnimeSearchListItemParser<'a> {
     }
 
     /// `AnimeSearchListItemParser::getStartDate()`.
-    pub fn get_start_date(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
+    fn get_start_date(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
         match self.get_start_date_string()? {
             Some(date) => Ok(parse_date_mdy(Some(&date))),
             None => Ok(None),
@@ -254,7 +255,7 @@ impl<'a> AnimeSearchListItemParser<'a> {
     }
 
     /// `AnimeSearchListItemParser::getEndDateString()`.
-    pub fn get_end_date_string(&self) -> Result<Option<String>, ParseError> {
+    fn get_end_date_string(&self) -> Result<Option<String>, ParseError> {
         let date = cleanse(&self.node.text("//td[7]")?.unwrap_or_default());
         if date == "-" {
             return Ok(None);
@@ -263,7 +264,7 @@ impl<'a> AnimeSearchListItemParser<'a> {
     }
 
     /// `AnimeSearchListItemParser::getEndDate()`.
-    pub fn get_end_date(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
+    fn get_end_date(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
         match self.get_end_date_string()? {
             Some(date) => Ok(parse_date_mdy(Some(&date))),
             None => Ok(None),
@@ -271,7 +272,7 @@ impl<'a> AnimeSearchListItemParser<'a> {
     }
 
     /// `AnimeSearchListItemParser::isAiring()`.
-    pub fn is_airing(&self) -> Result<bool, ParseError> {
+    fn is_airing(&self) -> Result<bool, ParseError> {
         // an entry with one episode can't be airing
         // its either finished airing or hasn't aired yet
         if self.get_episodes()? == 1 {
@@ -308,12 +309,12 @@ pub struct MangaSearchParser<'a> {
 }
 
 impl<'a> MangaSearchParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         MangaSearchParser { doc }
     }
 
     /// `MangaSearch::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": self.get_has_next_page()?,
@@ -322,7 +323,7 @@ impl<'a> MangaSearchParser<'a> {
     }
 
     /// `MangaSearchParser::getResults()`.
-    pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_results(&self) -> Result<Vec<Value>, ParseError> {
         let Some(header) = self
             .doc
             .first("//div[contains(@class, \"js-categories-seasonal\")]/table/tr[1]")?
@@ -337,7 +338,7 @@ impl<'a> MangaSearchParser<'a> {
     }
 
     /// `MangaSearchParser::getLastPage()`.
-    pub fn get_last_page(&self) -> Result<i64, ParseError> {
+    fn get_last_page(&self) -> Result<i64, ParseError> {
         let Some(text) = self
             .doc
             .text("//div[contains(@class, \"normal_header\")]/div/div/span")?
@@ -348,7 +349,7 @@ impl<'a> MangaSearchParser<'a> {
     }
 
     /// `MangaSearchParser::getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> Result<bool, ParseError> {
+    fn get_has_next_page(&self) -> Result<bool, ParseError> {
         let Some(text) = self
             .doc
             .text("//div[contains(@class, \"normal_header\")]/div/div/span")?
@@ -365,12 +366,12 @@ pub struct MangaSearchListItemParser<'a> {
 }
 
 impl<'a> MangaSearchListItemParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         MangaSearchListItemParser { node }
     }
 
     /// `MangaSearchListItem::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         let image_url = self.get_image_url()?;
         Ok(json!({
             "mal_id": id_from_url(&self.get_url()?),
@@ -390,17 +391,17 @@ impl<'a> MangaSearchListItemParser<'a> {
     }
 
     /// `MangaSearchListItemParser::getUrl()`.
-    pub fn get_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         Ok(self.node.attr("//td[2]/a", "href")?.unwrap_or_default())
     }
 
     /// `MangaSearchListItemParser::getTitle()`.
-    pub fn get_title(&self) -> Result<String, ParseError> {
+    fn get_title(&self) -> Result<String, ParseError> {
         Ok(self.node.text("//td[2]/a/strong")?.unwrap_or_default())
     }
 
     /// `MangaSearchListItemParser::getImageUrl()`.
-    pub fn get_image_url(&self) -> Result<String, ParseError> {
+    fn get_image_url(&self) -> Result<String, ParseError> {
         let src = self
             .node
             .attr("//td[1]/div/a/img", "data-src")?
@@ -409,7 +410,7 @@ impl<'a> MangaSearchListItemParser<'a> {
     }
 
     /// `MangaSearchListItemParser::getSynopsis()`.
-    pub fn get_synopsis(&self) -> Result<String, ParseError> {
+    fn get_synopsis(&self) -> Result<String, ParseError> {
         match self.node.first("//td[2]/div[@class=\"pt4\"]")? {
             Some(node) => {
                 node.remove_child_nodes()?;
@@ -420,29 +421,29 @@ impl<'a> MangaSearchListItemParser<'a> {
     }
 
     /// `MangaSearchListItemParser::getType()`.
-    pub fn get_type(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_type(&self) -> Result<String, ParseError> {
         Ok(cleanse(&self.node.text("//td[3]")?.unwrap_or_default()))
     }
 
     /// `MangaSearchListItemParser::getVolumes()`.
-    pub fn get_volumes(&self) -> Result<i64, ParseError> {
+    fn get_volumes(&self) -> Result<i64, ParseError> {
         Ok(php_intval(&self.node.text("//td[4]")?.unwrap_or_default()))
     }
 
     /// `MangaSearchListItemParser::getChapters()`.
-    pub fn get_chapters(&self) -> Result<i64, ParseError> {
+    fn get_chapters(&self) -> Result<i64, ParseError> {
         Ok(php_intval(&self.node.text("//td[5]")?.unwrap_or_default()))
     }
 
     /// `MangaSearchListItemParser::getScore()`.
-    pub fn get_score(&self) -> Result<f64, ParseError> {
+    fn get_score(&self) -> Result<f64, ParseError> {
         Ok(php_floatval(
             &self.node.text("//td[6]")?.unwrap_or_default(),
         ))
     }
 
     /// `MangaSearchListItemParser::getStartDateString()`.
-    pub fn get_start_date_string(&self) -> Result<Option<String>, ParseError> {
+    fn get_start_date_string(&self) -> Result<Option<String>, ParseError> {
         let date = cleanse(&self.node.text("//td[7]")?.unwrap_or_default());
         if date == "-" {
             return Ok(None);
@@ -451,7 +452,7 @@ impl<'a> MangaSearchListItemParser<'a> {
     }
 
     /// `MangaSearchListItemParser::getStartDate()`.
-    pub fn get_start_date(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
+    fn get_start_date(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
         match self.get_start_date_string()? {
             Some(date) => Ok(parse_date_mdy(Some(&date))),
             None => Ok(None),
@@ -459,7 +460,7 @@ impl<'a> MangaSearchListItemParser<'a> {
     }
 
     /// `MangaSearchListItemParser::getEndDateString()`.
-    pub fn get_end_date_string(&self) -> Result<Option<String>, ParseError> {
+    fn get_end_date_string(&self) -> Result<Option<String>, ParseError> {
         let date = cleanse(&self.node.text("//td[8]")?.unwrap_or_default());
         if date == "-" {
             return Ok(None);
@@ -468,7 +469,7 @@ impl<'a> MangaSearchListItemParser<'a> {
     }
 
     /// `MangaSearchListItemParser::getEndDate()`.
-    pub fn get_end_date(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
+    fn get_end_date(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
         match self.get_end_date_string()? {
             Some(date) => Ok(parse_date_mdy(Some(&date))),
             None => Ok(None),
@@ -476,7 +477,7 @@ impl<'a> MangaSearchListItemParser<'a> {
     }
 
     /// `MangaSearchListItemParser::getMembers()`.
-    pub fn get_members(&self) -> Result<i64, ParseError> {
+    fn get_members(&self) -> Result<i64, ParseError> {
         Ok(php_intval(
             &self
                 .node
@@ -487,7 +488,7 @@ impl<'a> MangaSearchListItemParser<'a> {
     }
 
     /// `MangaSearchListItem::fromParser()` inline `publishing` computation.
-    pub fn is_publishing(&self) -> Result<bool, ParseError> {
+    fn is_publishing(&self) -> Result<bool, ParseError> {
         let end_date = self.get_end_date()?;
         let start_date = self.get_start_date()?;
         match (end_date, start_date) {
@@ -507,12 +508,12 @@ pub struct CharacterSearchParser<'a> {
 }
 
 impl<'a> CharacterSearchParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         CharacterSearchParser { doc }
     }
 
     /// `CharacterSearch::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": self.get_has_next_page()?,
@@ -521,7 +522,7 @@ impl<'a> CharacterSearchParser<'a> {
     }
 
     /// `CharacterSearchParser::getResults()`.
-    pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_results(&self) -> Result<Vec<Value>, ParseError> {
         if self.doc.count(
             "//div[@id=\"content\"]/table/tr/td[1][contains(text(), \"There were some probrems\")]",
         )? > 0
@@ -537,7 +538,7 @@ impl<'a> CharacterSearchParser<'a> {
     }
 
     /// `CharacterSearchParser::getLastPage()`.
-    pub fn get_last_page(&self) -> Result<i64, ParseError> {
+    fn get_last_page(&self) -> Result<i64, ParseError> {
         let Some(text) = self
             .doc
             .text("//div[@id=\"content\"]/div[@class=\"borderClass\"][1]/div/span")?
@@ -548,7 +549,7 @@ impl<'a> CharacterSearchParser<'a> {
     }
 
     /// `CharacterSearchParser::getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> Result<bool, ParseError> {
+    fn get_has_next_page(&self) -> Result<bool, ParseError> {
         let Some(text) = self
             .doc
             .text("//div[contains(@class, \"normal_header\")]/div/div/span")?
@@ -565,12 +566,12 @@ pub struct CharacterSearchListItemParser<'a> {
 }
 
 impl<'a> CharacterSearchListItemParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         CharacterSearchListItemParser { node }
     }
 
     /// `CharacterSearchListItem::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         let image_url = self.get_image_url()?;
         Ok(json!({
             "mal_id": id_from_url(&self.get_url()?),
@@ -584,17 +585,17 @@ impl<'a> CharacterSearchListItemParser<'a> {
     }
 
     /// `CharacterSearchListItemParser::getUrl()`.
-    pub fn get_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         Ok(self.node.attr("//td[2]/a", "href")?.unwrap_or_default())
     }
 
     /// `CharacterSearchListItemParser::getName()`.
-    pub fn get_name(&self) -> Result<String, ParseError> {
+    fn get_name(&self) -> Result<String, ParseError> {
         Ok(self.node.text("//td[2]/a")?.unwrap_or_default())
     }
 
     /// `CharacterSearchListItemParser::getAlternativeNames()`.
-    pub fn get_alternative_names(&self) -> Result<Vec<String>, ParseError> {
+    fn get_alternative_names(&self) -> Result<Vec<String>, ParseError> {
         let Some(names) = self.node.first("//td[2]/small")? else {
             return Ok(Vec::new());
         };
@@ -603,7 +604,7 @@ impl<'a> CharacterSearchListItemParser<'a> {
     }
 
     /// `CharacterSearchListItemParser::getImageUrl()`.
-    pub fn get_image_url(&self) -> Result<String, ParseError> {
+    fn get_image_url(&self) -> Result<String, ParseError> {
         let src = self
             .node
             .attr("//td[1]/div/a/img", "data-src")?
@@ -612,7 +613,7 @@ impl<'a> CharacterSearchListItemParser<'a> {
     }
 
     /// `CharacterSearchListItemParser::getAnime()`.
-    pub fn get_anime(&self) -> Result<Vec<Value>, ParseError> {
+    fn get_anime(&self) -> Result<Vec<Value>, ParseError> {
         // `Parser::removeChildNodes($crawler)` mutates every matched anchor.
         let anchors = self.node.nodes("//td[3]/small/a")?;
         if anchors.is_empty() {
@@ -629,7 +630,7 @@ impl<'a> CharacterSearchListItemParser<'a> {
     }
 
     /// `CharacterSearchListItemParser::getManga()`.
-    pub fn get_manga(&self) -> Result<Vec<Value>, ParseError> {
+    fn get_manga(&self) -> Result<Vec<Value>, ParseError> {
         let anchors = self.node.nodes("//td[3]/small/div/a")?;
         if anchors.is_empty() {
             return Ok(Vec::new());
@@ -652,12 +653,12 @@ pub struct PersonSearchParser<'a> {
 }
 
 impl<'a> PersonSearchParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         PersonSearchParser { doc }
     }
 
     /// `PersonSearch::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": self.get_has_next_page()?,
@@ -666,7 +667,7 @@ impl<'a> PersonSearchParser<'a> {
     }
 
     /// `PersonSearchParser::getResults()`.
-    pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_results(&self) -> Result<Vec<Value>, ParseError> {
         // if the query is empty, MAL returns a ranking of "Most Favorited" people
         // since that's not the scope of this method, we return empty results
         // most favorited people are returned via the `TopPeople` API method
@@ -694,7 +695,7 @@ impl<'a> PersonSearchParser<'a> {
     }
 
     /// `PersonSearchParser::getLastPage()`.
-    pub fn get_last_page(&self) -> Result<i64, ParseError> {
+    fn get_last_page(&self) -> Result<i64, ParseError> {
         let Some(text) = self
             .doc
             .text("//div[contains(@class, \"normal_header\")]/div/div/span")?
@@ -705,7 +706,7 @@ impl<'a> PersonSearchParser<'a> {
     }
 
     /// `PersonSearchParser::getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> Result<bool, ParseError> {
+    fn get_has_next_page(&self) -> Result<bool, ParseError> {
         let Some(text) = self
             .doc
             .text("//div[contains(@class, \"normal_header\")]/div/div/span")?
@@ -763,12 +764,12 @@ pub struct PersonSearchListItemParser<'a> {
 }
 
 impl<'a> PersonSearchListItemParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         PersonSearchListItemParser { node }
     }
 
     /// `PersonSearchListItem::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         let image_url = self.get_image_url()?;
         Ok(json!({
             "mal_id": id_from_url(&self.get_url()?),
@@ -780,18 +781,18 @@ impl<'a> PersonSearchListItemParser<'a> {
     }
 
     /// `PersonSearchListItemParser::getUrl()`.
-    pub fn get_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         let href = self.node.attr("//td[2]/a", "href")?.unwrap_or_default();
         Ok(format!("{BASE_URL}{href}"))
     }
 
     /// `PersonSearchListItemParser::getName()`.
-    pub fn get_name(&self) -> Result<String, ParseError> {
+    fn get_name(&self) -> Result<String, ParseError> {
         Ok(self.node.text("//td[2]/a")?.unwrap_or_default())
     }
 
     /// `PersonSearchListItemParser::getAlternativeNames()`.
-    pub fn get_alternative_names(&self) -> Result<Vec<String>, ParseError> {
+    fn get_alternative_names(&self) -> Result<Vec<String>, ParseError> {
         let Some(names) = self.node.first("//td[2]/small")? else {
             return Ok(Vec::new());
         };
@@ -800,7 +801,7 @@ impl<'a> PersonSearchListItemParser<'a> {
     }
 
     /// `PersonSearchListItemParser::getImageUrl()`.
-    pub fn get_image_url(&self) -> Result<String, ParseError> {
+    fn get_image_url(&self) -> Result<String, ParseError> {
         let src = self
             .node
             .attr("//td[1]/div/a/img", "data-src")?
@@ -819,12 +820,12 @@ pub struct UserSearchParser<'a> {
 }
 
 impl<'a> UserSearchParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         UserSearchParser { doc }
     }
 
     /// `UserSearch::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": self.get_has_next_page()?,
@@ -833,7 +834,7 @@ impl<'a> UserSearchParser<'a> {
     }
 
     /// `UserSearchParser::getResults()`.
-    pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_results(&self) -> Result<Vec<Value>, ParseError> {
         // Check if it's the main page (`getRecentlyOnlineUsers`).
         let mut nodes = self
             .doc
@@ -859,7 +860,7 @@ impl<'a> UserSearchParser<'a> {
     }
 
     /// `UserSearchParser::getLastPage()`.
-    pub fn get_last_page(&self) -> Result<i64, ParseError> {
+    fn get_last_page(&self) -> Result<i64, ParseError> {
         let Some(text) = self
             .doc
             .text("//div[@id=\"content\"]/div[@class=\"borderClass\"][1]/div/span")?
@@ -870,7 +871,7 @@ impl<'a> UserSearchParser<'a> {
     }
 
     /// `UserSearchParser::getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> Result<bool, ParseError> {
+    fn get_has_next_page(&self) -> Result<bool, ParseError> {
         let Some(text) = self
             .doc
             .text("//div[@id=\"content\"]/div[@class=\"borderClass\"][1]/div/span")?
@@ -908,12 +909,12 @@ pub struct UserSearchListItemParser<'a> {
 }
 
 impl<'a> UserSearchListItemParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         UserSearchListItemParser { node }
     }
 
     /// `UserSearchListItem::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         let image_url = self.get_image_url()?;
         Ok(json!({
             "username": self.get_username()?,
@@ -924,18 +925,18 @@ impl<'a> UserSearchListItemParser<'a> {
     }
 
     /// `UserSearchListItemParser::getUsername()`.
-    pub fn get_username(&self) -> Result<String, ParseError> {
+    fn get_username(&self) -> Result<String, ParseError> {
         Ok(self.node.text("//div[1]/a")?.unwrap_or_default())
     }
 
     /// `UserSearchListItemParser::getUrl()`.
-    pub fn get_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         let href = self.node.attr("//div[1]/a", "href")?.unwrap_or_default();
         Ok(format!("{BASE_URL}{href}"))
     }
 
     /// `UserSearchListItemParser::getImageUrl()`.
-    pub fn get_image_url(&self) -> Result<String, ParseError> {
+    fn get_image_url(&self) -> Result<String, ParseError> {
         let src = self
             .node
             .attr("//div[2]/a/img", "data-src")?
@@ -944,7 +945,7 @@ impl<'a> UserSearchListItemParser<'a> {
     }
 
     /// `UserSearchListItemParser::getLastOnline()`.
-    pub fn get_last_online(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
+    fn get_last_online(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
         let last_online = utf8_nbsp_trim(&self.node.text("//div[3]/small")?.unwrap_or_default());
         Ok(parse_date(&last_online))
     }

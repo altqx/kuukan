@@ -9,9 +9,10 @@ use serde_json::{json, Value};
 
 use crate::error::ParseError;
 use crate::parser::common::mal_url;
-use crate::parser::helper::{parse_image_quality, HtmlDoc, HtmlNode};
+use crate::parser::helper::{HtmlDoc, HtmlNode};
 use crate::parser::jstring::{cleanse, utf8_nbsp_trim};
 use crate::parser::mal_url::id_from_url;
+use crate::parser::media_url::parse_image_quality;
 
 // ---------------------------------------------------------------------------
 // JMS-shaped resource/meta builders
@@ -22,7 +23,7 @@ use crate::parser::mal_url::id_from_url;
 /// The webp factory does `str_replace('.jpg', ..., $imageUrl)`, which turns a
 /// `null` input into `""` (PHP 8 deprecation, not an error) — the null case
 /// therefore only affects `jpg.image_url`.
-pub fn common_image_resource(image_url: Option<&str>) -> Value {
+pub(crate) fn common_image_resource(image_url: Option<&str>) -> Value {
     let jpg = match image_url {
         Some(url) => json!({
             "image_url": url,
@@ -48,7 +49,7 @@ pub fn common_image_resource(image_url: Option<&str>) -> Value {
 }
 
 /// `CharacterImageResource` (`{jpg:{image_url},webp:{image_url,small_image_url}}`).
-pub fn character_image_resource(image_url: Option<&str>) -> Value {
+pub(crate) fn character_image_resource(image_url: Option<&str>) -> Value {
     let (webp_url, webp_small) = match image_url {
         Some(url) => (url.replace(".jpg", ".webp"), url.replace(".jpg", "t.webp")),
         // `str_replace` with null -> "" (and the null guard never triggers).
@@ -64,12 +65,12 @@ pub fn character_image_resource(image_url: Option<&str>) -> Value {
 }
 
 /// `PersonImageResource` (`{jpg:{image_url}}`).
-pub fn person_image_resource(image_url: Option<&str>) -> Value {
+pub(crate) fn person_image_resource(image_url: Option<&str>) -> Value {
     json!({ "jpg": { "image_url": image_url } })
 }
 
 /// `UserImageResource` (`{jpg:{image_url},webp:{image_url}}`).
-pub fn user_image_resource(image_url: Option<&str>) -> Value {
+pub(crate) fn user_image_resource(image_url: Option<&str>) -> Value {
     json!({
         "jpg": { "image_url": image_url },
         "webp": {
@@ -79,12 +80,12 @@ pub fn user_image_resource(image_url: Option<&str>) -> Value {
 }
 
 /// `WrapImageResource` (`{jpg:{image_url}}`) used by producer / club logos.
-pub fn wrap_image_resource(image_url: Option<&str>) -> Value {
+pub(crate) fn wrap_image_resource(image_url: Option<&str>) -> Value {
     json!({ "jpg": { "image_url": image_url } })
 }
 
 /// `Jikan\Model\Common\AnimeMeta`.
-pub fn anime_meta(title: &str, url: &str, image_url: Option<&str>) -> Value {
+pub(crate) fn anime_meta(title: &str, url: &str, image_url: Option<&str>) -> Value {
     let image = image_url
         .map(parse_image_quality)
         .map(Value::String)
@@ -98,7 +99,7 @@ pub fn anime_meta(title: &str, url: &str, image_url: Option<&str>) -> Value {
 }
 
 /// `Jikan\Model\Common\MangaMeta`.
-pub fn manga_meta(title: &str, url: &str, image_url: Option<&str>) -> Value {
+pub(crate) fn manga_meta(title: &str, url: &str, image_url: Option<&str>) -> Value {
     let image = image_url
         .map(parse_image_quality)
         .map(Value::String)
@@ -112,7 +113,7 @@ pub fn manga_meta(title: &str, url: &str, image_url: Option<&str>) -> Value {
 }
 
 /// `Jikan\Model\Common\PersonMeta`.
-pub fn person_meta(name: &str, url: &str, image_url: Option<&str>) -> Value {
+pub(crate) fn person_meta(name: &str, url: &str, image_url: Option<&str>) -> Value {
     let image = image_url
         .map(parse_image_quality)
         .map(Value::String)
@@ -126,7 +127,7 @@ pub fn person_meta(name: &str, url: &str, image_url: Option<&str>) -> Value {
 }
 
 /// `Jikan\Model\Common\CharacterMeta`.
-pub fn character_meta(name: &str, url: &str, image_url: Option<&str>) -> Value {
+pub(crate) fn character_meta(name: &str, url: &str, image_url: Option<&str>) -> Value {
     json!({
         "mal_id": id_from_url(url),
         "url": url,
@@ -145,27 +146,27 @@ pub struct CharacterParser {
 }
 
 impl CharacterParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         CharacterParser { doc }
     }
 
     /// `CharacterParser::getCharacterUrl()` (`og:url`).
-    pub fn character_url(&self) -> Result<Option<String>, ParseError> {
+    fn character_url(&self) -> Result<Option<String>, ParseError> {
         self.doc.attr("//meta[@property=\"og:url\"]", "content")
     }
 
     /// `CharacterParser::getMalId()`.
-    pub fn mal_id(&self) -> Result<i64, ParseError> {
+    pub(crate) fn mal_id(&self) -> Result<i64, ParseError> {
         Ok(id_from_url(&self.character_url()?.unwrap_or_default()))
     }
 
     /// `CharacterParser::getName()` (`og:title`).
-    pub fn name(&self) -> Result<Option<String>, ParseError> {
+    pub(crate) fn name(&self) -> Result<Option<String>, ParseError> {
         self.doc.attr("//meta[@property=\"og:title\"]", "content")
     }
 
     /// `CharacterParser::getNameKanji()`.
-    pub fn name_kanji(&self) -> Result<Option<String>, ParseError> {
+    fn name_kanji(&self) -> Result<Option<String>, ParseError> {
         let Some(node) = self
             .doc
             .first("//h2[contains(@class, \"normal_header\")]/span/small")?
@@ -176,7 +177,7 @@ impl CharacterParser {
     }
 
     /// `CharacterParser::getNameNicknames()`.
-    pub fn nicknames(&self) -> Result<Vec<String>, ParseError> {
+    fn nicknames(&self) -> Result<Vec<String>, ParseError> {
         let Some(node) = self.doc.first("//h1")? else {
             return Ok(vec![]);
         };
@@ -200,7 +201,7 @@ impl CharacterParser {
     }
 
     /// `CharacterParser::getAbout()`.
-    pub fn about(&self) -> Result<Option<String>, ParseError> {
+    fn about(&self) -> Result<Option<String>, ParseError> {
         // MAL wraps the biography in the second table cell; `<br>` is turned
         // into a literal `\n` before re-parsing the fragment so that
         // `removeChildNodes()` keeps the line breaks.
@@ -221,7 +222,7 @@ impl CharacterParser {
     }
 
     /// `CharacterParser::getMemberFavorites()` (`preg_replace('/\D/', '', ...)`).
-    pub fn member_favorites(&self) -> Result<i64, ParseError> {
+    fn member_favorites(&self) -> Result<i64, ParseError> {
         let Some(cell) = self.doc.first("//*[@id=\"content\"]/table/tr/td[1]")? else {
             return Ok(0);
         };
@@ -230,12 +231,12 @@ impl CharacterParser {
     }
 
     /// `CharacterParser::getImage()` (`og:image`).
-    pub fn image(&self) -> Result<Option<String>, ParseError> {
+    fn image(&self) -> Result<Option<String>, ParseError> {
         self.doc.attr("//meta[@property=\"og:image\"]", "content")
     }
 
     /// `CharacterParser::getAnimeography()`.
-    pub fn animeography(&self) -> Result<Vec<Value>, ParseError> {
+    fn animeography(&self) -> Result<Vec<Value>, ParseError> {
         let rows = self
             .doc
             .nodes("//div[contains(text(), 'Animeography')]/../table[1]/tr")?;
@@ -245,7 +246,7 @@ impl CharacterParser {
     }
 
     /// `CharacterParser::getMangaography()`.
-    pub fn mangaography(&self) -> Result<Vec<Value>, ParseError> {
+    fn mangaography(&self) -> Result<Vec<Value>, ParseError> {
         let rows = self
             .doc
             .nodes("//div[contains(text(), 'Mangaography')]/../table[2]/tr")?;
@@ -255,7 +256,7 @@ impl CharacterParser {
     }
 
     /// `CharacterParser::getVoiceActors()`.
-    pub fn voice_actors(&self) -> Result<Vec<Value>, ParseError> {
+    fn voice_actors(&self) -> Result<Vec<Value>, ParseError> {
         let rows = self
             .doc
             .nodes("//div[contains(text(), 'Voice Actors')]/../table/tr")?;
@@ -265,7 +266,7 @@ impl CharacterParser {
     }
 
     /// `CharacterParser::getModel()` (JMS-shaped JSON).
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         // Same call order as `Character::fromParser()`: the ography getters
         // must run before `getMemberFavorites()`, which strips children from
         // `td[1]` and can detach the tables.
@@ -298,22 +299,22 @@ pub struct OgraphyParser {
 }
 
 impl OgraphyParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         OgraphyParser { node }
     }
 
     /// `OgraphyParser::getUrl()`.
-    pub fn url(&self) -> Result<Option<String>, ParseError> {
+    pub(crate) fn url(&self) -> Result<Option<String>, ParseError> {
         self.node.attr("//td/a", "href")
     }
 
     /// `OgraphyParser::getName()`.
-    pub fn name(&self) -> Result<Option<String>, ParseError> {
+    pub(crate) fn name(&self) -> Result<Option<String>, ParseError> {
         self.node.text("//td/a")
     }
 
     /// `OgraphyParser::getImage()`.
-    pub fn image(&self) -> Result<Option<String>, ParseError> {
+    fn image(&self) -> Result<Option<String>, ParseError> {
         Ok(self
             .node
             .attr("//img", "data-src")?
@@ -321,7 +322,7 @@ impl OgraphyParser {
     }
 
     /// `OgraphyParser::getRole()` (`<small>` last).
-    pub fn role(&self) -> Result<Option<String>, ParseError> {
+    pub(crate) fn role(&self) -> Result<Option<String>, ParseError> {
         Ok(self.node.last("//small")?.map(|node| node.node_text()))
     }
 }
@@ -332,14 +333,14 @@ pub struct AnimeographyParser {
 }
 
 impl AnimeographyParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         AnimeographyParser {
             inner: OgraphyParser::new(node),
         }
     }
 
     /// `AnimeographyParser::getAnimeMeta()`.
-    pub fn anime_meta(&self) -> Result<Value, ParseError> {
+    fn anime_meta(&self) -> Result<Value, ParseError> {
         Ok(anime_meta(
             &self.inner.name()?.unwrap_or_default(),
             &self.inner.url()?.unwrap_or_default(),
@@ -348,7 +349,7 @@ impl AnimeographyParser {
     }
 
     /// `AnimeographyParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "role": self.inner.role()?.unwrap_or_default(),
             "anime": self.anime_meta()?,
@@ -362,14 +363,14 @@ pub struct MangaographyParser {
 }
 
 impl MangaographyParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         MangaographyParser {
             inner: OgraphyParser::new(node),
         }
     }
 
     /// `MangaographyParser::getMangaMeta()`.
-    pub fn manga_meta(&self) -> Result<Value, ParseError> {
+    fn manga_meta(&self) -> Result<Value, ParseError> {
         Ok(manga_meta(
             &self.inner.name()?.unwrap_or_default(),
             &self.inner.url()?.unwrap_or_default(),
@@ -378,7 +379,7 @@ impl MangaographyParser {
     }
 
     /// `MangaographyParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "role": self.inner.role()?.unwrap_or_default(),
             "manga": self.manga_meta()?,
@@ -396,22 +397,22 @@ pub struct VoiceActorParser {
 }
 
 impl VoiceActorParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         VoiceActorParser { node }
     }
 
     /// `VoiceActorParser::getName()`: first `<a>` without an `<img>` child.
-    pub fn name(&self) -> Result<Option<String>, ParseError> {
+    pub(crate) fn name(&self) -> Result<Option<String>, ParseError> {
         Ok(self.person_anchor()?.map(|node| node.node_text()))
     }
 
     /// `VoiceActorParser::getUrl()`: first `<a>`, image or not.
-    pub fn url(&self) -> Result<Option<String>, ParseError> {
+    pub(crate) fn url(&self) -> Result<Option<String>, ParseError> {
         self.node.attr("//a", "href")
     }
 
     /// `VoiceActorParser::getImage()` (`src ?? data-src`).
-    pub fn image(&self) -> Result<Option<String>, ParseError> {
+    fn image(&self) -> Result<Option<String>, ParseError> {
         let Some(img) = self.node.first("//img")? else {
             return Ok(None);
         };
@@ -420,7 +421,7 @@ impl VoiceActorParser {
     }
 
     /// `VoiceActorParser::getLanguage()`.
-    pub fn language(&self) -> Result<String, ParseError> {
+    fn language(&self) -> Result<String, ParseError> {
         if let Some(node) = self
             .node
             .first("//div[contains(@class, \"js-anime-character-language\")]")?
@@ -435,7 +436,7 @@ impl VoiceActorParser {
     }
 
     /// `VoiceActorParser::getPerson()` (`MalUrl` of the name anchor).
-    pub fn person(&self) -> Result<Value, ParseError> {
+    fn person(&self) -> Result<Value, ParseError> {
         let Some(anchor) = self.person_anchor()? else {
             return Ok(json!({
                 "mal_id": 0,
@@ -448,7 +449,7 @@ impl VoiceActorParser {
     }
 
     /// `VoiceActorParser::getPersonMeta()`.
-    pub fn person_meta(&self) -> Result<Value, ParseError> {
+    fn person_meta(&self) -> Result<Value, ParseError> {
         Ok(person_meta(
             &self.name()?.unwrap_or_default(),
             &self.url()?.unwrap_or_default(),
@@ -457,7 +458,7 @@ impl VoiceActorParser {
     }
 
     /// `VoiceActorParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "person": self.person_meta()?,
             "language": self.language()?,
@@ -485,28 +486,28 @@ pub struct CharacterListItemParser {
 }
 
 impl CharacterListItemParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         CharacterListItemParser { node }
     }
 
     /// `CharacterListItemParser::getCharacterUrl()`.
-    pub fn character_url(&self) -> Result<Option<String>, ParseError> {
+    fn character_url(&self) -> Result<Option<String>, ParseError> {
         self.node.attr("//td[2]/div[3]/a", "href")
     }
 
     /// `CharacterListItemParser::getMalId()`.
-    pub fn mal_id(&self) -> Result<i64, ParseError> {
+    pub(crate) fn mal_id(&self) -> Result<i64, ParseError> {
         Ok(id_from_url(&self.character_url()?.unwrap_or_default()))
     }
 
     /// `CharacterListItemParser::getName()`.
-    pub fn name(&self) -> Result<Option<String>, ParseError> {
+    pub(crate) fn name(&self) -> Result<Option<String>, ParseError> {
         self.node
             .text("//h3[contains(@class, \"h3_character_name\")]")
     }
 
     /// `CharacterListItemParser::getImage()`.
-    pub fn image(&self) -> Result<Option<String>, ParseError> {
+    fn image(&self) -> Result<Option<String>, ParseError> {
         Ok(self
             .node
             .attr("//img[1]", "data-src")?
@@ -514,7 +515,7 @@ impl CharacterListItemParser {
     }
 
     /// `CharacterListItemParser::getRole()`.
-    pub fn role(&self) -> Result<String, ParseError> {
+    pub(crate) fn role(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .text("//td[2]/div[4]")?
@@ -523,7 +524,7 @@ impl CharacterListItemParser {
     }
 
     /// `CharacterListItemParser::getFavorites()`.
-    pub fn favorites(&self) -> Result<i64, ParseError> {
+    fn favorites(&self) -> Result<i64, ParseError> {
         Ok(self
             .node
             .text("//td[2]/div[5]")?
@@ -532,7 +533,7 @@ impl CharacterListItemParser {
     }
 
     /// `CharacterListItemParser::getVoiceActors()`.
-    pub fn voice_actors(&self) -> Result<Vec<Value>, ParseError> {
+    fn voice_actors(&self) -> Result<Vec<Value>, ParseError> {
         let rows = self.node.nodes("//table[2]/tr")?;
         rows.iter()
             .map(|row| VoiceActorParser::new(row.clone()).model())
@@ -540,7 +541,7 @@ impl CharacterListItemParser {
     }
 
     /// `CharacterListItemParser::getCharacterMeta()`.
-    pub fn character_meta(&self) -> Result<Value, ParseError> {
+    pub(crate) fn character_meta(&self) -> Result<Value, ParseError> {
         Ok(character_meta(
             &self.name()?.unwrap_or_default(),
             &self.character_url()?.unwrap_or_default(),
@@ -549,7 +550,7 @@ impl CharacterListItemParser {
     }
 
     /// `CharacterListItemParser::getModel()` (anime/character listing shape).
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "character": self.character_meta()?,
             "role": self.role()?,

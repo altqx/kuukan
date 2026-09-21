@@ -7,4 +7,5 @@ pub mod source;
 #[cfg(feature = "testing")]
 pub mod testing;
 
+pub use parser::ParseModel;
 pub use source::{MalSource, MalSourceExt};

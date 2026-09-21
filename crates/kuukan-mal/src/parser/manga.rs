@@ -16,8 +16,9 @@ use crate::parser::character::{
 };
 use crate::parser::common::{alternative_titles, mal_url, url_parser};
 use crate::parser::date::{format_atom, parse_date};
-use crate::parser::helper::{parse_image_quality, HtmlDoc, HtmlNode};
+use crate::parser::helper::{HtmlDoc, HtmlNode};
 use crate::parser::jstring::{cleanse, utf8_nbsp_trim};
+use crate::parser::media_url::parse_image_quality;
 
 // ---------------------------------------------------------------------------
 // MangaParser
@@ -29,17 +30,17 @@ pub struct MangaParser {
 }
 
 impl MangaParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         MangaParser { doc }
     }
 
     /// `MangaParser::getMangaURL()` (`og:url`).
-    pub fn manga_url(&self) -> Result<Option<String>, ParseError> {
+    fn manga_url(&self) -> Result<Option<String>, ParseError> {
         self.doc.attr("//meta[@property='og:url']", "content")
     }
 
     /// `MangaParser::getMangaId()`.
-    pub fn manga_id(&self) -> Result<i64, ParseError> {
+    fn manga_id(&self) -> Result<i64, ParseError> {
         let url = self.manga_url()?.unwrap_or_default();
         Ok(match manga_id_re().captures(&url) {
             Some(caps) => caps[1].parse().unwrap_or(0),
@@ -48,17 +49,17 @@ impl MangaParser {
     }
 
     /// `MangaParser::getMangaTitle()` (`og:title`).
-    pub fn manga_title(&self) -> Result<Option<String>, ParseError> {
+    fn manga_title(&self) -> Result<Option<String>, ParseError> {
         self.doc.attr("//meta[@property='og:title']", "content")
     }
 
     /// `MangaParser::getMangaImageURL()` (`og:image`).
-    pub fn manga_image_url(&self) -> Result<Option<String>, ParseError> {
+    fn manga_image_url(&self) -> Result<Option<String>, ParseError> {
         self.doc.attr("//meta[@property='og:image']", "content")
     }
 
     /// `MangaParser::getMangaSynopsis()` (uses the node's *inner HTML*).
-    pub fn manga_synopsis(&self) -> Result<Option<String>, ParseError> {
+    fn manga_synopsis(&self) -> Result<Option<String>, ParseError> {
         let Some(node) = self.doc.first("//span[@itemprop='description']")? else {
             return Ok(None);
         };
@@ -70,7 +71,7 @@ impl MangaParser {
     }
 
     /// `MangaParser::getApproved()`.
-    pub fn approved(&self) -> Result<bool, ParseError> {
+    fn approved(&self) -> Result<bool, ParseError> {
         Ok(self
             .doc
             .count("//*[@id=\"addtolist\"]//span[contains(text(), \"pending approval\")]")?
@@ -78,12 +79,12 @@ impl MangaParser {
     }
 
     /// `MangaParser::getMangaTitleEnglish()`.
-    pub fn manga_title_english(&self) -> Result<Option<String>, ParseError> {
+    fn manga_title_english(&self) -> Result<Option<String>, ParseError> {
         self.labelled_value("English:")
     }
 
     /// `MangaParser::getMangaTitleSynonyms()`.
-    pub fn manga_title_synonyms(&self) -> Result<Vec<String>, ParseError> {
+    fn manga_title_synonyms(&self) -> Result<Vec<String>, ParseError> {
         let Some(span) = self.labelled_span("Synonyms:")? else {
             return Ok(vec![]);
         };
@@ -95,7 +96,7 @@ impl MangaParser {
     }
 
     /// `MangaParser::getMangaTitleJapanese()`.
-    pub fn manga_title_japanese(&self) -> Result<Option<String>, ParseError> {
+    fn manga_title_japanese(&self) -> Result<Option<String>, ParseError> {
         self.labelled_value("Japanese:")
     }
 
@@ -103,7 +104,7 @@ impl MangaParser {
     ///
     /// `parser::common::alternative_titles()` returns only the section entries;
     /// the PHP prepends the `Default` title from `og:title`.
-    pub fn titles(&self) -> Result<Vec<Value>, ParseError> {
+    fn titles(&self) -> Result<Vec<Value>, ParseError> {
         let mut titles = vec![json!({
             "type": "Default",
             "title": self.manga_title()?,
@@ -113,7 +114,7 @@ impl MangaParser {
     }
 
     /// `MangaParser::getMangaType()`.
-    pub fn manga_type(&self) -> Result<Option<String>, ParseError> {
+    fn manga_type(&self) -> Result<Option<String>, ParseError> {
         let Some(value) = self.labelled_value("Type:")? else {
             return Ok(None);
         };
@@ -125,22 +126,22 @@ impl MangaParser {
     }
 
     /// `MangaParser::getMangaChapters()`.
-    pub fn manga_chapters(&self) -> Result<Option<i64>, ParseError> {
+    fn manga_chapters(&self) -> Result<Option<i64>, ParseError> {
         self.labelled_int("Chapters:")
     }
 
     /// `MangaParser::getMangaVolumes()`.
-    pub fn manga_volumes(&self) -> Result<Option<i64>, ParseError> {
+    fn manga_volumes(&self) -> Result<Option<i64>, ParseError> {
         self.labelled_int("Volumes:")
     }
 
     /// `MangaParser::getMangaStatus()`.
-    pub fn manga_status(&self) -> Result<Option<String>, ParseError> {
+    fn manga_status(&self) -> Result<Option<String>, ParseError> {
         self.labelled_value("Status:")
     }
 
     /// `MangaParser::getMangaAuthors()`.
-    pub fn manga_authors(&self) -> Result<Vec<Value>, ParseError> {
+    fn manga_authors(&self) -> Result<Vec<Value>, ParseError> {
         self.doc
             .nodes("//span[text()=\"Authors:\"]/following-sibling::a")?
             .iter()
@@ -149,7 +150,7 @@ impl MangaParser {
     }
 
     /// `MangaParser::getMangaSerialization()`.
-    pub fn manga_serialization(&self) -> Result<Vec<Value>, ParseError> {
+    fn manga_serialization(&self) -> Result<Vec<Value>, ParseError> {
         self.doc
             .nodes("//span[text()=\"Serialization:\"]/following-sibling::a")?
             .iter()
@@ -158,27 +159,27 @@ impl MangaParser {
     }
 
     /// `MangaParser::getGenres()`.
-    pub fn genres(&self) -> Result<Vec<Value>, ParseError> {
+    fn genres(&self) -> Result<Vec<Value>, ParseError> {
         self.genre_links(&["Genres:", "Genre:"], true)
     }
 
     /// `MangaParser::getExplicitGenres()`.
-    pub fn explicit_genres(&self) -> Result<Vec<Value>, ParseError> {
+    fn explicit_genres(&self) -> Result<Vec<Value>, ParseError> {
         self.genre_links(&["Explicit Genres:", "Explicit Genre:"], true)
     }
 
     /// `MangaParser::getDemographics()`.
-    pub fn demographics(&self) -> Result<Vec<Value>, ParseError> {
+    fn demographics(&self) -> Result<Vec<Value>, ParseError> {
         self.genre_links(&["Demographics:", "Demographic:"], false)
     }
 
     /// `MangaParser::getThemes()` (singular label is tried first).
-    pub fn themes(&self) -> Result<Vec<Value>, ParseError> {
+    fn themes(&self) -> Result<Vec<Value>, ParseError> {
         self.genre_links(&["Theme:", "Themes:"], false)
     }
 
     /// `MangaParser::getScore()`.
-    pub fn score(&self) -> Result<Option<f64>, ParseError> {
+    fn score(&self) -> Result<Option<f64>, ParseError> {
         let Some(node) = self.doc.first("//span[@itemprop=\"ratingValue\"]")? else {
             return Ok(None);
         };
@@ -190,7 +191,7 @@ impl MangaParser {
     }
 
     /// `MangaParser::getScoredBy()`.
-    pub fn scored_by(&self) -> Result<Option<i64>, ParseError> {
+    fn scored_by(&self) -> Result<Option<i64>, ParseError> {
         let Some(node) = self.doc.first("//span[@itemprop=\"ratingCount\"]")? else {
             return Ok(None);
         };
@@ -205,7 +206,7 @@ impl MangaParser {
     }
 
     /// `MangaParser::getMangaRank()`.
-    pub fn rank(&self) -> Result<Option<i64>, ParseError> {
+    fn rank(&self) -> Result<Option<i64>, ParseError> {
         let Some(span) = self.doc.first(
             "//div[@id=\"content\"]/table/tr/td[@class=\"borderClass\"]//span[text()=\"Ranked:\"]",
         )?
@@ -225,7 +226,7 @@ impl MangaParser {
     }
 
     /// `MangaParser::getMangaPopularity()`.
-    pub fn popularity(&self) -> Result<Option<i64>, ParseError> {
+    fn popularity(&self) -> Result<Option<i64>, ParseError> {
         let Some(span) = self.labelled_span("Popularity:")? else {
             return Ok(None);
         };
@@ -240,17 +241,17 @@ impl MangaParser {
     }
 
     /// `MangaParser::getMangaMembers()`.
-    pub fn members(&self) -> Result<Option<i64>, ParseError> {
+    fn members(&self) -> Result<Option<i64>, ParseError> {
         self.comma_int("Members:")
     }
 
     /// `MangaParser::getMangaFavorites()`.
-    pub fn favorites(&self) -> Result<Option<i64>, ParseError> {
+    fn favorites(&self) -> Result<Option<i64>, ParseError> {
         self.comma_int("Favorites:")
     }
 
     /// `MangaParser::getExternalLinks()`.
-    pub fn external_links(&self) -> Result<Vec<Value>, ParseError> {
+    fn external_links(&self) -> Result<Vec<Value>, ParseError> {
         self.doc
             .nodes(
                 "//*[@id=\"content\"]/table//div[contains(@class, \"external_links\")]//a[contains(@class, \"link\") and not(contains(@class, \"js-more-links\"))]",
@@ -265,7 +266,7 @@ impl MangaParser {
     /// MAL has divided relations into tiles and a table. Tiles append to one
     /// relation key, the table overwrites it (PHP semantics). With no
     /// relations at all PHP still returns `[]` (an empty array, not `{}`).
-    pub fn related(&self) -> Result<Value, ParseError> {
+    fn related(&self) -> Result<Value, ParseError> {
         let mut related: Map<String, Value> = Map::new();
 
         let entries = self.doc.nodes(
@@ -338,7 +339,7 @@ impl MangaParser {
     }
 
     /// `MangaParser::getMangaBackground()`.
-    pub fn background(&self) -> Result<Option<String>, ParseError> {
+    fn background(&self) -> Result<Option<String>, ParseError> {
         let Some(node) = self.doc.first("//span[@itemprop=\"description\"]/..")? else {
             return Ok(None);
         };
@@ -351,19 +352,19 @@ impl MangaParser {
     }
 
     /// `MangaParser::getPublished()`.
-    pub fn published(&self) -> Result<Value, ParseError> {
+    fn published(&self) -> Result<Value, ParseError> {
         Ok(date_range_json(
             &self.manga_published_string()?.unwrap_or_default(),
         ))
     }
 
     /// `MangaParser::getMangaPublishedString()`.
-    pub fn manga_published_string(&self) -> Result<Option<String>, ParseError> {
+    fn manga_published_string(&self) -> Result<Option<String>, ParseError> {
         self.labelled_value("Published:")
     }
 
     /// `MangaParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         let status = self.manga_status()?;
         Ok(json!({
             "mal_id": self.manga_id()?,
@@ -484,12 +485,12 @@ pub struct CharactersParser {
 }
 
 impl CharactersParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         CharactersParser { doc }
     }
 
     /// `CharactersParser::getCharacters()`.
-    pub fn characters(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn characters(&self) -> Result<Vec<Value>, ParseError> {
         let tables = self
             .doc
             .nodes("//div[contains(@class, \"manga-character-container\")]/table")?;
@@ -515,12 +516,12 @@ pub struct MoreInfoParser {
 }
 
 impl MoreInfoParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         MoreInfoParser { doc }
     }
 
     /// `MoreInfoParser::getMoreInfo()`.
-    pub fn more_info(&self) -> Result<Option<String>, ParseError> {
+    pub(crate) fn more_info(&self) -> Result<Option<String>, ParseError> {
         let Some(node) = self.doc.first("//div[contains(@class, \"rightside\")]")? else {
             return Ok(None);
         };
@@ -534,7 +535,7 @@ impl MoreInfoParser {
     }
 
     /// `MoreInfoParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({ "more_info": self.more_info()? }))
     }
 }
@@ -549,7 +550,7 @@ pub struct MangaStatsParser {
 }
 
 impl MangaStatsParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         MangaStatsParser { doc }
     }
 
@@ -567,37 +568,37 @@ impl MangaStatsParser {
     }
 
     /// `MangaStatsParser::getReading()`.
-    pub fn reading(&self) -> Result<i64, ParseError> {
+    fn reading(&self) -> Result<i64, ParseError> {
         self.statistic("Reading:")
     }
 
     /// `MangaStatsParser::getCompleted()`.
-    pub fn completed(&self) -> Result<i64, ParseError> {
+    fn completed(&self) -> Result<i64, ParseError> {
         self.statistic("Completed:")
     }
 
     /// `MangaStatsParser::getOnHold()`.
-    pub fn on_hold(&self) -> Result<i64, ParseError> {
+    fn on_hold(&self) -> Result<i64, ParseError> {
         self.statistic("On-Hold:")
     }
 
     /// `MangaStatsParser::getDropped()`.
-    pub fn dropped(&self) -> Result<i64, ParseError> {
+    fn dropped(&self) -> Result<i64, ParseError> {
         self.statistic("Dropped:")
     }
 
     /// `MangaStatsParser::getPlanToRead()`.
-    pub fn plan_to_read(&self) -> Result<i64, ParseError> {
+    fn plan_to_read(&self) -> Result<i64, ParseError> {
         self.statistic("Plan to Read:")
     }
 
     /// `MangaStatsParser::getTotal()`.
-    pub fn total(&self) -> Result<i64, ParseError> {
+    fn total(&self) -> Result<i64, ParseError> {
         self.statistic("Total:")
     }
 
     /// `MangaStatsParser::getScores()`.
-    pub fn scores(&self) -> Result<Value, ParseError> {
+    fn scores(&self) -> Result<Value, ParseError> {
         // `//h2[text()="Score Stats"]/following-sibling::text()`
         if let Some(node) = self
             .doc
@@ -660,7 +661,7 @@ impl MangaStatsParser {
     }
 
     /// `MangaStatsParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "reading": self.reading()?,
             "completed": self.completed()?,
@@ -683,7 +684,7 @@ pub struct MangaReviewsParser {
 }
 
 impl MangaReviewsParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         MangaReviewsParser { doc }
     }
 
@@ -692,7 +693,7 @@ impl MangaReviewsParser {
     /// Reuses the reviews crew's `parser::reviews::MangaReviewParser` getters
     /// but assembles `Jikan\Model\Manga\MangaReview` (no `entry` key, unlike
     /// the `FullMangaReview` model serialized by `get_model()`).
-    pub fn results(&self) -> Result<Vec<Value>, ParseError> {
+    fn results(&self) -> Result<Vec<Value>, ParseError> {
         let nodes = self.doc.nodes(
             "//div[contains(@class, \"rightside\")]//div[contains(@class, \"review-element\")]",
         )?;
@@ -718,7 +719,7 @@ impl MangaReviewsParser {
     }
 
     /// `MangaReviewsParser::hasNextPage()`.
-    pub fn has_next_page(&self) -> Result<bool, ParseError> {
+    fn has_next_page(&self) -> Result<bool, ParseError> {
         Ok(self
             .doc
             .count("//*[@id=\"content\"]/table//a[contains(text(), \"More Reviews\")]")?
@@ -726,7 +727,7 @@ impl MangaReviewsParser {
     }
 
     /// `MangaReviewsParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.results()?,
             "has_next_page": self.has_next_page()?,
@@ -749,7 +750,7 @@ pub struct MangaReviewScoresParser {
 }
 
 impl MangaReviewScoresParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         MangaReviewScoresParser { node }
     }
 
@@ -761,7 +762,7 @@ impl MangaReviewScoresParser {
             .unwrap_or(0))
     }
 
-    pub fn overall(&self) -> Result<i64, ParseError> {
+    fn overall(&self) -> Result<i64, ParseError> {
         Ok(self
             .node
             .text("//table/tr[1]/td[2]/strong")?
@@ -769,24 +770,24 @@ impl MangaReviewScoresParser {
             .unwrap_or(0))
     }
 
-    pub fn story(&self) -> Result<i64, ParseError> {
+    fn story(&self) -> Result<i64, ParseError> {
         self.score(2)
     }
 
-    pub fn art(&self) -> Result<i64, ParseError> {
+    fn art(&self) -> Result<i64, ParseError> {
         self.score(3)
     }
 
-    pub fn character(&self) -> Result<i64, ParseError> {
+    fn character(&self) -> Result<i64, ParseError> {
         self.score(4)
     }
 
-    pub fn enjoyment(&self) -> Result<i64, ParseError> {
+    fn enjoyment(&self) -> Result<i64, ParseError> {
         self.score(5)
     }
 
     /// `MangaReviewScoresParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "overall": self.overall()?,
             "story": self.story()?,
@@ -807,12 +808,12 @@ pub struct MangaRecentlyUpdatedByUsersParser {
 }
 
 impl MangaRecentlyUpdatedByUsersParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         MangaRecentlyUpdatedByUsersParser { doc }
     }
 
     /// `MangaRecentlyUpdatedByUsersParser::getResults()`.
-    pub fn results(&self) -> Result<Vec<Value>, ParseError> {
+    fn results(&self) -> Result<Vec<Value>, ParseError> {
         let Some(first) = self
             .doc
             .first("//table[@class=\"table-recently-updated\"]/tr[1]")?
@@ -827,17 +828,17 @@ impl MangaRecentlyUpdatedByUsersParser {
     }
 
     /// `MangaRecentlyUpdatedByUsersParser::getHasNextPage()` (hardcoded false).
-    pub fn has_next_page(&self) -> bool {
+    fn has_next_page(&self) -> bool {
         false
     }
 
     /// `MangaRecentlyUpdatedByUsersParser::getLastPage()` (hardcoded 1).
-    pub fn last_page(&self) -> i64 {
+    fn last_page(&self) -> i64 {
         1
     }
 
     /// `MangaRecentlyUpdatedByUsersParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.results()?,
             "has_next_page": self.has_next_page(),
@@ -941,7 +942,7 @@ impl MangaRecentlyUpdatedByUsersListParser {
         Ok(parse_date(&text).map(|date| format_atom(&date)))
     }
 
-    fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         let (volumes_read, volumes_total) = self.volumes()?;
         let (chapters_read, chapters_total) = self.chapters()?;
         Ok(json!({

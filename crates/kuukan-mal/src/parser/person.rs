@@ -13,12 +13,12 @@ use crate::parser::helper::{HtmlDoc, HtmlNode};
 use crate::parser::jstring::{cleanse, utf8_nbsp_trim};
 
 /// `Jikan\Model\Common\UserMetaBasic` (`{url, username}`).
-pub fn user_meta_basic(username: &str, url: &str) -> Value {
+pub(crate) fn user_meta_basic(username: &str, url: &str) -> Value {
     json!({ "url": url, "username": username })
 }
 
 /// `Jikan\Model\Common\UserMeta` (`{username, url, images}`).
-pub fn user_meta(username: &str, url: &str, image_url: Option<&str>) -> Value {
+pub(crate) fn user_meta(username: &str, url: &str, image_url: Option<&str>) -> Value {
     json!({
         "username": username,
         "url": url,
@@ -53,22 +53,22 @@ pub struct PersonParser {
 }
 
 impl PersonParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         PersonParser { doc }
     }
 
     /// `PersonParser::getPersonURL()`.
-    pub fn person_url(&self) -> Result<Option<String>, ParseError> {
+    fn person_url(&self) -> Result<Option<String>, ParseError> {
         self.doc.attr("//meta[@property='og:url']", "content")
     }
 
     /// `PersonParser::getPersonId()`.
-    pub fn person_id(&self) -> Result<i64, ParseError> {
+    fn person_id(&self) -> Result<i64, ParseError> {
         Ok(person_id_from_url(&self.person_url()?.unwrap_or_default()))
     }
 
     /// `PersonParser::getPersonName()`.
-    pub fn person_name(&self) -> Result<Option<String>, ParseError> {
+    fn person_name(&self) -> Result<Option<String>, ParseError> {
         Ok(self
             .doc
             .attr("//meta[@property='og:title']", "content")?
@@ -76,12 +76,12 @@ impl PersonParser {
     }
 
     /// `PersonParser::getPersonImageUrl()`.
-    pub fn person_image_url(&self) -> Result<Option<String>, ParseError> {
+    fn person_image_url(&self) -> Result<Option<String>, ParseError> {
         self.doc.attr("//meta[@property='og:image']", "content")
     }
 
     /// `PersonParser::getPersonGivenName()`.
-    pub fn given_name(&self) -> Result<Option<String>, ParseError> {
+    fn given_name(&self) -> Result<Option<String>, ParseError> {
         let Some(node) = self.doc.first("//span[text()=\"Given name:\"]")? else {
             return Ok(None);
         };
@@ -92,7 +92,7 @@ impl PersonParser {
     }
 
     /// `PersonParser::getPersonFamilyName()`.
-    pub fn family_name(&self) -> Result<Option<String>, ParseError> {
+    fn family_name(&self) -> Result<Option<String>, ParseError> {
         let Some(node) = self.doc.first(
             "//div[@id=\"content\"]/table/tr/td[@class=\"borderClass\"]/span[text()=\"Family name:\"]",
         )?
@@ -115,7 +115,7 @@ impl PersonParser {
     }
 
     /// `PersonParser::getPersonAlternateNames()`.
-    pub fn alternate_names(&self) -> Result<Vec<String>, ParseError> {
+    fn alternate_names(&self) -> Result<Vec<String>, ParseError> {
         let Some(node) = self.doc.first(
             "//div[@id=\"content\"]/table/tr/td[@class=\"borderClass\"]/div/span[text()=\"Alternate names:\"]",
         )?
@@ -133,7 +133,7 @@ impl PersonParser {
     ///
     /// PHP calls `nextAll()` on a possibly empty crawler and would throw; the
     /// empty case degrades to `null` here (helper convention).
-    pub fn website(&self) -> Result<Option<String>, ParseError> {
+    fn website(&self) -> Result<Option<String>, ParseError> {
         let Some(node) = self.doc.first(
             "//div[@id=\"content\"]/table/tr/td[@class=\"borderClass\"]/span[text()=\"Website:\"]",
         )?
@@ -155,7 +155,7 @@ impl PersonParser {
     }
 
     /// `PersonParser::getPersonBirthday()`.
-    pub fn birthday(&self) -> Result<Option<String>, ParseError> {
+    fn birthday(&self) -> Result<Option<String>, ParseError> {
         let Some(node) = self.doc.first("//span[text()=\"Birthday:\"]")? else {
             return Ok(None);
         };
@@ -166,7 +166,7 @@ impl PersonParser {
     }
 
     /// `PersonParser::getPersonFavorites()`.
-    pub fn favorites(&self) -> Result<Option<i64>, ParseError> {
+    fn favorites(&self) -> Result<Option<i64>, ParseError> {
         let Some(node) = self.doc.first("//span[text()=\"Member Favorites:\"]")? else {
             return Ok(None);
         };
@@ -181,7 +181,7 @@ impl PersonParser {
     }
 
     /// `PersonParser::getPersonAbout()`.
-    pub fn about(&self) -> Result<Option<String>, ParseError> {
+    fn about(&self) -> Result<Option<String>, ParseError> {
         let cell = self
             .doc
             .first("//div[@id=\"content\"]/table/tr/td[@class=\"borderClass\"]")?;
@@ -202,7 +202,7 @@ impl PersonParser {
     }
 
     /// `PersonParser::getPersonVoiceActingRoles()`.
-    pub fn voice_acting_roles(&self) -> Result<Vec<Value>, ParseError> {
+    fn voice_acting_roles(&self) -> Result<Vec<Value>, ParseError> {
         let rows = self.doc.nodes(
             "//table[contains(@class, \"js-table-people-character\")]/tr[contains(@class, \"js-people-character\")]",
         )?;
@@ -212,7 +212,7 @@ impl PersonParser {
     }
 
     /// `PersonParser::getPersonAnimeStaffPositions()`.
-    pub fn anime_staff_positions(&self) -> Result<Vec<Value>, ParseError> {
+    fn anime_staff_positions(&self) -> Result<Vec<Value>, ParseError> {
         let rows = self.doc.nodes(
             "//table[contains(@class, \"js-table-people-staff\")]/tr[contains(@class, \"js-people-staff\")]",
         )?;
@@ -222,7 +222,7 @@ impl PersonParser {
     }
 
     /// `PersonParser::getPersonPublishedManga()`.
-    pub fn published_manga(&self) -> Result<Vec<Value>, ParseError> {
+    fn published_manga(&self) -> Result<Vec<Value>, ParseError> {
         let rows = self.doc.nodes(
             "//table[contains(@class, \"js-table-people-manga\")]/tr[contains(@class, \"js-people-manga\")]",
         )?;
@@ -232,7 +232,7 @@ impl PersonParser {
     }
 
     /// `PersonParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "mal_id": self.person_id()?,
             "url": self.person_url()?,
@@ -258,12 +258,12 @@ pub struct VoiceActingRoleParser {
 }
 
 impl VoiceActingRoleParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         VoiceActingRoleParser { node }
     }
 
     /// `VoiceActingRoleParser::getRole()`.
-    pub fn role(&self) -> Result<Option<String>, ParseError> {
+    pub(crate) fn role(&self) -> Result<Option<String>, ParseError> {
         let Some(node) = self.node.first("//td[3]/div[2]")? else {
             return Ok(None);
         };
@@ -271,7 +271,7 @@ impl VoiceActingRoleParser {
     }
 
     /// `VoiceActingRoleParser::getAnimeMeta()`.
-    pub fn anime_meta(&self) -> Result<Value, ParseError> {
+    fn anime_meta(&self) -> Result<Value, ParseError> {
         let url = self.node.first("//td[2]/div/a")?;
         let image = self.node.first("//td[1]/div/a/img")?;
         Ok(anime_meta(
@@ -287,7 +287,7 @@ impl VoiceActingRoleParser {
     }
 
     /// `VoiceActingRoleParser::getCharacterMeta()`.
-    pub fn character_meta(&self) -> Result<Value, ParseError> {
+    pub(crate) fn character_meta(&self) -> Result<Value, ParseError> {
         let url = self.node.first("//td[3]/div/a")?;
         let image = self.node.first("//td[4]/div/a/img")?;
         Ok(character_meta(
@@ -303,7 +303,7 @@ impl VoiceActingRoleParser {
     }
 
     /// `VoiceActingRoleParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "role": self.role()?,
             "anime": self.anime_meta()?,
@@ -318,12 +318,12 @@ pub struct AnimeStaffPositionParser {
 }
 
 impl AnimeStaffPositionParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         AnimeStaffPositionParser { node }
     }
 
     /// `AnimeStaffPositionParser::getPosition()`.
-    pub fn position(&self) -> Result<String, ParseError> {
+    fn position(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .text("//td[2]/div[2]")?
@@ -332,7 +332,7 @@ impl AnimeStaffPositionParser {
     }
 
     /// `AnimeStaffPositionParser::getAnimeMeta()`.
-    pub fn anime_meta(&self) -> Result<Value, ParseError> {
+    fn anime_meta(&self) -> Result<Value, ParseError> {
         let url = self.node.first("//td[position() = 2]/div/a")?;
         let image = self.node.first("//td[position() = 1]/div/a/img")?;
         Ok(anime_meta(
@@ -348,7 +348,7 @@ impl AnimeStaffPositionParser {
     }
 
     /// `AnimeStaffPositionParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "position": self.position()?,
             "anime": self.anime_meta()?,
@@ -362,12 +362,12 @@ pub struct PublishedMangaParser {
 }
 
 impl PublishedMangaParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         PublishedMangaParser { node }
     }
 
     /// `PublishedMangaParser::getPosition()`.
-    pub fn position(&self) -> Result<String, ParseError> {
+    fn position(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .text("//td[2]/div[2]/small")?
@@ -376,7 +376,7 @@ impl PublishedMangaParser {
     }
 
     /// `PublishedMangaParser::getMangaMeta()`.
-    pub fn manga_meta(&self) -> Result<Value, ParseError> {
+    fn manga_meta(&self) -> Result<Value, ParseError> {
         let url = self.node.first("//td[position() = 2]/div/a")?;
         let image = self.node.first("//td[position() = 1]/div/a/img")?;
         Ok(manga_meta(
@@ -392,7 +392,7 @@ impl PublishedMangaParser {
     }
 
     /// `PublishedMangaParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "position": self.position()?,
             "manga": self.manga_meta()?,

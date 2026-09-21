@@ -17,12 +17,12 @@ pub struct SeasonalParser<'a> {
 }
 
 impl<'a> SeasonalParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         SeasonalParser { doc }
     }
 
     /// `Seasonal::fromParser()`: `{season_name, season_year, anime}`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "season_name": self.get_season_name()?,
             "season_year": self.get_season_year()?,
@@ -31,7 +31,7 @@ impl<'a> SeasonalParser<'a> {
     }
 
     /// `SeasonalParser::getSeasonalAnime()`.
-    pub fn get_seasonal_anime(&self) -> Result<Vec<Value>, ParseError> {
+    fn get_seasonal_anime(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self.doc.css_nodes("div.seasonal-anime.js-seasonal-anime")? {
             let mut card = anime_card(&node)?;
@@ -46,7 +46,7 @@ impl<'a> SeasonalParser<'a> {
     }
 
     /// `SeasonalParser::getSeasonName()`.
-    pub fn get_season_name(&self) -> Result<Option<String>, ParseError> {
+    fn get_season_name(&self) -> Result<Option<String>, ParseError> {
         let Some(season) = self.season_parts()? else {
             return Ok(None);
         };
@@ -54,7 +54,7 @@ impl<'a> SeasonalParser<'a> {
     }
 
     /// `SeasonalParser::getSeasonYear()`.
-    pub fn get_season_year(&self) -> Result<Option<i64>, ParseError> {
+    fn get_season_year(&self) -> Result<Option<i64>, ParseError> {
         let Some(season) = self.season_parts()? else {
             return Ok(None);
         };

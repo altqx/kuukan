@@ -11,9 +11,10 @@ use std::sync::OnceLock;
 
 use crate::error::ParseError;
 use crate::parser::date::{format_atom, parse_date};
-use crate::parser::helper::{parse_image_quality, parse_image_thumb_to_hq, HtmlDoc, HtmlNode};
+use crate::parser::helper::{HtmlDoc, HtmlNode};
 use crate::parser::jstring::cleanse;
 use crate::parser::mal_url::id_from_url;
+use crate::parser::media_url::{parse_image_quality, parse_image_thumb_to_hq};
 
 pub use crate::parser::mal_url::BASE_URL;
 
@@ -68,12 +69,12 @@ pub struct ReviewsParser<'a> {
 }
 
 impl<'a> ReviewsParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         ReviewsParser { doc }
     }
 
     /// `Reviews::fromParser()`: `{results, has_next_page, last_visible_page}`.
-    pub fn get_model(&self) -> Result<JsonValue, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<JsonValue, ParseError> {
         Ok(json!({
             "results": self.get_reviews()?,
             "has_next_page": self.has_next_page()?,
@@ -82,7 +83,7 @@ impl<'a> ReviewsParser<'a> {
     }
 
     /// `ReviewsParser::getReviews()` (`array_filter` drops non-reviews).
-    pub fn get_reviews(&self) -> Result<Vec<JsonValue>, ParseError> {
+    fn get_reviews(&self) -> Result<Vec<JsonValue>, ParseError> {
         let mut out = Vec::new();
         for node in self
             .doc
@@ -99,7 +100,7 @@ impl<'a> ReviewsParser<'a> {
     }
 
     /// `ReviewsParser::hasNextPage()`.
-    pub fn has_next_page(&self) -> Result<bool, ParseError> {
+    fn has_next_page(&self) -> Result<bool, ParseError> {
         Ok(self
             .doc
             .count("//*[@id=\"horiznav_nav\"]/div/a[contains(text(), \"Next\")]")?
@@ -117,12 +118,12 @@ pub struct ReviewerParser<'a> {
 }
 
 impl<'a> ReviewerParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         ReviewerParser { node }
     }
 
     /// `Reviewer::fromParser()`: `{url, username, images}`.
-    pub fn get_model(&self) -> Result<JsonValue, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<JsonValue, ParseError> {
         Ok(json!({
             "url": self.get_url()?,
             "username": self.get_username()?,
@@ -131,7 +132,7 @@ impl<'a> ReviewerParser<'a> {
     }
 
     /// `ReviewerParser::getUrl()`.
-    pub fn get_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         // works on Anime/Manga Review pages
         if let Some(node) = self
             .node
@@ -149,7 +150,7 @@ impl<'a> ReviewerParser<'a> {
     }
 
     /// `ReviewerParser::getUsername()`.
-    pub fn get_username(&self) -> Result<String, ParseError> {
+    fn get_username(&self) -> Result<String, ParseError> {
         // works on Anime/Manga Review pages
         if let Some(node) = self
             .node
@@ -165,7 +166,7 @@ impl<'a> ReviewerParser<'a> {
     }
 
     /// `ReviewerParser::getImageUrl()`.
-    pub fn get_image_url(&self) -> Result<String, ParseError> {
+    fn get_image_url(&self) -> Result<String, ParseError> {
         // works on Anime/Manga Review pages
         if let Some(node) = self.node.first("//div/div/a/img")? {
             return Ok(parse_image_thumb_to_hq(
@@ -194,12 +195,12 @@ pub struct ReactionsParser<'a> {
 }
 
 impl<'a> ReactionsParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         ReactionsParser { node }
     }
 
     /// `Reactions::fromParser()`.
-    pub fn get_model(&self) -> Result<JsonValue, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<JsonValue, ParseError> {
         let reactions = self.reactions();
         let count = |index: usize| -> i64 {
             reactions
@@ -252,12 +253,12 @@ pub struct AnimeReviewParser<'a> {
 }
 
 impl<'a> AnimeReviewParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         AnimeReviewParser { node }
     }
 
     /// `FullAnimeReview::fromParser()`.
-    pub fn get_model(&self) -> Result<JsonValue, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<JsonValue, ParseError> {
         Ok(json!({
             "mal_id": self.get_id()?,
             "url": self.get_url()?,
@@ -280,7 +281,7 @@ impl<'a> AnimeReviewParser<'a> {
     }
 
     /// `AnimeReviewParser::getAnime()`.
-    pub fn get_anime(&self) -> Result<JsonValue, ParseError> {
+    fn get_anime(&self) -> Result<JsonValue, ParseError> {
         Ok(item_meta(
             &self.get_anime_title()?,
             &self.get_anime_url()?,
@@ -289,7 +290,7 @@ impl<'a> AnimeReviewParser<'a> {
     }
 
     /// `AnimeReviewParser::getId()`: `parse_str(parse_url($url, PHP_URL_QUERY))`.
-    pub fn get_id(&self) -> Result<i64, ParseError> {
+    pub(crate) fn get_id(&self) -> Result<i64, ParseError> {
         let url = self.get_url()?;
         Ok(query_id_re()
             .captures(&url)
@@ -299,7 +300,7 @@ impl<'a> AnimeReviewParser<'a> {
     }
 
     /// `AnimeReviewParser::getUrl()`.
-    pub fn get_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .attr(
@@ -310,7 +311,7 @@ impl<'a> AnimeReviewParser<'a> {
     }
 
     /// `AnimeReviewParser::getAnimeTitle()`.
-    pub fn get_anime_title(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_anime_title(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .text("//div[contains(@class, \"titleblock\")]/a")?
@@ -318,7 +319,7 @@ impl<'a> AnimeReviewParser<'a> {
     }
 
     /// `AnimeReviewParser::getAnimeUrl()`.
-    pub fn get_anime_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_anime_url(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .attr("//div[contains(@class, \"titleblock\")]/a", "href")?
@@ -326,7 +327,7 @@ impl<'a> AnimeReviewParser<'a> {
     }
 
     /// `AnimeReviewParser::getAnimeImageUrl()`.
-    pub fn get_anime_image_url(&self) -> Result<String, ParseError> {
+    fn get_anime_image_url(&self) -> Result<String, ParseError> {
         let src = self
             .node
             .attr(
@@ -338,7 +339,7 @@ impl<'a> AnimeReviewParser<'a> {
     }
 
     /// `AnimeReviewParser::getAnimeImageUrlFromUserPage()`.
-    pub fn get_anime_image_url_from_user_page(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_anime_image_url_from_user_page(&self) -> Result<String, ParseError> {
         let src = self
             .node
             .attr(
@@ -350,7 +351,9 @@ impl<'a> AnimeReviewParser<'a> {
     }
 
     /// `AnimeReviewParser::getDate()`.
-    pub fn get_date(&self) -> Result<Option<chrono::DateTime<chrono::FixedOffset>>, ParseError> {
+    pub(crate) fn get_date(
+        &self,
+    ) -> Result<Option<chrono::DateTime<chrono::FixedOffset>>, ParseError> {
         let Some(node) = self
             .node
             .first("//div/div[2]/div[contains(@class, \"update_at\")]")?
@@ -363,7 +366,7 @@ impl<'a> AnimeReviewParser<'a> {
     }
 
     /// `AnimeReviewParser::getContent()`.
-    pub fn get_content(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_content(&self) -> Result<String, ParseError> {
         let expanded = self.node.first(
             "//div/div[2]/div[contains(@class, \"text\")]/span[contains(@class, \"js-hidden\")]",
         )?;
@@ -388,12 +391,12 @@ impl<'a> AnimeReviewParser<'a> {
     }
 
     /// `AnimeReviewParser::getReviewer()`.
-    pub fn get_reviewer(&self) -> Result<JsonValue, ParseError> {
+    pub(crate) fn get_reviewer(&self) -> Result<JsonValue, ParseError> {
         ReviewerParser::new(self.node).get_model()
     }
 
     /// `AnimeReviewParser::getType()`.
-    pub fn get_type(&self) -> Result<Option<String>, ParseError> {
+    pub(crate) fn get_type(&self) -> Result<Option<String>, ParseError> {
         // Anime/Manga and User Reviews page
         if let Some(node) = self.node.first("//div/div/div[2]/div[2]/small")? {
             return Ok(Some(
@@ -414,7 +417,7 @@ impl<'a> AnimeReviewParser<'a> {
     }
 
     /// `AnimeReviewParser::getEpisodesWatched()`.
-    pub fn get_episodes_watched(&self) -> Result<Option<i64>, ParseError> {
+    pub(crate) fn get_episodes_watched(&self) -> Result<Option<i64>, ParseError> {
         let Some(node) = self.node.first(
             "//div/div[2]/div[contains(@class, \"tags\")]/div[contains(@class, \"preliminary\")]/span",
         )? else {
@@ -428,12 +431,12 @@ impl<'a> AnimeReviewParser<'a> {
     }
 
     /// `AnimeReviewParser::getReactions()`.
-    pub fn get_reactions(&self) -> Result<JsonValue, ParseError> {
+    pub(crate) fn get_reactions(&self) -> Result<JsonValue, ParseError> {
         ReactionsParser::new(self.node).get_model()
     }
 
     /// `AnimeReviewParser::getReviewerScore()`.
-    pub fn get_reviewer_score(&self) -> Result<i64, ParseError> {
+    pub(crate) fn get_reviewer_score(&self) -> Result<i64, ParseError> {
         Ok(crate::parser::search::php_intval(
             &self
                 .node
@@ -443,7 +446,7 @@ impl<'a> AnimeReviewParser<'a> {
     }
 
     /// `AnimeReviewParser::getReviewTag()`.
-    pub fn get_review_tag(&self) -> Result<Vec<String>, ParseError> {
+    pub(crate) fn get_review_tag(&self) -> Result<Vec<String>, ParseError> {
         let mut out = Vec::new();
         for node in self
             .node
@@ -456,14 +459,14 @@ impl<'a> AnimeReviewParser<'a> {
     }
 
     /// `AnimeReviewParser::isPreliminary()`.
-    pub fn is_preliminary(&self) -> Result<bool, ParseError> {
+    pub(crate) fn is_preliminary(&self) -> Result<bool, ParseError> {
         Ok(self.node.count(
             "//div/div[2]/div[contains(@class, \"tags\")]/div[contains(@class, \"preliminary\")]",
         )? > 0)
     }
 
     /// `AnimeReviewParser::isSpoiler()`.
-    pub fn is_spoiler(&self) -> Result<bool, ParseError> {
+    pub(crate) fn is_spoiler(&self) -> Result<bool, ParseError> {
         Ok(self.node.count(
             "//div/div[2]/div[contains(@class, \"tags\")]/div[contains(@class, \"spoiler\")]",
         )? > 0)
@@ -480,12 +483,12 @@ pub struct MangaReviewParser<'a> {
 }
 
 impl<'a> MangaReviewParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         MangaReviewParser { node }
     }
 
     /// `FullMangaReview::fromParser()`.
-    pub fn get_model(&self) -> Result<JsonValue, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<JsonValue, ParseError> {
         Ok(json!({
             "mal_id": self.get_id()?,
             "url": self.get_url()?,
@@ -508,7 +511,7 @@ impl<'a> MangaReviewParser<'a> {
     }
 
     /// `MangaReviewParser::getManga()`.
-    pub fn get_manga(&self) -> Result<JsonValue, ParseError> {
+    fn get_manga(&self) -> Result<JsonValue, ParseError> {
         Ok(item_meta(
             &self.get_manga_title()?,
             &self.get_manga_url()?,
@@ -517,7 +520,7 @@ impl<'a> MangaReviewParser<'a> {
     }
 
     /// `MangaReviewParser::getId()`.
-    pub fn get_id(&self) -> Result<i64, ParseError> {
+    pub(crate) fn get_id(&self) -> Result<i64, ParseError> {
         let url = self.get_url()?;
         Ok(query_id_re()
             .captures(&url)
@@ -527,7 +530,7 @@ impl<'a> MangaReviewParser<'a> {
     }
 
     /// `MangaReviewParser::getUrl()`.
-    pub fn get_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .attr(
@@ -538,7 +541,7 @@ impl<'a> MangaReviewParser<'a> {
     }
 
     /// `MangaReviewParser::getMangaTitle()`.
-    pub fn get_manga_title(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_manga_title(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .text("//div[contains(@class, \"titleblock\")]/a")?
@@ -546,7 +549,7 @@ impl<'a> MangaReviewParser<'a> {
     }
 
     /// `MangaReviewParser::getMangaUrl()`.
-    pub fn get_manga_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_manga_url(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .attr("//div[contains(@class, \"titleblock\")]/a", "href")?
@@ -554,7 +557,7 @@ impl<'a> MangaReviewParser<'a> {
     }
 
     /// `MangaReviewParser::getMangaImageUrl()`.
-    pub fn get_manga_image_url(&self) -> Result<String, ParseError> {
+    fn get_manga_image_url(&self) -> Result<String, ParseError> {
         let src = self
             .node
             .attr(
@@ -566,7 +569,7 @@ impl<'a> MangaReviewParser<'a> {
     }
 
     /// `MangaReviewParser::getMangaImageUrlFromUserPage()`.
-    pub fn get_manga_image_url_from_user_page(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_manga_image_url_from_user_page(&self) -> Result<String, ParseError> {
         let src = self
             .node
             .attr(
@@ -578,7 +581,9 @@ impl<'a> MangaReviewParser<'a> {
     }
 
     /// `MangaReviewParser::getDate()`.
-    pub fn get_date(&self) -> Result<Option<chrono::DateTime<chrono::FixedOffset>>, ParseError> {
+    pub(crate) fn get_date(
+        &self,
+    ) -> Result<Option<chrono::DateTime<chrono::FixedOffset>>, ParseError> {
         let Some(node) = self
             .node
             .first("//div/div[2]/div[contains(@class, \"update_at\")]")?
@@ -591,7 +596,7 @@ impl<'a> MangaReviewParser<'a> {
     }
 
     /// `MangaReviewParser::getContent()`.
-    pub fn get_content(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_content(&self) -> Result<String, ParseError> {
         let expanded = self.node.first(
             "//div/div[2]/div[contains(@class, \"text\")]/span[contains(@class, \"js-hidden\")]",
         )?;
@@ -616,12 +621,12 @@ impl<'a> MangaReviewParser<'a> {
     }
 
     /// `MangaReviewParser::getReviewer()`.
-    pub fn get_reviewer(&self) -> Result<JsonValue, ParseError> {
+    pub(crate) fn get_reviewer(&self) -> Result<JsonValue, ParseError> {
         ReviewerParser::new(self.node).get_model()
     }
 
     /// `MangaReviewParser::getType()`.
-    pub fn get_type(&self) -> Result<Option<String>, ParseError> {
+    pub(crate) fn get_type(&self) -> Result<Option<String>, ParseError> {
         if let Some(node) = self.node.first("//div/div/div[2]/div[2]/small")? {
             return Ok(Some(
                 node.node_text()
@@ -640,7 +645,7 @@ impl<'a> MangaReviewParser<'a> {
     }
 
     /// `MangaReviewParser::getChaptersRead()`.
-    pub fn get_chapters_read(&self) -> Result<Option<i64>, ParseError> {
+    pub(crate) fn get_chapters_read(&self) -> Result<Option<i64>, ParseError> {
         let Some(node) = self.node.first(
             "//div/div[2]/div[contains(@class, \"tags\")]/div[contains(@class, \"preliminary\")]/span",
         )? else {
@@ -654,12 +659,12 @@ impl<'a> MangaReviewParser<'a> {
     }
 
     /// `MangaReviewParser::getReactions()`.
-    pub fn get_reactions(&self) -> Result<JsonValue, ParseError> {
+    pub(crate) fn get_reactions(&self) -> Result<JsonValue, ParseError> {
         ReactionsParser::new(self.node).get_model()
     }
 
     /// `MangaReviewParser::getReviewerScore()`.
-    pub fn get_reviewer_score(&self) -> Result<i64, ParseError> {
+    pub(crate) fn get_reviewer_score(&self) -> Result<i64, ParseError> {
         Ok(crate::parser::search::php_intval(
             &self
                 .node
@@ -669,7 +674,7 @@ impl<'a> MangaReviewParser<'a> {
     }
 
     /// `MangaReviewParser::getReviewTag()`.
-    pub fn get_review_tag(&self) -> Result<Vec<String>, ParseError> {
+    pub(crate) fn get_review_tag(&self) -> Result<Vec<String>, ParseError> {
         let mut out = Vec::new();
         for node in self
             .node
@@ -682,14 +687,14 @@ impl<'a> MangaReviewParser<'a> {
     }
 
     /// `MangaReviewParser::isPreliminary()`.
-    pub fn is_preliminary(&self) -> Result<bool, ParseError> {
+    pub(crate) fn is_preliminary(&self) -> Result<bool, ParseError> {
         Ok(self.node.count(
             "//div/div[2]/div[contains(@class, \"tags\")]/div[contains(@class, \"preliminary\")]",
         )? > 0)
     }
 
     /// `MangaReviewParser::isSpoiler()`.
-    pub fn is_spoiler(&self) -> Result<bool, ParseError> {
+    pub(crate) fn is_spoiler(&self) -> Result<bool, ParseError> {
         Ok(self.node.count(
             "//div/div[2]/div[contains(@class, \"tags\")]/div[contains(@class, \"spoiler\")]",
         )? > 0)

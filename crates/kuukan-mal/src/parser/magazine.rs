@@ -16,12 +16,12 @@ pub struct MagazineParser {
 }
 
 impl MagazineParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         MagazineParser { doc }
     }
 
     /// `MagazineParser::getResults()`.
-    pub fn results(&self) -> Result<Vec<Value>, ParseError> {
+    fn results(&self) -> Result<Vec<Value>, ParseError> {
         self.doc
             .css_nodes("div.seasonal-anime")?
             .iter()
@@ -30,7 +30,7 @@ impl MagazineParser {
     }
 
     /// `MagazineParser::getUrl()`.
-    pub fn url(&self) -> Result<Value, ParseError> {
+    pub(crate) fn url(&self) -> Result<Value, ParseError> {
         let name = match self.doc.first("//span[@class='di-ib mt4']")? {
             Some(span) => {
                 span.remove_child_nodes()?;
@@ -46,7 +46,7 @@ impl MagazineParser {
     }
 
     /// `MagazineParser::getLastPage()`.
-    pub fn last_page(&self) -> Result<i64, ParseError> {
+    fn last_page(&self) -> Result<i64, ParseError> {
         let links = self
             .doc
             .nodes("//*[@id=\"content\"]/div[5]/div/a[contains(@class, \"link\")]")?;
@@ -64,7 +64,7 @@ impl MagazineParser {
     }
 
     /// `MagazineParser::getHasNextPage()`.
-    pub fn has_next_page(&self) -> Result<bool, ParseError> {
+    fn has_next_page(&self) -> Result<bool, ParseError> {
         let links = self
             .doc
             .nodes("//*[@id=\"content\"]/div[5]/div/a[contains(@class, \"link\")]")?;
@@ -80,7 +80,7 @@ impl MagazineParser {
     }
 
     /// `MagazineParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         let url = self.url()?;
         Ok(json!({
             "results": self.results()?,
@@ -99,12 +99,12 @@ pub struct MagazineListParser {
 }
 
 impl MagazineListParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         MagazineListParser { doc }
     }
 
     /// `MagazineListParser::getMagazines()`.
-    pub fn magazines(&self) -> Result<Vec<Value>, ParseError> {
+    fn magazines(&self) -> Result<Vec<Value>, ParseError> {
         self.doc
             .css_nodes("a.genre-name-link")?
             .iter()
@@ -113,7 +113,7 @@ impl MagazineListParser {
     }
 
     /// `MagazineListParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({ "magazines": self.magazines()? }))
     }
 }
@@ -124,12 +124,12 @@ pub struct MagazineListItemParser {
 }
 
 impl MagazineListItemParser {
-    pub fn new(node: crate::parser::helper::HtmlNode) -> Self {
+    pub(crate) fn new(node: crate::parser::helper::HtmlNode) -> Self {
         MagazineListItemParser { node }
     }
 
     /// `MagazineListItemParser::getUrl()`.
-    pub fn url(&self) -> String {
+    pub(crate) fn url(&self) -> String {
         format!(
             "{}{}",
             crate::request::BASE_URL,
@@ -138,14 +138,14 @@ impl MagazineListItemParser {
     }
 
     /// `MagazineListItemParser::getMalId()`.
-    pub fn mal_id(&self) -> Option<i64> {
+    pub(crate) fn mal_id(&self) -> Option<i64> {
         mal_id_re()
             .captures(&self.url())
             .and_then(|caps| caps[1].parse().ok())
     }
 
     /// `MagazineListItemParser::getName()`.
-    pub fn name(&self) -> String {
+    pub(crate) fn name(&self) -> String {
         name_re()
             .captures(&self.node.node_text())
             .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
@@ -153,7 +153,7 @@ impl MagazineListItemParser {
     }
 
     /// `MagazineListItemParser::getCount()`.
-    pub fn count(&self) -> i64 {
+    pub(crate) fn count(&self) -> i64 {
         let text = self.node.node_text();
         let Some(caps) = count_re().captures(&text) else {
             return 0;
@@ -165,7 +165,7 @@ impl MagazineListItemParser {
     }
 
     /// `MagazineListItemParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "mal_id": self.mal_id(),
             "name": self.name(),

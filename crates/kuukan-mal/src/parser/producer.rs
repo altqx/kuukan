@@ -18,12 +18,12 @@ pub struct ProducerParser {
 }
 
 impl ProducerParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         ProducerParser { doc }
     }
 
     /// `ProducerParser::getResults()`.
-    pub fn results(&self) -> Result<Vec<Value>, ParseError> {
+    fn results(&self) -> Result<Vec<Value>, ParseError> {
         self.doc
             .nodes(
                 "//*[@id=\"content\"]/div[2]/div[contains(@class, \"js-categories-seasonal\")]/div[contains(@class, \"seasonal-anime\")]",
@@ -34,7 +34,7 @@ impl ProducerParser {
     }
 
     /// `ProducerParser::getUrl()`.
-    pub fn url(&self) -> Result<Value, ParseError> {
+    pub(crate) fn url(&self) -> Result<Value, ParseError> {
         let name = self
             .doc
             .text("//*[@class=\"title-name\"]")?
@@ -48,7 +48,7 @@ impl ProducerParser {
     }
 
     /// `ProducerParser::getLastPage()`.
-    pub fn last_page(&self) -> Result<i64, ParseError> {
+    fn last_page(&self) -> Result<i64, ParseError> {
         let links = self
             .doc
             .nodes("//*[@id=\"content\"]/div[5]/div/a[contains(@class, \"link\")]")?;
@@ -66,7 +66,7 @@ impl ProducerParser {
     }
 
     /// `ProducerParser::getHasNextPage()`.
-    pub fn has_next_page(&self) -> Result<bool, ParseError> {
+    fn has_next_page(&self) -> Result<bool, ParseError> {
         let links = self
             .doc
             .nodes("//*[@id=\"content\"]/div[5]/div/a[contains(@class, \"link\")]")?;
@@ -82,7 +82,7 @@ impl ProducerParser {
     }
 
     /// `ProducerParser::getTitles()`.
-    pub fn titles(&self) -> Result<Vec<Value>, ParseError> {
+    fn titles(&self) -> Result<Vec<Value>, ParseError> {
         let mut titles = Vec::new();
 
         if let Some(node) = self
@@ -119,7 +119,7 @@ impl ProducerParser {
     }
 
     /// `ProducerParser::getEstablished()`.
-    pub fn established(&self) -> Result<Option<String>, ParseError> {
+    fn established(&self) -> Result<Option<String>, ParseError> {
         let Some(span) = self.doc.first("//span[text()=\"Established:\"]")? else {
             return Ok(None);
         };
@@ -131,7 +131,7 @@ impl ProducerParser {
     }
 
     /// `ProducerParser::getAbout()`.
-    pub fn about(&self) -> Result<Option<String>, ParseError> {
+    fn about(&self) -> Result<Option<String>, ParseError> {
         let Some(node) = self.doc.first(
             "//*[@id=\"content\"]/div[1]//div[contains(@class, \"spaceit_pad\")]/span[not(contains(@class, \"dark_text\"))]",
         )?
@@ -142,7 +142,7 @@ impl ProducerParser {
     }
 
     /// `ProducerParser::getFavorites()`.
-    pub fn favorites(&self) -> Result<Option<i64>, ParseError> {
+    fn favorites(&self) -> Result<Option<i64>, ParseError> {
         let Some(span) = self.doc.first("//span[text()=\"Member Favorites:\"]")? else {
             return Ok(None);
         };
@@ -157,7 +157,7 @@ impl ProducerParser {
     }
 
     /// `ProducerParser::getAnimeCount()`.
-    pub fn anime_count(&self) -> Result<i64, ParseError> {
+    fn anime_count(&self) -> Result<i64, ParseError> {
         let text = self
             .doc
             .text(
@@ -174,7 +174,7 @@ impl ProducerParser {
     ///
     /// PHP bug preserved: when the second group of links is empty the first
     /// group is discarded as well (`return []`).
-    pub fn external_links(&self) -> Result<Vec<Value>, ParseError> {
+    fn external_links(&self) -> Result<Vec<Value>, ParseError> {
         let available = self.doc.nodes(
             "//*[@id=\"content\"]/div[1]/div[contains(@class, \"user-profile-sns\")]/span//a",
         )?;
@@ -199,7 +199,7 @@ impl ProducerParser {
     }
 
     /// `ProducerParser::getImages()`.
-    pub fn images(&self) -> Result<Value, ParseError> {
+    fn images(&self) -> Result<Value, ParseError> {
         Ok(wrap_image_resource(
             self.doc
                 .attr(
@@ -211,7 +211,7 @@ impl ProducerParser {
     }
 
     /// `ProducerParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         let url = self.url()?;
         let titles = self.titles()?;
         let name = titles
@@ -243,12 +243,12 @@ pub struct ProducerListParser {
 }
 
 impl ProducerListParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         ProducerListParser { doc }
     }
 
     /// `ProducerListParser::getProducers()`.
-    pub fn producers(&self) -> Result<Vec<Value>, ParseError> {
+    fn producers(&self) -> Result<Vec<Value>, ParseError> {
         self.doc
             .css_nodes("a.genre-name-link")?
             .iter()
@@ -257,7 +257,7 @@ impl ProducerListParser {
     }
 
     /// `ProducerListParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({ "producers": self.producers()? }))
     }
 }
@@ -268,12 +268,12 @@ pub struct ProducerListItemParser {
 }
 
 impl ProducerListItemParser {
-    pub fn new(node: crate::parser::helper::HtmlNode) -> Self {
+    pub(crate) fn new(node: crate::parser::helper::HtmlNode) -> Self {
         ProducerListItemParser { node }
     }
 
     /// `ProducerListItemParser::getUrl()`.
-    pub fn url(&self) -> String {
+    pub(crate) fn url(&self) -> String {
         format!(
             "{}{}",
             crate::request::BASE_URL,
@@ -282,14 +282,14 @@ impl ProducerListItemParser {
     }
 
     /// `ProducerListItemParser::getMalId()`.
-    pub fn mal_id(&self) -> Option<i64> {
+    pub(crate) fn mal_id(&self) -> Option<i64> {
         mal_id_re()
             .captures(&self.url())
             .and_then(|caps| caps[1].parse().ok())
     }
 
     /// `ProducerListItemParser::getName()`.
-    pub fn name(&self) -> String {
+    pub(crate) fn name(&self) -> String {
         name_re()
             .captures(&self.node.node_text())
             .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
@@ -297,7 +297,7 @@ impl ProducerListItemParser {
     }
 
     /// `ProducerListItemParser::getCount()`.
-    pub fn count(&self) -> i64 {
+    pub(crate) fn count(&self) -> i64 {
         let text = self.node.node_text();
         let Some(caps) = count_item_re().captures(&text) else {
             return 0;
@@ -309,7 +309,7 @@ impl ProducerListItemParser {
     }
 
     /// `ProducerListItemParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "mal_id": self.mal_id(),
             "name": self.name(),

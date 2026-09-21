@@ -15,12 +15,12 @@ pub struct ScheduleParser<'a> {
 }
 
 impl<'a> ScheduleParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         ScheduleParser { doc }
     }
 
     /// `Schedule::fromParser()`: one array per weekday plus `other`/`unknown`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "monday": self.get_shedule("monday")?,
             "tuesday": self.get_shedule("tuesday")?,
@@ -35,7 +35,7 @@ impl<'a> ScheduleParser<'a> {
     }
 
     /// `ScheduleParser::getShedule($day = 'all')`.
-    pub fn get_shedule(&self, day: &str) -> Result<Vec<Value>, ParseError> {
+    fn get_shedule(&self, day: &str) -> Result<Vec<Value>, ParseError> {
         let mut parts: Vec<String> = vec!["/".to_string()];
         if day != "all" {
             parts.push(format!(

@@ -18,7 +18,7 @@ use std::fmt::Display;
 use std::sync::OnceLock;
 
 /// PHP `DATE_ATOM`: `Y-m-d\TH:i:sP`, e.g. `2024-01-06T00:00:00+00:00`.
-pub fn format_atom<Tz>(dt: &DateTime<Tz>) -> String
+pub(crate) fn format_atom<Tz>(dt: &DateTime<Tz>) -> String
 where
     Tz: TimeZone,
     Tz::Offset: Display,
@@ -27,7 +27,7 @@ where
 }
 
 /// Port of `Parser::parseDate()`.
-pub fn parse_date(date: &str) -> Option<DateTime<FixedOffset>> {
+pub(crate) fn parse_date(date: &str) -> Option<DateTime<FixedOffset>> {
     // if (preg_match('/^\d{4}$/', $date))
     if date.len() == 4 && date.bytes().all(|b| b.is_ascii_digit()) {
         let year: i32 = date.parse().ok()?;
@@ -47,7 +47,7 @@ pub fn parse_date(date: &str) -> Option<DateTime<FixedOffset>> {
 }
 
 /// Port of `Parser::parseForumDate()`.
-pub fn parse_forum_date(date: &str) -> Option<DateTime<FixedOffset>> {
+pub(crate) fn parse_forum_date(date: &str) -> Option<DateTime<FixedOffset>> {
     let mut date = date.to_string();
     if !four_digits_re().is_match(&date) {
         date = format!("{}, {}", date, Utc::now().year());
@@ -56,7 +56,7 @@ pub fn parse_forum_date(date: &str) -> Option<DateTime<FixedOffset>> {
 }
 
 /// Port of `Parser::parseDateMDY()` (`!m-d-y`).
-pub fn parse_date_mdy(date: Option<&str>) -> Option<DateTime<FixedOffset>> {
+pub(crate) fn parse_date_mdy(date: Option<&str>) -> Option<DateTime<FixedOffset>> {
     let date = date?;
     if date == "-" {
         return None;
@@ -74,7 +74,7 @@ pub fn parse_date_mdy(date: Option<&str>) -> Option<DateTime<FixedOffset>> {
 }
 
 /// Port of `Parser::parseDateDMY()` (`!d-m-y`).
-pub fn parse_date_dmy(date: Option<&str>) -> Option<DateTime<FixedOffset>> {
+pub(crate) fn parse_date_dmy(date: Option<&str>) -> Option<DateTime<FixedOffset>> {
     let date = date?;
     if date == "-" {
         return None;
@@ -95,7 +95,7 @@ pub fn parse_date_dmy(date: Option<&str>) -> Option<DateTime<FixedOffset>> {
 ///
 /// PHP does not catch the `DateTimeImmutable` constructor here (the exception
 /// propagates to `MalClient`); Kuukan degrades to `None`.
-pub fn parse_date_mdy_readable(date: &str) -> Option<DateTime<FixedOffset>> {
+pub(crate) fn parse_date_mdy_readable(date: &str) -> Option<DateTime<FixedOffset>> {
     let date = date.replace("  ", " ");
 
     // if (preg_match('~[a-zA-z]+ \d+, \d{4}~', $date))
@@ -118,7 +118,7 @@ pub fn parse_date_mdy_readable(date: &str) -> Option<DateTime<FixedOffset>> {
 /// converted to UTC. chrono has no timezone database, so the post-2007 US DST
 /// rule is applied manually (second Sunday of March .. first Sunday of
 /// November; pre-2007: first Sunday of April .. last Sunday of October).
-pub fn parse_date_time_pst(date_time: &str) -> Option<DateTime<FixedOffset>> {
+pub(crate) fn parse_date_time_pst(date_time: &str) -> Option<DateTime<FixedOffset>> {
     let naive = parse_naive_datetime(date_time)?;
     let offset = la_utc_offset_seconds(naive);
     let utc = naive - Duration::seconds(offset as i64);
@@ -129,7 +129,7 @@ pub fn parse_date_time_pst(date_time: &str) -> Option<DateTime<FixedOffset>> {
 }
 
 /// Port of `Parser::parseDurationToSeconds()`.
-pub fn parse_duration_to_seconds(duration: &str) -> Option<i64> {
+pub(crate) fn parse_duration_to_seconds(duration: &str) -> Option<i64> {
     let caps = duration_re().captures(duration)?;
     let hours: i64 = caps[1].parse().ok()?;
     let minutes: i64 = caps[2].parse().ok()?;

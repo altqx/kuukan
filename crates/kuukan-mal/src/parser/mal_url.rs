@@ -26,19 +26,19 @@ pub const TYPE_ANIME: &str = "anime";
 pub const TYPE_MANGA: &str = "manga";
 
 /// `Parser::idFromUrl()`.
-pub fn id_from_url(url: &str) -> i64 {
+pub(crate) fn id_from_url(url: &str) -> i64 {
     let replaced = id_from_url_re().replace(url, "$2");
     php_intval(&replaced)
 }
 
 /// `Parser::clubIdFromUrl()`.
-pub fn club_id_from_url(url: &str) -> i64 {
+pub(crate) fn club_id_from_url(url: &str) -> i64 {
     let replaced = club_id_re().replace(url, "$1");
     php_intval(&replaced)
 }
 
 /// `Parser::suffixIdFromUrl()`.
-pub fn suffix_id_from_url(url: &str) -> i64 {
+pub(crate) fn suffix_id_from_url(url: &str) -> i64 {
     let replaced = suffix_id_re().replace(url, "$1");
     php_intval(&replaced)
 }
@@ -51,7 +51,7 @@ pub struct MalUrl {
 }
 
 impl MalUrl {
-    pub fn new(name: impl Into<String>, url: impl Into<String>) -> Self {
+    pub(crate) fn new(name: impl Into<String>, url: impl Into<String>) -> Self {
         MalUrl {
             name: name.into(),
             url: url.into(),
@@ -59,32 +59,32 @@ impl MalUrl {
     }
 
     /// `MalUrl::getMalId()`.
-    pub fn mal_id(&self) -> i64 {
+    pub(crate) fn mal_id(&self) -> i64 {
         MalUrlParser::parse_id(&self.url)
     }
 
     /// `MalUrl::getType()` (`preg_replace('#https://myanimelist.net/(\w+)/.*#', '$1', $url)`).
-    pub fn r#type(&self) -> String {
+    fn r#type(&self) -> String {
         mal_url_type_re().replace(&self.url, "$1").to_string()
     }
 
     /// `MalUrl::getName()`.
-    pub fn name(&self) -> &str {
+    pub(crate) fn name(&self) -> &str {
         &self.name
     }
 
     /// `MalUrl::getTitle()` (same as `name`).
-    pub fn title(&self) -> &str {
+    pub(crate) fn title(&self) -> &str {
         &self.name
     }
 
     /// `MalUrl::getUrl()`.
-    pub fn url(&self) -> &str {
+    pub(crate) fn url(&self) -> &str {
         &self.url
     }
 
     /// `SerializeNull`-style v4 payload: `{mal_id, type, name, url}`.
-    pub fn to_json(&self) -> Value {
+    pub(crate) fn to_json(&self) -> Value {
         json!({
             "mal_id": self.mal_id(),
             "type": self.r#type(),
@@ -94,7 +94,7 @@ impl MalUrl {
     }
 
     /// v2 payload: `{mal_id, type, title, name, url}`.
-    pub fn to_json_v2(&self) -> Value {
+    fn to_json_v2(&self) -> Value {
         json!({
             "mal_id": self.mal_id(),
             "type": self.r#type(),
@@ -118,12 +118,12 @@ pub struct MalUrlParser {
 }
 
 impl MalUrlParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         MalUrlParser { node }
     }
 
     /// `MalUrlParser::parseId()`: first `/` + digits in the URL.
-    pub fn parse_id(url: &str) -> i64 {
+    pub(crate) fn parse_id(url: &str) -> i64 {
         match id_re().captures(url) {
             Some(caps) => caps[1].parse().unwrap_or(0),
             None => 0,
@@ -134,7 +134,7 @@ impl MalUrlParser {
     ///
     /// `$href = str_replace('https://myanimelist.net', '', $href)` and the
     /// name comes from `JString::cleanse($crawler->text())`.
-    pub fn get_model(&self) -> Result<MalUrl, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<MalUrl, ParseError> {
         let href = self.node.node_attr("href").unwrap_or_default();
         let href = href.replace(BASE_URL, "");
         Ok(MalUrl::new(
@@ -156,7 +156,7 @@ pub struct MalUrlExtractor {
 
 impl MalUrlExtractor {
     /// Construct from a whole document.
-    pub fn new(
+    pub(crate) fn new(
         doc: crate::parser::helper::HtmlDoc,
         kind: impl Into<String>,
         image_links: bool,
@@ -169,7 +169,7 @@ impl MalUrlExtractor {
     }
 
     /// Construct from a sub-selection node (PHP passes a filtered `Crawler`).
-    pub fn from_node(node: HtmlNode, kind: impl Into<String>, image_links: bool) -> Self {
+    fn from_node(node: HtmlNode, kind: impl Into<String>, image_links: bool) -> Self {
         MalUrlExtractor {
             node,
             kind: kind.into(),
@@ -178,7 +178,7 @@ impl MalUrlExtractor {
     }
 
     /// `MalUrlExtractor::getMalUrls()`.
-    pub fn mal_urls(&self) -> Result<Vec<MalUrl>, ParseError> {
+    fn mal_urls(&self) -> Result<Vec<MalUrl>, ParseError> {
         if !self.image_links {
             // Remove the nearest element ancestor of every `<a><img ...></a>`
             // (PHP: `$c->ancestors()->first()` then `parentNode->removeChild`).

@@ -19,9 +19,10 @@ use crate::parser::date::{
     format_atom, parse_date, parse_date_dmy, parse_date_mdy, parse_date_mdy_readable,
     parse_date_time_pst,
 };
-use crate::parser::helper::{parse_image_quality, parse_image_thumb_to_hq, HtmlDoc, HtmlNode};
+use crate::parser::helper::{HtmlDoc, HtmlNode};
 use crate::parser::jstring::{cleanse, str_to_canonical, utf8_nbsp_trim};
 use crate::parser::mal_url::{club_id_from_url, id_from_url, MalUrl, BASE_URL};
+use crate::parser::media_url::{parse_image_quality, parse_image_thumb_to_hq};
 use crate::parser::recommendations::RecommendationListItemParser;
 use crate::parser::reviews::{AnimeReviewParser, MangaReviewParser};
 
@@ -256,12 +257,12 @@ pub struct UserProfileParser {
 }
 
 impl UserProfileParser {
-    pub fn new(doc: &HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &HtmlDoc) -> Self {
         UserProfileParser { node: doc.root() }
     }
 
     /// `getUserId()`: first `id=` match in the report link.
-    pub fn get_user_id(&self) -> Result<Option<i64>, ParseError> {
+    fn get_user_id(&self) -> Result<Option<i64>, ParseError> {
         let Some(node) = self.node.first("//a[contains(@class, 'header-right')]")? else {
             return Ok(None);
         };
@@ -270,20 +271,20 @@ impl UserProfileParser {
     }
 
     /// `getProfileUrl()`.
-    pub fn get_profile_url(&self) -> Result<String, ParseError> {
+    fn get_profile_url(&self) -> Result<String, ParseError> {
         self.node
             .attr("//meta[@property=\"og:url\"]", "content")?
             .ok_or_else(|| missing("//meta[@property=\"og:url\"]"))
     }
 
     /// `getUsername()`: `preg_replace('#.*/(.*)$#', '$1', $url)`.
-    pub fn get_username(&self) -> Result<String, ParseError> {
+    fn get_username(&self) -> Result<String, ParseError> {
         let url = self.get_profile_url()?;
         Ok(url.rsplit('/').next().unwrap_or("").to_string())
     }
 
     /// `getImageUrl()`: null when the image node is absent.
-    pub fn get_image_url(&self) -> Result<Option<String>, ParseError> {
+    fn get_image_url(&self) -> Result<Option<String>, ParseError> {
         optional_attr(
             &self.node,
             "//div[contains(@class, \"user-image\")]/img",
@@ -292,7 +293,7 @@ impl UserProfileParser {
     }
 
     /// `getJoinDate()`.
-    pub fn get_join_date(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
+    fn get_join_date(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
         let text = required_text(
             &self.node,
             "//span[contains(text(), 'Joined')]/following-sibling::span",
@@ -301,7 +302,7 @@ impl UserProfileParser {
     }
 
     /// `getLastOnline()` (MAL time is `America/Los_Angeles`).
-    pub fn get_last_online(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
+    fn get_last_online(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
         let text = required_text(
             &self.node,
             "//span[contains(text(), 'Last Online')]/following-sibling::span",
@@ -310,7 +311,7 @@ impl UserProfileParser {
     }
 
     /// `getGender()`.
-    pub fn get_gender(&self) -> Result<Option<String>, ParseError> {
+    fn get_gender(&self) -> Result<Option<String>, ParseError> {
         optional_text(
             &self.node,
             "//ul[contains(@class, \"user-status\")]/li/span[contains(text(), \"Gender\")]/following-sibling::span",
@@ -318,7 +319,7 @@ impl UserProfileParser {
     }
 
     /// `getBirthday()`.
-    pub fn get_birthday(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
+    fn get_birthday(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
         let Some(node) = self
             .node
             .first("//span[contains(text(), 'Birthday')]/following-sibling::span")?
@@ -329,7 +330,7 @@ impl UserProfileParser {
     }
 
     /// `getLocation()`.
-    pub fn get_location(&self) -> Result<Option<String>, ParseError> {
+    fn get_location(&self) -> Result<Option<String>, ParseError> {
         optional_text(
             &self.node,
             "//ul[contains(@class, \"user-status\")]/li/span[contains(text(), \"Location\")]/following-sibling::span",
@@ -337,7 +338,7 @@ impl UserProfileParser {
     }
 
     /// `getAbout()`: `trim(html())` of the about block, `null` when absent.
-    pub fn get_about(&self) -> Result<Option<String>, ParseError> {
+    fn get_about(&self) -> Result<Option<String>, ParseError> {
         match self
             .node
             .first("//div[@class='profile-about-user js-truncate-inner']/table/tr/td/div")?
@@ -348,17 +349,17 @@ impl UserProfileParser {
     }
 
     /// `getAnimeStats()`.
-    pub fn get_anime_stats(&self) -> Result<Value, ParseError> {
+    fn get_anime_stats(&self) -> Result<Value, ParseError> {
         anime_stats(&self.node)
     }
 
     /// `getMangaStats()`.
-    pub fn get_manga_stats(&self) -> Result<Value, ParseError> {
+    fn get_manga_stats(&self) -> Result<Value, ParseError> {
         manga_stats(&self.node)
     }
 
     /// `getFavorites()`.
-    pub fn get_favorites(&self) -> Result<Value, ParseError> {
+    fn get_favorites(&self) -> Result<Value, ParseError> {
         let nodes = self
             .node
             .nodes("//div[contains(@class, 'container-right')]")?;
@@ -366,7 +367,7 @@ impl UserProfileParser {
     }
 
     /// `getUserLastUpdates()`.
-    pub fn get_user_last_updates(&self) -> Result<Value, ParseError> {
+    fn get_user_last_updates(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "anime": last_updates(&self.node, "anime")?,
             "manga": last_updates(&self.node, "manga")?,
@@ -374,7 +375,7 @@ impl UserProfileParser {
     }
 
     /// `getUserExternalLinks()`.
-    pub fn get_user_external_links(&self) -> Result<Vec<Value>, ParseError> {
+    fn get_user_external_links(&self) -> Result<Vec<Value>, ParseError> {
         let nodes = self.node.nodes(
             "//*[@id=\"content\"]/div/div[1]/div/div[contains(@class, \"user-profile-sns\")][1]/a",
         )?;
@@ -386,7 +387,7 @@ impl UserProfileParser {
     }
 
     /// `Profile::fromParser()` — the whole JMS payload.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "mal_id": self.get_user_id()?,
             "username": self.get_username()?,
@@ -724,12 +725,12 @@ pub struct FriendParser {
 }
 
 impl FriendParser {
-    pub fn new(node: HtmlNode) -> Self {
+    pub(crate) fn new(node: HtmlNode) -> Self {
         FriendParser { node }
     }
 
     /// `getAvatar()` (`str_replace(['thumbs/', '_thumb'], '', ...)`).
-    pub fn get_avatar(&self) -> Result<String, ParseError> {
+    fn get_avatar(&self) -> Result<String, ParseError> {
         Ok(parse_image_thumb_to_hq(&required_attr(
             &self.node,
             "//div/a/img",
@@ -738,17 +739,17 @@ impl FriendParser {
     }
 
     /// `getName()`.
-    pub fn get_name(&self) -> Result<String, ParseError> {
+    fn get_name(&self) -> Result<String, ParseError> {
         required_text(&self.node, "//div[3]/div/a")
     }
 
     /// `getUrl()`.
-    pub fn get_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         required_attr(&self.node, "//div[3]/div/a", "href")
     }
 
     /// `getFriendsSince()`.
-    pub fn get_friends_since(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
+    fn get_friends_since(&self) -> Result<Option<DateTime<FixedOffset>>, ParseError> {
         let Some(node) = self
             .node
             .first("//div[contains(@class, \"data\")]/div[3]")?
@@ -763,7 +764,7 @@ impl FriendParser {
     }
 
     /// `getLastOnline()` (`new \DateTimeImmutable($text, UTC)`).
-    pub fn get_last_online(&self) -> Result<DateTime<FixedOffset>, ParseError> {
+    fn get_last_online(&self) -> Result<DateTime<FixedOffset>, ParseError> {
         let text = cleanse(&required_text(
             &self.node,
             "//div[contains(@class, \"data\")]/div[2]",
@@ -772,7 +773,7 @@ impl FriendParser {
     }
 
     /// `getUserMeta()`: `{username, url, images}`.
-    pub fn get_user_meta(&self) -> Result<Value, ParseError> {
+    fn get_user_meta(&self) -> Result<Value, ParseError> {
         let avatar = parse_image_quality(&self.get_avatar()?);
         Ok(json!({
             "username": self.get_name()?,
@@ -782,7 +783,7 @@ impl FriendParser {
     }
 
     /// `Friend::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "user": self.get_user_meta()?,
             "last_online": format_atom(&self.get_last_online()?),
@@ -802,12 +803,12 @@ pub struct FriendsParser {
 }
 
 impl FriendsParser {
-    pub fn new(doc: &HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &HtmlDoc) -> Self {
         FriendsParser { node: doc.root() }
     }
 
     /// `getResults()`.
-    pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_results(&self) -> Result<Vec<Value>, ParseError> {
         let nodes = self.node.nodes(
             "//div[contains(@class, \"boxlist-container\")]/div[contains(@class, \"boxlist\")]",
         )?;
@@ -819,7 +820,7 @@ impl FriendsParser {
     }
 
     /// `getLastPage()`.
-    pub fn get_last_page(&self) -> Result<i64, ParseError> {
+    fn get_last_page(&self) -> Result<i64, ParseError> {
         let Some(page) = self.node.first(
             "//*[@id=\"content\"]/table/tr/td[2]/div[2]/div[contains(@class, \"mt12 mb12\")]/div[contains(@class, \"pagination\")]",
         )? else {
@@ -837,7 +838,7 @@ impl FriendsParser {
     }
 
     /// `getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> Result<bool, ParseError> {
+    fn get_has_next_page(&self) -> Result<bool, ParseError> {
         Ok(!self
             .node
             .nodes("//*[@id=\"content\"]/div/div[2]/div/div[2]//a[text()=\"Next\"]")?
@@ -845,7 +846,7 @@ impl FriendsParser {
     }
 
     /// `Friends::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": self.get_has_next_page()?,
@@ -869,12 +870,12 @@ pub struct HistoryParser {
 }
 
 impl HistoryParser {
-    pub fn new(doc: &HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &HtmlDoc) -> Self {
         HistoryParser { node: doc.root() }
     }
 
     /// `HistoryParser::getModel()`.
-    pub fn get_model(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Vec<Value>, ParseError> {
         let rows = self.node.nodes("//div[@id=\"content\"]/div/table/tr")?;
         let mut history = Vec::new();
         for row in rows {
@@ -926,12 +927,12 @@ pub struct ClubParser {
 }
 
 impl ClubParser {
-    pub fn new(doc: &HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &HtmlDoc) -> Self {
         ClubParser { node: doc.root() }
     }
 
     /// `ClubParser::getClubs()`.
-    pub fn get_clubs(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_clubs(&self) -> Result<Vec<Value>, ParseError> {
         let nodes = self
             .node
             .nodes("//*[@id=\"content\"]/table/tr/td[2]/ol/li")?;
@@ -958,12 +959,12 @@ pub struct UsernameByIdParser {
 }
 
 impl UsernameByIdParser {
-    pub fn new(doc: &HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &HtmlDoc) -> Self {
         UsernameByIdParser { node: doc.root() }
     }
 
     /// `getUser()`: `UserMetaBasic` -> `{url, username}`.
-    pub fn get_user(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_user(&self) -> Result<Value, ParseError> {
         let node = required_first(&self.node, "//*[@id=\"content\"]/div[1]/div[1]/a")?;
         let username = username_re()
             .captures(&node.node_text())
@@ -1005,7 +1006,7 @@ fn list_item_mal_urls(item: &Value, field: &str, kind: &str, canonical: bool) ->
 }
 
 /// `Jikan\Model\User\AnimeListItem::factory()`.
-pub fn anime_list_item(item: &Value) -> Value {
+pub(crate) fn anime_list_item(item: &Value) -> Value {
     let image = string_field(item, "anime_image_path")
         .map(|path| parse_image_quality(&path))
         .unwrap_or_default();
@@ -1062,7 +1063,7 @@ pub fn anime_list_item(item: &Value) -> Value {
 }
 
 /// `Jikan\Model\User\MangaListItem::factory()`.
-pub fn manga_list_item(item: &Value) -> Value {
+pub(crate) fn manga_list_item(item: &Value) -> Value {
     let image = string_field(item, "manga_image_path")
         .map(|path| parse_image_quality(&path))
         .unwrap_or_default();
@@ -1113,13 +1114,13 @@ pub struct UserReviewsParser {
 }
 
 impl UserReviewsParser {
-    pub fn new(doc: &HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &HtmlDoc) -> Self {
         UserReviewsParser { node: doc.root() }
     }
 
     /// `UserReviews::fromParser()`: `has_next_page` is hardcoded `true` and
     /// `last_visible_page` hardcoded `1` upstream.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         let nodes = self.node.nodes(
             "//*[@id=\"content\"]/table/tr/td[2]//div[contains(@class, \"review-element\")]",
         )?;
@@ -1269,7 +1270,7 @@ pub struct UserRecommendationsParser {
 }
 
 impl UserRecommendationsParser {
-    pub fn new(doc: &HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &HtmlDoc) -> Self {
         UserRecommendationsParser { node: doc.root() }
     }
 
@@ -1308,7 +1309,7 @@ impl UserRecommendationsParser {
     }
 
     /// `UserRecommendations::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.results()?,
             "has_next_page": self.has_next_page()?,

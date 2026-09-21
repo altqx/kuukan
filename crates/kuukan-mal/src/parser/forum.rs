@@ -15,7 +15,7 @@ use crate::parser::mal_url::BASE_URL;
 /// `Parser\Forum\ForumPageParser::getTopics()`.
 ///
 /// Shared entry point for anime/manga forum.
-pub fn parse_forum(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
+pub(crate) fn parse_forum(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
     ForumPageParser::new(doc).get_topics()
 }
 
@@ -25,12 +25,12 @@ pub struct ForumPageParser<'a> {
 }
 
 impl<'a> ForumPageParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         ForumPageParser { doc }
     }
 
     /// `ForumPageParser::getTopics()`.
-    pub fn get_topics(&self) -> Result<Vec<Value>, ParseError> {
+    fn get_topics(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self.doc.nodes("//tr[contains(@id, \"topicRow\")]")? {
             out.push(ForumTopicParser::new(&node).get_model()?);
@@ -45,12 +45,12 @@ pub struct ForumTopicParser<'a> {
 }
 
 impl<'a> ForumTopicParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         ForumTopicParser { node }
     }
 
     /// `ForumTopic::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         let last_post = self.get_last_post()?;
         Ok(json!({
             "mal_id": self.get_topic_id()?,
@@ -70,13 +70,13 @@ impl<'a> ForumTopicParser<'a> {
     }
 
     /// `ForumTopicParser::getTopicId()`.
-    pub fn get_topic_id(&self) -> Result<i64, ParseError> {
+    fn get_topic_id(&self) -> Result<i64, ParseError> {
         let url = self.get_url()?;
         Ok(parse_str_topic_id(&url))
     }
 
     /// `ForumTopicParser::getUrl()`.
-    pub fn get_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         let href = self
             .node
             .first("//a[2]")?
@@ -86,14 +86,12 @@ impl<'a> ForumTopicParser<'a> {
     }
 
     /// `ForumTopicParser::getTitle()`.
-    pub fn get_title(&self) -> Result<String, ParseError> {
+    fn get_title(&self) -> Result<String, ParseError> {
         Ok(self.node.text("//a[2]")?.unwrap_or_default())
     }
 
     /// `ForumTopicParser::getPostDate()`.
-    pub fn get_post_date(
-        &self,
-    ) -> Result<Option<chrono::DateTime<chrono::FixedOffset>>, ParseError> {
+    fn get_post_date(&self) -> Result<Option<chrono::DateTime<chrono::FixedOffset>>, ParseError> {
         let text = self
             .node
             .text("//td[2]/span[@class=\"lightLink\"]")?
@@ -102,7 +100,7 @@ impl<'a> ForumTopicParser<'a> {
     }
 
     /// `ForumTopicParser::getAuthorName()`.
-    pub fn get_author_name(&self) -> Result<String, ParseError> {
+    fn get_author_name(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .text("//span[@class=\"forum_postusername\"]/a")?
@@ -110,7 +108,7 @@ impl<'a> ForumTopicParser<'a> {
     }
 
     /// `ForumTopicParser::getAuthorUrl()`.
-    pub fn get_author_url(&self) -> Result<String, ParseError> {
+    fn get_author_url(&self) -> Result<String, ParseError> {
         let href = self
             .node
             .first("//span[@class=\"forum_postusername\"]/a")?
@@ -120,13 +118,13 @@ impl<'a> ForumTopicParser<'a> {
     }
 
     /// `ForumTopicParser::getReplies()`.
-    pub fn get_replies(&self) -> Result<i64, ParseError> {
+    fn get_replies(&self) -> Result<i64, ParseError> {
         let text = self.node.text("//td[3]")?.unwrap_or_default();
         Ok(php_intval(&text))
     }
 
     /// `ForumTopicParser::getLastPost()`.
-    pub fn get_last_post(&self) -> Result<ForumPost, ParseError> {
+    fn get_last_post(&self) -> Result<ForumPost, ParseError> {
         let author_name = self.node.text("//td[4]/a[1]")?.unwrap_or_default();
         let author_href = self
             .node

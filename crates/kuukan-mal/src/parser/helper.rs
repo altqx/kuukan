@@ -35,7 +35,6 @@ use libxml::tree::{Document, Node};
 use libxml::xpath::Context;
 use regex::bytes::Regex as BytesRegex;
 use regex::Regex;
-use serde_json::{json, Value};
 
 use crate::error::ParseError;
 
@@ -104,12 +103,12 @@ impl HtmlDoc {
     }
 
     /// The libxml2 document.
-    pub fn document(&self) -> &Document {
+    pub(crate) fn document(&self) -> &Document {
         &self.document
     }
 
     /// The root element (`<html>` for full pages) as an [`HtmlNode`].
-    pub fn root(&self) -> HtmlNode {
+    pub(crate) fn root(&self) -> HtmlNode {
         HtmlNode {
             document: self.document.clone(),
             node: self.root.clone(),
@@ -117,39 +116,39 @@ impl HtmlDoc {
     }
 
     /// `$crawler->filterXPath($xpath)`.
-    pub fn nodes(&self, xpath: &str) -> Result<Vec<HtmlNode>, ParseError> {
+    pub(crate) fn nodes(&self, xpath: &str) -> Result<Vec<HtmlNode>, ParseError> {
         let nodes = eval_nodes(&self.document, std::slice::from_ref(&self.root), xpath)?;
         Ok(wrap_nodes(&self.document, nodes))
     }
 
     /// `$crawler->filterXPath($xpath)->first()`.
-    pub fn first(&self, xpath: &str) -> Result<Option<HtmlNode>, ParseError> {
+    pub(crate) fn first(&self, xpath: &str) -> Result<Option<HtmlNode>, ParseError> {
         Ok(self.nodes(xpath)?.into_iter().next())
     }
 
     /// `$crawler->filterXPath($xpath)->last()`.
-    pub fn last(&self, xpath: &str) -> Result<Option<HtmlNode>, ParseError> {
+    pub(crate) fn last(&self, xpath: &str) -> Result<Option<HtmlNode>, ParseError> {
         Ok(self.nodes(xpath)?.pop())
     }
 
     /// `$crawler->filterXPath($xpath)->count()`.
-    pub fn count(&self, xpath: &str) -> Result<usize, ParseError> {
+    pub(crate) fn count(&self, xpath: &str) -> Result<usize, ParseError> {
         Ok(self.nodes(xpath)?.len())
     }
 
     /// `$crawler->filterXPath($xpath)->attr($name)`.
-    pub fn attr(&self, xpath: &str, name: &str) -> Result<Option<String>, ParseError> {
+    pub(crate) fn attr(&self, xpath: &str, name: &str) -> Result<Option<String>, ParseError> {
         Ok(self.first(xpath)?.and_then(|n| n.node_attr(name)))
     }
 
     /// `$crawler->filterXPath($xpath)->text()` with PHP whitespace
     /// normalization.
-    pub fn text(&self, xpath: &str) -> Result<Option<String>, ParseError> {
+    pub(crate) fn text(&self, xpath: &str) -> Result<Option<String>, ParseError> {
         Ok(self.first(xpath)?.map(|n| n.node_text()))
     }
 
     /// `Parser::textOrNull($crawler->filterXPath($xpath))`.
-    pub fn text_or_null(&self, xpath: &str) -> Result<Option<String>, ParseError> {
+    fn text_or_null(&self, xpath: &str) -> Result<Option<String>, ParseError> {
         self.text(xpath)
     }
 
@@ -157,29 +156,29 @@ impl HtmlDoc {
     ///
     /// Unlike [`HtmlDoc::nodes`] the expression is **not** relativized: pass
     /// `string(//span[@itemprop='ratingValue'])` or a plain relative path.
-    pub fn string_value(&self, xpath: &str) -> Result<String, ParseError> {
+    fn string_value(&self, xpath: &str) -> Result<String, ParseError> {
         string_value_ctx(&self.document, &self.root, xpath)
     }
 
     /// `$crawler->filterXPath($xpath)->html()` (inner HTML of the first node).
-    pub fn html(&self, xpath: &str) -> Result<Option<String>, ParseError> {
+    pub(crate) fn html(&self, xpath: &str) -> Result<Option<String>, ParseError> {
         Ok(self.first(xpath)?.map(|n| n.node_html()))
     }
 
     /// `$crawler->filterXPath($xpath)->outerHtml()`.
-    pub fn outer_html(&self, xpath: &str) -> Result<Option<String>, ParseError> {
+    fn outer_html(&self, xpath: &str) -> Result<Option<String>, ParseError> {
         Ok(self.first(xpath)?.map(|n| n.outer_html()))
     }
 
     /// `$crawler->filter($selector)` (CSS selector -> XPath translation).
-    pub fn css_nodes(&self, selector: &str) -> Result<Vec<HtmlNode>, ParseError> {
+    pub(crate) fn css_nodes(&self, selector: &str) -> Result<Vec<HtmlNode>, ParseError> {
         let xpath = css_to_xpath(selector)?;
         let nodes = eval_nodes(&self.document, std::slice::from_ref(&self.root), &xpath)?;
         Ok(wrap_nodes(&self.document, nodes))
     }
 
     /// `$crawler->filterXPath($xpath)->each($closure)`.
-    pub fn each<R>(
+    fn each<R>(
         &self,
         xpath: &str,
         mut f: impl FnMut(&HtmlNode, usize) -> R,
@@ -189,7 +188,7 @@ impl HtmlDoc {
     }
 
     /// `Parser::removeChildNodes($crawler->filterXPath($xpath))`.
-    pub fn remove_child_nodes(&self, xpath: &str) -> Result<(), ParseError> {
+    pub(crate) fn remove_child_nodes(&self, xpath: &str) -> Result<(), ParseError> {
         match self.first(xpath)? {
             Some(node) => node.remove_child_nodes(),
             None => Ok(()),
@@ -199,38 +198,38 @@ impl HtmlDoc {
 
 impl HtmlNode {
     /// Wrap a raw libxml2 node (used by sibling modules/tests).
-    pub fn new(document: Document, node: Node) -> Self {
+    pub(crate) fn new(document: Document, node: Node) -> Self {
         HtmlNode { document, node }
     }
 
     /// The underlying libxml2 node.
-    pub fn node(&self) -> &Node {
+    pub(crate) fn node(&self) -> &Node {
         &self.node
     }
 
     /// The owning libxml2 document.
-    pub fn document(&self) -> &Document {
+    pub(crate) fn document(&self) -> &Document {
         &self.document
     }
 
     /// Value of this node's own attribute (`Crawler::attr()` on the selection).
-    pub fn node_attr(&self, name: &str) -> Option<String> {
+    pub(crate) fn node_attr(&self, name: &str) -> Option<String> {
         self.node.get_property(name)
     }
 
     /// `$crawler->text()`: string value of the node with DomCrawler whitespace
     /// normalization.
-    pub fn node_text(&self) -> String {
+    pub(crate) fn node_text(&self) -> String {
         normalize_whitespace(&self.node.get_content())
     }
 
     /// `$crawler->text(null, false)`: unnormalized string value.
-    pub fn node_text_raw(&self) -> String {
+    pub(crate) fn node_text_raw(&self) -> String {
         self.node.get_content()
     }
 
     /// `$crawler->nodeName()` (lowercase for documents parsed as HTML).
-    pub fn node_name(&self) -> String {
+    pub(crate) fn node_name(&self) -> String {
         self.node.get_name()
     }
 
@@ -238,7 +237,7 @@ impl HtmlNode {
     ///
     /// Uses `htmlNodeDump` so void elements serialize like PHP's
     /// `DOMDocument::saveHTML` (`<br>`, not `<br/>`).
-    pub fn node_html(&self) -> String {
+    pub(crate) fn node_html(&self) -> String {
         let mut out = String::new();
         for child in self.node.get_child_nodes() {
             out.push_str(&html_node_to_string(&self.document, &child));
@@ -247,65 +246,65 @@ impl HtmlNode {
     }
 
     /// `$crawler->outerHtml()`.
-    pub fn outer_html(&self) -> String {
+    fn outer_html(&self) -> String {
         html_node_to_string(&self.document, &self.node)
     }
 
     /// `$crawler->filterXPath($xpath)` relative to this node.
-    pub fn nodes(&self, xpath: &str) -> Result<Vec<HtmlNode>, ParseError> {
+    pub(crate) fn nodes(&self, xpath: &str) -> Result<Vec<HtmlNode>, ParseError> {
         let nodes = eval_nodes(&self.document, std::slice::from_ref(&self.node), xpath)?;
         Ok(wrap_nodes(&self.document, nodes))
     }
 
     /// `$crawler->filterXPath($xpath)->first()`.
-    pub fn first(&self, xpath: &str) -> Result<Option<HtmlNode>, ParseError> {
+    pub(crate) fn first(&self, xpath: &str) -> Result<Option<HtmlNode>, ParseError> {
         Ok(self.nodes(xpath)?.into_iter().next())
     }
 
     /// `$crawler->filterXPath($xpath)->last()`.
-    pub fn last(&self, xpath: &str) -> Result<Option<HtmlNode>, ParseError> {
+    pub(crate) fn last(&self, xpath: &str) -> Result<Option<HtmlNode>, ParseError> {
         Ok(self.nodes(xpath)?.pop())
     }
 
     /// `$crawler->filterXPath($xpath)->count()`.
-    pub fn count(&self, xpath: &str) -> Result<usize, ParseError> {
+    pub(crate) fn count(&self, xpath: &str) -> Result<usize, ParseError> {
         Ok(self.nodes(xpath)?.len())
     }
 
     /// `$crawler->filterXPath($xpath)->attr($name)`.
-    pub fn attr(&self, xpath: &str, name: &str) -> Result<Option<String>, ParseError> {
+    pub(crate) fn attr(&self, xpath: &str, name: &str) -> Result<Option<String>, ParseError> {
         Ok(self.first(xpath)?.and_then(|n| n.node_attr(name)))
     }
 
     /// `$crawler->filterXPath($xpath)->text()`.
-    pub fn text(&self, xpath: &str) -> Result<Option<String>, ParseError> {
+    pub(crate) fn text(&self, xpath: &str) -> Result<Option<String>, ParseError> {
         Ok(self.first(xpath)?.map(|n| n.node_text()))
     }
 
     /// `Parser::textOrNull($crawler->filterXPath($xpath))`.
-    pub fn text_or_null(&self, xpath: &str) -> Result<Option<String>, ParseError> {
+    fn text_or_null(&self, xpath: &str) -> Result<Option<String>, ParseError> {
         self.text(xpath)
     }
 
     /// XPath `string($xpath)` with this node as context.
-    pub fn string_value(&self, xpath: &str) -> Result<String, ParseError> {
+    fn string_value(&self, xpath: &str) -> Result<String, ParseError> {
         string_value_ctx(&self.document, &self.node, xpath)
     }
 
     /// `$crawler->filterXPath($xpath)->html()`.
-    pub fn html(&self, xpath: &str) -> Result<Option<String>, ParseError> {
+    pub(crate) fn html(&self, xpath: &str) -> Result<Option<String>, ParseError> {
         Ok(self.first(xpath)?.map(|n| n.node_html()))
     }
 
     /// `$crawler->filter($selector)`.
-    pub fn css_nodes(&self, selector: &str) -> Result<Vec<HtmlNode>, ParseError> {
+    pub(crate) fn css_nodes(&self, selector: &str) -> Result<Vec<HtmlNode>, ParseError> {
         let xpath = css_to_xpath(selector)?;
         let nodes = eval_nodes(&self.document, std::slice::from_ref(&self.node), &xpath)?;
         Ok(wrap_nodes(&self.document, nodes))
     }
 
     /// `$crawler->filterXPath($xpath)->each($closure)`.
-    pub fn each<R>(
+    fn each<R>(
         &self,
         xpath: &str,
         mut f: impl FnMut(&HtmlNode, usize) -> R,
@@ -316,12 +315,12 @@ impl HtmlNode {
 
     /// `$crawler->children()`: element children only (DomCrawler skips text
     /// nodes here).
-    pub fn children(&self) -> Vec<HtmlNode> {
+    fn children(&self) -> Vec<HtmlNode> {
         wrap_nodes(&self.document, self.node.get_child_elements())
     }
 
     /// `$crawler->ancestors()`: element ancestors, nearest first.
-    pub fn ancestors(&self) -> Vec<HtmlNode> {
+    pub(crate) fn ancestors(&self) -> Vec<HtmlNode> {
         let mut out = Vec::new();
         let mut current = self.node.get_parent();
         while let Some(node) = current {
@@ -337,7 +336,7 @@ impl HtmlNode {
     }
 
     /// `$crawler->nextAll()`: following element siblings.
-    pub fn next_all(&self) -> Vec<HtmlNode> {
+    pub(crate) fn next_all(&self) -> Vec<HtmlNode> {
         let mut out = Vec::new();
         let mut current = self.node.get_next_element_sibling();
         while let Some(node) = current {
@@ -352,7 +351,7 @@ impl HtmlNode {
     }
 
     /// `$crawler->eq($index)`.
-    pub fn eq(&self, _index: usize) -> Option<HtmlNode> {
+    fn eq(&self, _index: usize) -> Option<HtmlNode> {
         // `eq()` on a single-node wrapper: only index 0 is meaningful.
         if _index == 0 {
             Some(self.clone())
@@ -365,7 +364,7 @@ impl HtmlNode {
     ///
     /// Removes every element child that is not one of `p, i, b, br, strong, u`
     /// so that the remaining text can be read with `text()`.
-    pub fn remove_child_nodes(&self) -> Result<(), ParseError> {
+    pub(crate) fn remove_child_nodes(&self) -> Result<(), ParseError> {
         const ALLOWED_NODES: [&str; 6] = ["p", "i", "b", "br", "strong", "u"];
         for child in self.node.get_child_elements() {
             let name = child.get_name().to_ascii_lowercase();
@@ -381,7 +380,7 @@ impl HtmlNode {
     }
 
     /// `$crawler->innerText()`: direct text children only, normalized.
-    pub fn inner_text(&self) -> String {
+    fn inner_text(&self) -> String {
         for child in self.node.get_child_nodes() {
             if child.is_text_node() {
                 let value = child.get_content();
@@ -401,56 +400,6 @@ impl PartialEq for HtmlNode {
 }
 
 impl Eq for HtmlNode {}
-
-// ---------------------------------------------------------------------------
-// HTML parsing helpers (Media.php / Parser.php string helpers)
-// ---------------------------------------------------------------------------
-
-/// `Parser::parseImageQuality()`.
-pub fn parse_image_quality(image_url: &str) -> String {
-    // adding `v` prefix returns a very small thumbnail, as opposed to adding `l`
-    let image_url = image_url
-        .replace("v.jpg", ".jpg")
-        .replace("t.jpg", ".jpg")
-        .replace("l.jpg", ".jpg");
-    image_quality_re().replace_all(&image_url, "").to_string()
-}
-
-/// `Parser::parseImageThumbToHQ()`.
-pub fn parse_image_thumb_to_hq(image_url: &str) -> String {
-    image_url.replace("thumbs/", "").replace("_thumb", "")
-}
-
-/// `Media::youtubeIdFromUrl()`.
-pub fn youtube_id_from_url(url: Option<&str>) -> Option<String> {
-    let url = url?;
-    youtube_re().captures(url).map(|caps| caps[1].to_string())
-}
-
-/// `Media::generateYoutubeUrlFromId()`.
-pub fn generate_youtube_url_from_id(id: Option<&str>) -> Option<String> {
-    id.map(|id| format!("https://www.youtube.com/watch?v={id}"))
-}
-
-/// `Media::generateYoutubeImageResource()` + JMS serialization.
-pub fn youtube_image_resource(id: Option<&str>) -> Value {
-    match id {
-        None => json!({
-            "image_url": null,
-            "small_image_url": null,
-            "medium_image_url": null,
-            "large_image_url": null,
-            "maximum_image_url": null,
-        }),
-        Some(id) => json!({
-            "image_url": format!("https://img.youtube.com/vi/{id}/default.jpg"),
-            "small_image_url": format!("https://img.youtube.com/vi/{id}/sddefault.jpg"),
-            "medium_image_url": format!("https://img.youtube.com/vi/{id}/mqdefault.jpg"),
-            "large_image_url": format!("https://img.youtube.com/vi/{id}/hqdefault.jpg"),
-            "maximum_image_url": format!("https://img.youtube.com/vi/{id}/maxresdefault.jpg"),
-        }),
-    }
-}
 
 // ---------------------------------------------------------------------------
 // low-level plumbing
@@ -530,7 +479,7 @@ fn string_value_ctx(document: &Document, node: &Node, xpath: &str) -> Result<Str
 }
 
 /// Port of `Crawler::normalizeWhitespace()`.
-pub fn normalize_whitespace(string: &str) -> String {
+pub(crate) fn normalize_whitespace(string: &str) -> String {
     // PHP: trim(preg_replace("/(?:[ \n\r\t\x0C]{2,}+|[\n\r\t\x0C])/", ' ', $s),
     //                       " \n\r\t\x0C")
     // Every maximal run of whitespace-in-class collapses to a single space,
@@ -604,28 +553,13 @@ fn meta_charset_str_re() -> &'static Regex {
     })
 }
 
-fn image_quality_re() -> &'static Regex {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"/r/\d+x\d+").expect("valid regex"))
-}
-
-fn youtube_re() -> &'static Regex {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(
-            r#"^(?:https?://)?(?:www\.)?(?:m\.)?(?:youtu\.be/|youtube\.com/(?:(?:watch)?\?(?:.*&)?v(?:i)?=|(?:embed|v|vi|user|shorts)/))([^?&"'>]{11})"#,
-        )
-        .expect("valid regex")
-    })
-}
-
 /// Port of `Crawler::relativize()` (private in DomCrawler).
 ///
 /// Rewrites an XPath so that it is relative to the nodes of the current
 /// crawler: leading `//` becomes `descendant-or-self::`, `.//` likewise,
 /// `./`/`child::` become `self::`, absolute/unsupported expressions become a
 /// never-matching expression and unions are handled element by element.
-pub fn relativize(xpath: &str) -> String {
+pub(crate) fn relativize(xpath: &str) -> String {
     const NON_MATCHING_EXPRESSION: &str = "a[name() = \"b\"]";
     const SCAN_SET: &[u8] = b"\"'[]|";
     let bytes = xpath.as_bytes();
@@ -774,7 +708,7 @@ fn ancestor_axis_re() -> &'static Regex {
 
 /// Translate a CSS selector with the same rules as
 /// `Symfony\Component\CssSelector\CssSelectorConverter(true)->toXPath()`.
-pub fn css_to_xpath(selector: &str) -> Result<String, ParseError> {
+pub(crate) fn css_to_xpath(selector: &str) -> Result<String, ParseError> {
     let selector = selector.trim();
     if selector.is_empty() {
         return Err(ParseError::InvalidSelector("empty selector".into()));
@@ -1243,7 +1177,7 @@ fn read_ident(selector: &str, bytes: &[u8], i: &mut usize) -> Result<String, Par
 }
 
 /// Port of `Translator::getXpathLiteral()`.
-pub fn xpath_literal(s: &str) -> String {
+pub(crate) fn xpath_literal(s: &str) -> String {
     if !s.contains('\'') {
         return format!("'{s}'");
     }
@@ -1619,73 +1553,5 @@ mod tests {
         let latin1 = b"<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\"></head><body><p>caf\xe9</p></body></html>";
         let doc = HtmlDoc::parse(latin1).unwrap();
         assert_eq!(doc.text("//p").unwrap().as_deref(), Some("café"));
-    }
-
-    // Ported from test/JikanTest/Helper/MediaTest.php
-    #[test]
-    fn youtube_id_provider() {
-        assert_eq!(
-            youtube_id_from_url(Some(
-                "https://www.youtube.com/embed/1yXa8MAmocQ?enablejsapi=1&wmode=opaque&autoplay=1"
-            ))
-            .as_deref(),
-            Some("1yXa8MAmocQ")
-        );
-        assert_eq!(
-            youtube_id_from_url(Some(
-                "https://www.youtube.com/embed/yhNzL20gNX0/?enablejsapi=1&wmode=opaque&autoplay=1"
-            ))
-            .as_deref(),
-            Some("yhNzL20gNX0")
-        );
-        assert_eq!(
-            youtube_id_from_url(Some("https://youtu.be/dQw4w9WgXcQ")).as_deref(),
-            Some("dQw4w9WgXcQ")
-        );
-        assert_eq!(youtube_id_from_url(None), None);
-    }
-
-    #[test]
-    fn image_helpers() {
-        assert_eq!(
-            parse_image_quality("https://cdn.myanimelist.net/images/anime/1/1v.jpg"),
-            "https://cdn.myanimelist.net/images/anime/1/1.jpg"
-        );
-        assert_eq!(
-            parse_image_quality("https://cdn.myanimelist.net/r/100x140/images/anime/1/1.jpg"),
-            "https://cdn.myanimelist.net/images/anime/1/1.jpg"
-        );
-        assert_eq!(
-            parse_image_thumb_to_hq(
-                "https://cdn.myanimelist.net/images/anime/1/thumbs/1_thumb.jpg"
-            ),
-            "https://cdn.myanimelist.net/images/anime/1/1.jpg"
-        );
-        assert_eq!(
-            generate_youtube_url_from_id(Some("abc")),
-            Some("https://www.youtube.com/watch?v=abc".to_string())
-        );
-        let images = youtube_image_resource(Some("abc"));
-        assert_eq!(
-            images["image_url"],
-            "https://img.youtube.com/vi/abc/default.jpg"
-        );
-        assert_eq!(
-            images["small_image_url"],
-            "https://img.youtube.com/vi/abc/sddefault.jpg"
-        );
-        assert_eq!(
-            images["medium_image_url"],
-            "https://img.youtube.com/vi/abc/mqdefault.jpg"
-        );
-        assert_eq!(
-            images["large_image_url"],
-            "https://img.youtube.com/vi/abc/hqdefault.jpg"
-        );
-        assert_eq!(
-            images["maximum_image_url"],
-            "https://img.youtube.com/vi/abc/maxresdefault.jpg"
-        );
-        assert_eq!(youtube_image_resource(None)["image_url"], Value::Null);
     }
 }

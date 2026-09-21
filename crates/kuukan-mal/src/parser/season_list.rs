@@ -14,17 +14,17 @@ pub struct SeasonListParser<'a> {
 }
 
 impl<'a> SeasonListParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         SeasonListParser { doc }
     }
 
     /// `SeasonArchive::fromParser()`: `{results}`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({ "results": self.get_results()? }))
     }
 
     /// `SeasonListParser::getResults()`.
-    pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_results(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self
             .doc
@@ -42,12 +42,12 @@ pub struct SeasonListItemParser<'a> {
 }
 
 impl<'a> SeasonListItemParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         SeasonListItemParser { node }
     }
 
     /// `SeasonListItem::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "year": self.get_year()?,
             "seasons": self.get_seasons()?,
@@ -55,7 +55,7 @@ impl<'a> SeasonListItemParser<'a> {
     }
 
     /// `SeasonListItemParser::getYear()`: `(int) preg_replace('/\D/', '', first td)`.
-    pub fn get_year(&self) -> Result<i64, ParseError> {
+    fn get_year(&self) -> Result<i64, ParseError> {
         let text = self.node.text("//td")?.unwrap_or_default();
         let digits: String = text.chars().filter(|c| c.is_ascii_digit()).collect();
         Ok(digits.parse().unwrap_or(0))
@@ -63,7 +63,7 @@ impl<'a> SeasonListItemParser<'a> {
 
     /// `SeasonListItemParser::getSeasons()`: `array_filter(Constants::SEASONS)`
     /// on the whole row text, then `array_map('strtolower')`.
-    pub fn get_seasons(&self) -> Result<Vec<String>, ParseError> {
+    fn get_seasons(&self) -> Result<Vec<String>, ParseError> {
         let text = self.node.node_text();
         // `array_filter` preserves the original keys; only sequential results
         // serialize as a JSON array, so non-matching keys are skipped here.

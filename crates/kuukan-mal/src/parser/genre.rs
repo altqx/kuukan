@@ -15,12 +15,12 @@ pub struct AnimeGenreParser {
 }
 
 impl AnimeGenreParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         AnimeGenreParser { doc }
     }
 
     /// `AnimeGenreParser::getResults()`.
-    pub fn results(&self) -> Result<Vec<Value>, ParseError> {
+    fn results(&self) -> Result<Vec<Value>, ParseError> {
         self.doc
             .css_nodes("div.seasonal-anime")?
             .iter()
@@ -29,7 +29,7 @@ impl AnimeGenreParser {
     }
 
     /// `AnimeGenreParser::getUrl()`.
-    pub fn url(&self) -> Result<String, ParseError> {
+    pub(crate) fn url(&self) -> Result<String, ParseError> {
         Ok(self
             .doc
             .attr("//meta[@property=\"og:url\"]", "content")?
@@ -37,12 +37,12 @@ impl AnimeGenreParser {
     }
 
     /// `AnimeGenreParser::getMalId()`.
-    pub fn mal_id(&self) -> Result<i64, ParseError> {
+    pub(crate) fn mal_id(&self) -> Result<i64, ParseError> {
         Ok(genre_id_from_url(&self.url()?))
     }
 
     /// `AnimeGenreParser::getName()` (`preg_replace('~(.*?)\sAnime~', '$1', ...)`).
-    pub fn name(&self) -> Result<String, ParseError> {
+    pub(crate) fn name(&self) -> Result<String, ParseError> {
         let name = match self.doc.first("//span[@class='di-ib mt4']")? {
             Some(span) => {
                 span.remove_child_nodes()?;
@@ -54,7 +54,7 @@ impl AnimeGenreParser {
     }
 
     /// `AnimeGenreParser::getDescription()`.
-    pub fn description(&self) -> Result<String, ParseError> {
+    fn description(&self) -> Result<String, ParseError> {
         let Some(node) = self.doc.first("//*[@id=\"content\"]/div[4]/p")? else {
             return Ok(String::new());
         };
@@ -63,7 +63,7 @@ impl AnimeGenreParser {
     }
 
     /// `AnimeGenreParser::getCount()`.
-    pub fn count(&self) -> Result<i64, ParseError> {
+    pub(crate) fn count(&self) -> Result<i64, ParseError> {
         let Some(node) = self.doc.first("//span[@class='di-ib mt4']/span")? else {
             return Ok(0);
         };
@@ -71,17 +71,17 @@ impl AnimeGenreParser {
     }
 
     /// `AnimeGenreParser::getLastPage()`.
-    pub fn last_page(&self) -> Result<i64, ParseError> {
+    fn last_page(&self) -> Result<i64, ParseError> {
         last_page(&self.doc)
     }
 
     /// `AnimeGenreParser::getHasNextPage()`.
-    pub fn has_next_page(&self) -> Result<bool, ParseError> {
+    fn has_next_page(&self) -> Result<bool, ParseError> {
         has_next_page(&self.doc)
     }
 
     /// `AnimeGenreParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         // Same call order as `AnimeGenre::fromParser()`: `getCount()` must run
         // before `getName()`, which removes the inner `<span>` holding the
         // count from the document.
@@ -107,12 +107,12 @@ pub struct MangaGenreParser {
 }
 
 impl MangaGenreParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         MangaGenreParser { doc }
     }
 
     /// `MangaGenreParser::getResults()`.
-    pub fn results(&self) -> Result<Vec<Value>, ParseError> {
+    fn results(&self) -> Result<Vec<Value>, ParseError> {
         self.doc
             .css_nodes("div.seasonal-anime")?
             .iter()
@@ -121,7 +121,7 @@ impl MangaGenreParser {
     }
 
     /// `MangaGenreParser::getUrl()`.
-    pub fn url(&self) -> Result<String, ParseError> {
+    pub(crate) fn url(&self) -> Result<String, ParseError> {
         Ok(self
             .doc
             .attr("//meta[@property=\"og:url\"]", "content")?
@@ -129,12 +129,12 @@ impl MangaGenreParser {
     }
 
     /// `MangaGenreParser::getMalId()`.
-    pub fn mal_id(&self) -> Result<i64, ParseError> {
+    pub(crate) fn mal_id(&self) -> Result<i64, ParseError> {
         Ok(genre_id_from_url(&self.url()?))
     }
 
     /// `MangaGenreParser::getName()` (no "Manga" suffix stripping).
-    pub fn name(&self) -> Result<String, ParseError> {
+    pub(crate) fn name(&self) -> Result<String, ParseError> {
         match self.doc.first("//span[@class='di-ib mt4']")? {
             Some(span) => {
                 span.remove_child_nodes()?;
@@ -145,7 +145,7 @@ impl MangaGenreParser {
     }
 
     /// `MangaGenreParser::getDescription()`.
-    pub fn description(&self) -> Result<String, ParseError> {
+    fn description(&self) -> Result<String, ParseError> {
         let Some(node) = self.doc.first("//*[@id=\"content\"]/div[4]/p")? else {
             return Ok(String::new());
         };
@@ -154,7 +154,7 @@ impl MangaGenreParser {
     }
 
     /// `MangaGenreParser::getCount()`.
-    pub fn count(&self) -> Result<i64, ParseError> {
+    pub(crate) fn count(&self) -> Result<i64, ParseError> {
         let Some(node) = self.doc.first("//span[@class='di-ib mt4']/span")? else {
             return Ok(0);
         };
@@ -162,17 +162,17 @@ impl MangaGenreParser {
     }
 
     /// `MangaGenreParser::getLastPage()`.
-    pub fn last_page(&self) -> Result<i64, ParseError> {
+    fn last_page(&self) -> Result<i64, ParseError> {
         last_page(&self.doc)
     }
 
     /// `MangaGenreParser::getHasNextPage()`.
-    pub fn has_next_page(&self) -> Result<bool, ParseError> {
+    fn has_next_page(&self) -> Result<bool, ParseError> {
         has_next_page(&self.doc)
     }
 
     /// `MangaGenreParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         // Same call order as `MangaGenre::fromParser()`: count before name.
         let count = self.count()?;
         let results = self.results()?;
@@ -206,28 +206,28 @@ pub struct AnimeGenreListParser {
 }
 
 impl AnimeGenreListParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         AnimeGenreListParser { doc }
     }
 
-    pub fn genres(&self) -> Result<Vec<Value>, ParseError> {
+    fn genres(&self) -> Result<Vec<Value>, ParseError> {
         genre_list(&self.doc, 1)
     }
 
-    pub fn explicit_genres(&self) -> Result<Vec<Value>, ParseError> {
+    fn explicit_genres(&self) -> Result<Vec<Value>, ParseError> {
         genre_list(&self.doc, 2)
     }
 
-    pub fn themes(&self) -> Result<Vec<Value>, ParseError> {
+    fn themes(&self) -> Result<Vec<Value>, ParseError> {
         genre_list(&self.doc, 3)
     }
 
-    pub fn demographics(&self) -> Result<Vec<Value>, ParseError> {
+    fn demographics(&self) -> Result<Vec<Value>, ParseError> {
         genre_list(&self.doc, 4)
     }
 
     /// `AnimeGenreListParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "genres": self.genres()?,
             "explicit_genres": self.explicit_genres()?,
@@ -243,28 +243,28 @@ pub struct MangaGenreListParser {
 }
 
 impl MangaGenreListParser {
-    pub fn new(doc: HtmlDoc) -> Self {
+    pub(crate) fn new(doc: HtmlDoc) -> Self {
         MangaGenreListParser { doc }
     }
 
-    pub fn genres(&self) -> Result<Vec<Value>, ParseError> {
+    fn genres(&self) -> Result<Vec<Value>, ParseError> {
         genre_list(&self.doc, 1)
     }
 
-    pub fn explicit_genres(&self) -> Result<Vec<Value>, ParseError> {
+    fn explicit_genres(&self) -> Result<Vec<Value>, ParseError> {
         genre_list(&self.doc, 2)
     }
 
-    pub fn themes(&self) -> Result<Vec<Value>, ParseError> {
+    fn themes(&self) -> Result<Vec<Value>, ParseError> {
         genre_list(&self.doc, 3)
     }
 
-    pub fn demographics(&self) -> Result<Vec<Value>, ParseError> {
+    fn demographics(&self) -> Result<Vec<Value>, ParseError> {
         genre_list(&self.doc, 4)
     }
 
     /// `MangaGenreListParser::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "genres": self.genres()?,
             "explicit_genres": self.explicit_genres()?,
@@ -281,12 +281,12 @@ pub struct GenreListItemParser {
 }
 
 impl GenreListItemParser {
-    pub fn new(node: crate::parser::helper::HtmlNode) -> Self {
+    pub(crate) fn new(node: crate::parser::helper::HtmlNode) -> Self {
         GenreListItemParser { node }
     }
 
     /// `...::getUrl()`.
-    pub fn url(&self) -> String {
+    pub(crate) fn url(&self) -> String {
         format!(
             "{}{}",
             crate::request::BASE_URL,
@@ -295,14 +295,14 @@ impl GenreListItemParser {
     }
 
     /// `...::getMalId()`.
-    pub fn mal_id(&self) -> Option<i64> {
+    pub(crate) fn mal_id(&self) -> Option<i64> {
         mal_id_re()
             .captures(&self.url())
             .and_then(|caps| caps[1].parse().ok())
     }
 
     /// `...::getName()`: the count is stripped of commas, not the name digits.
-    pub fn name(&self) -> String {
+    pub(crate) fn name(&self) -> String {
         name_re()
             .captures(&self.node.node_text())
             .and_then(|caps| caps.get(1).map(|m| m.as_str().replace(',', "")))
@@ -310,7 +310,7 @@ impl GenreListItemParser {
     }
 
     /// `...::getCount()`.
-    pub fn count(&self) -> i64 {
+    pub(crate) fn count(&self) -> i64 {
         count_re()
             .captures(&self.node.node_text())
             .and_then(|caps| caps.get(1).map(|m| m.as_str().replace(',', "")))
@@ -319,7 +319,7 @@ impl GenreListItemParser {
     }
 
     /// `...::getModel()`.
-    pub fn model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "mal_id": self.mal_id(),
             "name": self.name(),

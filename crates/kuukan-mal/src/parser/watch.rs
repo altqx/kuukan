@@ -3,8 +3,9 @@
 use serde_json::{json, Value};
 
 use crate::error::ParseError;
-use crate::parser::helper::{parse_image_quality, youtube_id_from_url, HtmlDoc, HtmlNode};
+use crate::parser::helper::{HtmlDoc, HtmlNode};
 use crate::parser::mal_url::{id_from_url, suffix_id_from_url, BASE_URL};
+use crate::parser::media_url::{parse_image_quality, youtube_id_from_url};
 
 /// `CommonImageResource::factory()`.
 fn common_image_resource(image_url: Option<&str>) -> Value {
@@ -49,7 +50,7 @@ fn youtube_meta(embed_url: Option<&str>) -> Value {
         "youtube_id": youtube_id,
         "url": url,
         "embed_url": embed_url,
-        "images": crate::parser::helper::youtube_image_resource(youtube_id.as_deref()),
+        "images": crate::parser::media_url::youtube_image_resource(youtube_id.as_deref()),
     })
 }
 
@@ -63,12 +64,12 @@ pub struct WatchEpisodesParser<'a> {
 }
 
 impl<'a> WatchEpisodesParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         WatchEpisodesParser { doc }
     }
 
     /// `Episodes::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": false,
@@ -77,7 +78,7 @@ impl<'a> WatchEpisodesParser<'a> {
     }
 
     /// `WatchEpisodesParser::getResults()`.
-    pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_results(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self.doc.nodes(
             "//*[@id=\"content\"]/div[3]/div/div[contains(@class, \"video-list-outer-vertical\")]",
@@ -94,12 +95,12 @@ pub struct EpisodeListItemParser<'a> {
 }
 
 impl<'a> EpisodeListItemParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         EpisodeListItemParser { node }
     }
 
     /// `EpisodeListItem::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "entry": self.get_anime_meta()?,
             "episodes": self.get_episodes()?,
@@ -108,12 +109,12 @@ impl<'a> EpisodeListItemParser<'a> {
     }
 
     /// `EpisodeListItemParser::getId()`.
-    pub fn get_id(&self) -> Result<i64, ParseError> {
+    pub(crate) fn get_id(&self) -> Result<i64, ParseError> {
         Ok(id_from_url(&self.get_url()?))
     }
 
     /// `EpisodeListItemParser::getUrl()`.
-    pub fn get_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .attr("//div[@class=\"video-info-title\"]/a[2]", "href")?
@@ -121,7 +122,7 @@ impl<'a> EpisodeListItemParser<'a> {
     }
 
     /// `EpisodeListItemParser::getTitle()`.
-    pub fn get_title(&self) -> Result<String, ParseError> {
+    fn get_title(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .text("//div[@class=\"video-info-title\"]/a[2]")?
@@ -129,7 +130,7 @@ impl<'a> EpisodeListItemParser<'a> {
     }
 
     /// `EpisodeListItemParser::getImageUrl()`.
-    pub fn get_image_url(&self) -> Result<String, ParseError> {
+    fn get_image_url(&self) -> Result<String, ParseError> {
         let src = self
             .node
             .attr("//div[contains(@class, \"video-list\")]/img", "data-src")?
@@ -138,12 +139,12 @@ impl<'a> EpisodeListItemParser<'a> {
     }
 
     /// `EpisodeListItemParser::getImages()`.
-    pub fn get_images(&self) -> Result<String, ParseError> {
+    fn get_images(&self) -> Result<String, ParseError> {
         self.get_image_url()
     }
 
     /// `EpisodeListItemParser::getEpisodes()`.
-    pub fn get_episodes(&self) -> Result<Vec<Value>, ParseError> {
+    fn get_episodes(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self.node.nodes(
             "//div[contains(@class, \"video-list\")]/div[contains(@class, \"info-container\")]/div[contains(@class, \"title\")]/a",
@@ -161,12 +162,12 @@ impl<'a> EpisodeListItemParser<'a> {
     }
 
     /// `EpisodeListItemParser::getRegionLocked()`.
-    pub fn get_region_locked(&self) -> Result<bool, ParseError> {
+    fn get_region_locked(&self) -> Result<bool, ParseError> {
         Ok(self.node.count("//div[contains(@class, \"is_blocked\")]")? > 0)
     }
 
     /// `EpisodeListItemParser::getAnimeMeta()`.
-    pub fn get_anime_meta(&self) -> Result<Value, ParseError> {
+    fn get_anime_meta(&self) -> Result<Value, ParseError> {
         Ok(anime_meta(
             &self.get_title()?,
             &self.get_url()?,
@@ -185,12 +186,12 @@ pub struct WatchPromotionalVideosParser<'a> {
 }
 
 impl<'a> WatchPromotionalVideosParser<'a> {
-    pub fn new(doc: &'a HtmlDoc) -> Self {
+    pub(crate) fn new(doc: &'a HtmlDoc) -> Self {
         WatchPromotionalVideosParser { doc }
     }
 
     /// `PromotionalVideos::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "results": self.get_results()?,
             "has_next_page": self.get_has_next_page()?,
@@ -199,7 +200,7 @@ impl<'a> WatchPromotionalVideosParser<'a> {
     }
 
     /// `WatchPromotionalVideosParser::getResults()`.
-    pub fn get_results(&self) -> Result<Vec<Value>, ParseError> {
+    pub(crate) fn get_results(&self) -> Result<Vec<Value>, ParseError> {
         let mut out = Vec::new();
         for node in self.doc.nodes(
             "//*[@id=\"content\"]/div[3]/div/div[contains(@class, \"video-list-outer-vertical\")]",
@@ -210,14 +211,14 @@ impl<'a> WatchPromotionalVideosParser<'a> {
     }
 
     /// `WatchPromotionalVideosParser::getHasNextPage()`.
-    pub fn get_has_next_page(&self) -> Result<bool, ParseError> {
+    fn get_has_next_page(&self) -> Result<bool, ParseError> {
         Ok(self.doc.count(
             "//*[@id=\"content\"]/div[contains(@class, \"pagination\")]/a[contains(text(), \"More\")]",
         )? > 0)
     }
 
     /// `WatchPromotionalVideosParser::getLastVisiblePage()`.
-    pub fn get_last_visible_page(&self) -> Result<i64, ParseError> {
+    fn get_last_visible_page(&self) -> Result<i64, ParseError> {
         let Some(node) = self.doc.first(
             "//*[@id=\"content\"]/div[contains(@class, \"pagination\")]/span[@class=\"link-blue-box\"]",
         )? else {
@@ -237,12 +238,12 @@ pub struct PromotionalVideoListItemParser<'a> {
 }
 
 impl<'a> PromotionalVideoListItemParser<'a> {
-    pub fn new(node: &'a HtmlNode) -> Self {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
         PromotionalVideoListItemParser { node }
     }
 
     /// `PromotionalVideoListItem::fromParser()`.
-    pub fn get_model(&self) -> Result<Value, ParseError> {
+    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
         Ok(json!({
             "title": self.get_promo_title()?,
             "entry": anime_meta(&self.get_title()?, &self.get_url()?, &self.get_images()?),
@@ -251,12 +252,12 @@ impl<'a> PromotionalVideoListItemParser<'a> {
     }
 
     /// `PromotionalVideoListItemParser::getId()`.
-    pub fn get_id(&self) -> Result<i64, ParseError> {
+    pub(crate) fn get_id(&self) -> Result<i64, ParseError> {
         Ok(id_from_url(&self.get_url()?))
     }
 
     /// `PromotionalVideoListItemParser::getUrl()`.
-    pub fn get_url(&self) -> Result<String, ParseError> {
+    pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .attr("//div[@class=\"video-info-title\"]/a[2]", "href")?
@@ -264,7 +265,7 @@ impl<'a> PromotionalVideoListItemParser<'a> {
     }
 
     /// `PromotionalVideoListItemParser::getTitle()`.
-    pub fn get_title(&self) -> Result<String, ParseError> {
+    fn get_title(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .text("//div[@class=\"video-info-title\"]/a[2]")?
@@ -272,7 +273,7 @@ impl<'a> PromotionalVideoListItemParser<'a> {
     }
 
     /// `PromotionalVideoListItemParser::getImageUrl()`.
-    pub fn get_image_url(&self) -> Result<String, ParseError> {
+    fn get_image_url(&self) -> Result<String, ParseError> {
         let src = self
             .node
             .attr("//div[contains(@class, \"video-list\")]/a", "data-bg")?
@@ -281,12 +282,12 @@ impl<'a> PromotionalVideoListItemParser<'a> {
     }
 
     /// `PromotionalVideoListItemParser::getImages()`.
-    pub fn get_images(&self) -> Result<String, ParseError> {
+    fn get_images(&self) -> Result<String, ParseError> {
         self.get_image_url()
     }
 
     /// `PromotionalVideoListItemParser::getPromoMedia()`.
-    pub fn get_promo_media(&self) -> Result<String, ParseError> {
+    fn get_promo_media(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .attr("//div[contains(@class, \"video-list\")]/a", "href")?
@@ -294,7 +295,7 @@ impl<'a> PromotionalVideoListItemParser<'a> {
     }
 
     /// `PromotionalVideoListItemParser::getPromoTitle()`.
-    pub fn get_promo_title(&self) -> Result<String, ParseError> {
+    fn get_promo_title(&self) -> Result<String, ParseError> {
         Ok(self
             .node
             .text(
@@ -306,7 +307,7 @@ impl<'a> PromotionalVideoListItemParser<'a> {
 
 /// The watch pages sometimes carry relative entry hrefs; keep the PHP
 /// `Constants::BASE_URL` prefix helper around for callers that need it.
-pub fn absolute_url(href: &str) -> String {
+pub(crate) fn absolute_url(href: &str) -> String {
     if href.starts_with("http") {
         href.to_string()
     } else {
