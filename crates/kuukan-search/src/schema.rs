@@ -67,59 +67,23 @@ pub const PAYLOAD: &str = "payload";
 /// Name of the lowercased display-name fast field.
 pub const TITLE_SORT: &str = "title_sort";
 
-/// Searchable entity kinds, one sub-index each.
+pub use kuukan_core::EntityKind;
+
+/// Per-kind search schema facts.
 ///
-/// `User` maps to the Jikan `Profile` model (`users` table); it is the kind
-/// behind `GET /v1/users`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum EntityKind {
-    /// `app/Anime.php`
-    Anime,
-    /// `app/Manga.php`
-    Manga,
-    /// `app/Character.php`
-    Character,
-    /// `app/Person.php`
-    Person,
-    /// `app/Profile.php`
-    User,
-    /// `app/Club.php`
-    Club,
-    /// `app/Producers.php`
-    Producer,
-    /// `app/Magazine.php`
-    Magazine,
+/// These sit beside [`EntityKind`] rather than on it: they describe how a kind
+/// is indexed, which is this crate's business, not the workspace vocabulary's.
+pub trait EntityKindSchema {
+    /// Display-name attribute in the JMS payload.
+    fn title_attribute(self) -> &'static str;
+    /// Full-text fields and their Typesense `query_by_weights`.
+    fn text_fields(self) -> &'static [(&'static str, f32)];
+    /// Fast filter fields for this kind.
+    fn filter_fields(self) -> &'static [(&'static str, FieldType)];
 }
 
-impl EntityKind {
-    /// Every kind, in a stable order.
-    pub const ALL: [EntityKind; 8] = [
-        EntityKind::Anime,
-        EntityKind::Manga,
-        EntityKind::Character,
-        EntityKind::Person,
-        EntityKind::User,
-        EntityKind::Club,
-        EntityKind::Producer,
-        EntityKind::Magazine,
-    ];
-
-    /// Directory/collection name (mirrors the PHP table names).
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            EntityKind::Anime => "anime",
-            EntityKind::Manga => "manga",
-            EntityKind::Character => "characters",
-            EntityKind::Person => "people",
-            EntityKind::User => "users",
-            EntityKind::Club => "clubs",
-            EntityKind::Producer => "producers",
-            EntityKind::Magazine => "magazines",
-        }
-    }
-
-    /// Display-name attribute in the JMS payload.
-    pub const fn title_attribute(self) -> &'static str {
+impl EntityKindSchema for EntityKind {
+    fn title_attribute(self) -> &'static str {
         match self {
             EntityKind::Anime | EntityKind::Manga => "title",
             EntityKind::Character | EntityKind::Person => "name",
@@ -127,11 +91,14 @@ impl EntityKind {
             EntityKind::Club => "name",
             EntityKind::Producer => "titles",
             EntityKind::Magazine => "name",
+            // Not searchable: no sub-index is ever built for these, so no
+            // schema is ever asked for. `EntityKind::is_searchable` is the
+            // single place that decides.
+            EntityKind::GenreAnime | EntityKind::GenreManga | EntityKind::Episode => "name",
         }
     }
 
-    /// Full-text fields and their Typesense `query_by_weights`.
-    pub const fn text_fields(self) -> &'static [(&'static str, f32)] {
+    fn text_fields(self) -> &'static [(&'static str, f32)] {
         match self {
             EntityKind::Anime | EntityKind::Manga => &[
                 ("title", 2.0),
@@ -153,11 +120,14 @@ impl EntityKind {
             EntityKind::Club => &[("name", 1.0)],
             EntityKind::Producer => &[("url", 1.0), ("titles", 1.0)],
             EntityKind::Magazine => &[("name", 1.0)],
+            // Not searchable: no sub-index is ever built for these, so no
+            // schema is ever asked for. `EntityKind::is_searchable` is the
+            // single place that decides.
+            EntityKind::GenreAnime | EntityKind::GenreManga | EntityKind::Episode => &[],
         }
     }
 
-    /// Fast filter fields for this kind.
-    pub const fn filter_fields(self) -> &'static [(&'static str, FieldType)] {
+    fn filter_fields(self) -> &'static [(&'static str, FieldType)] {
         match self {
             EntityKind::Anime => &[
                 ("type", FieldType::Str),
@@ -231,26 +201,11 @@ impl EntityKind {
                 ("count", FieldType::U64),
             ],
             EntityKind::Magazine => &[("count", FieldType::U64)],
+            // Not searchable: no sub-index is ever built for these, so no
+            // schema is ever asked for. `EntityKind::is_searchable` is the
+            // single place that decides.
+            EntityKind::GenreAnime | EntityKind::GenreManga | EntityKind::Episode => &[],
         }
-    }
-
-    /// Parse the on-disk/collection name.
-    pub fn parse(name: &str) -> Option<EntityKind> {
-        EntityKind::ALL.into_iter().find(|k| k.as_str() == name)
-    }
-}
-
-impl std::fmt::Display for EntityKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl std::str::FromStr for EntityKind {
-    type Err = SearchError;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        EntityKind::parse(s).ok_or_else(|| SearchError::UnknownKind(s.to_owned()))
     }
 }
 
@@ -464,6 +419,8 @@ pub fn build_document(schema: &EntitySchema, payload: &Value) -> Result<TantivyD
         EntityKind::Club => fill_club(schema, &mut doc, payload),
         EntityKind::Producer => fill_producer(schema, &mut doc, payload),
         EntityKind::Magazine => fill_magazine(schema, &mut doc, payload),
+        // Unreachable: `IndexPipeline` only routes searchable kinds here.
+        EntityKind::GenreAnime | EntityKind::GenreManga | EntityKind::Episode => {}
     }
 
     Ok(doc)
@@ -1026,7 +983,7 @@ mod tests {
 
     #[test]
     fn every_kind_builds_a_schema() {
-        for kind in EntityKind::ALL {
+        for kind in EntityKind::SEARCHABLE {
             let schema = EntitySchema::build(kind);
             assert!(schema.field(MAL_ID).is_some());
             assert!(schema.field(PAYLOAD).is_some());
@@ -1040,8 +997,11 @@ mod tests {
 
     #[test]
     fn kind_names_roundtrip() {
-        for kind in EntityKind::ALL {
-            assert_eq!(EntityKind::parse(kind.as_str()), Some(kind));
+        for kind in EntityKind::SEARCHABLE {
+            assert_eq!(
+                EntityKind::from_index_dir(kind.index_dir().unwrap()),
+                Some(kind)
+            );
         }
     }
 

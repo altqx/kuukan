@@ -14,9 +14,9 @@
 //!   `TypeSenseScoutSearchService` + `MediaFilters` + `FilterQueryString`.
 //! - [`pipeline`]: [`pipeline::IndexPipeline`] batching helper.
 //!
-//! TODO(coordinator): `EntityKind` is defined here because `kuukan-core` is
-//! still empty. If a workspace-wide entity kind is introduced, re-export or
-//! move this enum there.
+//! [`schema::EntityKind`] is `kuukan_core::EntityKind`, re-exported: the
+//! workspace shares one entity vocabulary, and this crate adds only the
+//! per-kind indexing facts ([`schema::EntityKindSchema`]).
 
 pub mod error;
 pub mod index;

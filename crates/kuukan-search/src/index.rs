@@ -15,7 +15,7 @@ use serde_json::Value;
 use tantivy::schema::TantivyDocument;
 use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy, Searcher, Term};
 
-use crate::error::Result;
+use crate::error::{Result, SearchError};
 use crate::schema::{build_document, read_mal_id, EntityKind, EntitySchema};
 
 /// Memory budget for each indexer (one thread per kind).
@@ -43,7 +43,9 @@ struct KindIndex {
 
 impl KindIndex {
     fn open(root: &Path, kind: EntityKind) -> Result<KindIndex> {
-        let dir = root.join(kind.as_str());
+        // The sub-index directory is `index_dir`, not `as_str`: those differ
+        // for six kinds and the directories already exist on disk.
+        let dir = root.join(kind.index_dir().ok_or(SearchError::NotSearchable(kind))?);
         fs::create_dir_all(&dir)?;
 
         let schema = EntitySchema::build(kind);
@@ -113,7 +115,7 @@ fn open_or_create(dir: &Path, schema: &EntitySchema) -> Result<Index> {
     }
 
     tracing::warn!(
-        kind = schema.kind().as_str(),
+        kind = schema.kind().index_dir().unwrap_or_else(|| schema.kind().as_str()),
         path = %dir.display(),
         "search index schema changed, recreating it"
     );
@@ -129,8 +131,8 @@ impl SearchIndex {
         let root = root.as_ref().to_path_buf();
         fs::create_dir_all(&root)?;
 
-        let mut kinds = HashMap::with_capacity(EntityKind::ALL.len());
-        for kind in EntityKind::ALL {
+        let mut kinds = HashMap::with_capacity(EntityKind::SEARCHABLE.len());
+        for kind in EntityKind::SEARCHABLE {
             kinds.insert(kind, KindIndex::open(&root, kind)?);
         }
 
@@ -145,7 +147,7 @@ impl SearchIndex {
     fn kind_index(&self, kind: EntityKind) -> Result<&KindIndex> {
         self.kinds
             .get(&kind)
-            .ok_or_else(|| crate::error::SearchError::UnknownKind(kind.as_str().to_owned()))
+            .ok_or(crate::error::SearchError::NotSearchable(kind))
     }
 
     /// Schema of a kind.
@@ -222,7 +224,7 @@ impl SearchIndex {
 
     /// Commit pending operations of every kind.
     pub fn commit(&self) -> Result<()> {
-        for kind in EntityKind::ALL {
+        for kind in EntityKind::SEARCHABLE {
             self.kind_index(kind)?.commit()?;
         }
         Ok(())

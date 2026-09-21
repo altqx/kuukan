@@ -119,30 +119,15 @@ where
 /// synchronous indexing on model save. Failures are logged, not fatal: search
 /// availability must not break the entity endpoint.
 fn index_entity(state: &AppState, kind: EntityKind, payload: &Value) {
-    let Some(search_kind) = search_kind(kind) else {
+    if !kind.is_searchable() {
         return;
-    };
-    if let Err(err) = state.pipeline.index_payload(search_kind, payload) {
+    }
+    if let Err(err) = state.pipeline.index_payload(kind, payload) {
         tracing::warn!(
-            kind = ?kind,
+            kind = %kind,
             error = %err,
             "failed to index entity for search"
         );
-    }
-}
-
-fn search_kind(kind: EntityKind) -> Option<kuukan_search::EntityKind> {
-    use kuukan_search::EntityKind as SearchKind;
-    match kind {
-        EntityKind::Anime => Some(SearchKind::Anime),
-        EntityKind::Manga => Some(SearchKind::Manga),
-        EntityKind::Character => Some(SearchKind::Character),
-        EntityKind::Person => Some(SearchKind::Person),
-        EntityKind::User => Some(SearchKind::User),
-        EntityKind::Club => Some(SearchKind::Club),
-        EntityKind::Producer => Some(SearchKind::Producer),
-        EntityKind::Magazine => Some(SearchKind::Magazine),
-        EntityKind::GenreAnime | EntityKind::GenreManga | EntityKind::Episode => None,
     }
 }
 

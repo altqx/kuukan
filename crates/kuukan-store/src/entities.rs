@@ -12,120 +12,17 @@
 //! documents as well, because jikan-rest's `DefaultCachedScraperService`
 //! decides when to re-scrape (and can serve stale data while MAL is down).
 
-use std::str::FromStr;
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::SqliteConnection;
 
 use crate::db::{now_unix, Store, StoreError};
 
-/// The kind of an entity, matching the MongoDB collections of jikan-rest.
-///
-/// The serde representation is the snake_case string used in the `kind`
-/// column: `anime`, `manga`, `character`, `person`, `user`, `club`,
-/// `producer`, `magazine`, `genre_anime`, `genre_manga`, `episode`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum EntityKind {
-    Anime,
-    Manga,
-    Character,
-    Person,
-    User,
-    Club,
-    Producer,
-    Magazine,
-    GenreAnime,
-    GenreManga,
-    Episode,
-}
+pub use kuukan_core::EntityKind;
 
-impl EntityKind {
-    /// Every kind, in declaration order.
-    pub const ALL: [EntityKind; 11] = [
-        EntityKind::Anime,
-        EntityKind::Manga,
-        EntityKind::Character,
-        EntityKind::Person,
-        EntityKind::User,
-        EntityKind::Club,
-        EntityKind::Producer,
-        EntityKind::Magazine,
-        EntityKind::GenreAnime,
-        EntityKind::GenreManga,
-        EntityKind::Episode,
-    ];
-
-    /// The canonical string value stored in the `kind` column.
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            EntityKind::Anime => "anime",
-            EntityKind::Manga => "manga",
-            EntityKind::Character => "character",
-            EntityKind::Person => "person",
-            EntityKind::User => "user",
-            EntityKind::Club => "club",
-            EntityKind::Producer => "producer",
-            EntityKind::Magazine => "magazine",
-            EntityKind::GenreAnime => "genre_anime",
-            EntityKind::GenreManga => "genre_manga",
-            EntityKind::Episode => "episode",
-        }
-    }
-
-    /// Parse a canonical kind string or a historical jikan-rest collection
-    /// name.
-    ///
-    /// [`FromStr`] accepts only the canonical values (the serde contract).
-    /// `from_dump_key` additionally accepts the MongoDB collection names used
-    /// before the SQLite rewrite (`characters`, `people`, `clubs`,
-    /// `producers`, `magazines`, `genres_anime`, `genres_manga`,
-    /// `anime_episode`), which makes Mongo-derived JSON dumps importable.
-    pub fn from_dump_key(key: &str) -> Option<Self> {
-        let normalized = key.trim().to_ascii_lowercase();
-        if let Ok(kind) = normalized.parse::<EntityKind>() {
-            return Some(kind);
-        }
-        match normalized.as_str() {
-            "characters" => Some(EntityKind::Character),
-            "people" => Some(EntityKind::Person),
-            "users" | "profiles" => Some(EntityKind::User),
-            "clubs" => Some(EntityKind::Club),
-            "producers" => Some(EntityKind::Producer),
-            "magazines" => Some(EntityKind::Magazine),
-            "genres_anime" => Some(EntityKind::GenreAnime),
-            "genres_manga" => Some(EntityKind::GenreManga),
-            "anime_episode" | "anime_episodes" | "episodes" => Some(EntityKind::Episode),
-            _ => None,
-        }
-    }
-}
-
-impl std::fmt::Display for EntityKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for EntityKind {
-    type Err = StoreError;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "anime" => Ok(EntityKind::Anime),
-            "manga" => Ok(EntityKind::Manga),
-            "character" => Ok(EntityKind::Character),
-            "person" => Ok(EntityKind::Person),
-            "user" => Ok(EntityKind::User),
-            "club" => Ok(EntityKind::Club),
-            "producer" => Ok(EntityKind::Producer),
-            "magazine" => Ok(EntityKind::Magazine),
-            "genre_anime" => Ok(EntityKind::GenreAnime),
-            "genre_manga" => Ok(EntityKind::GenreManga),
-            "episode" => Ok(EntityKind::Episode),
-            other => Err(StoreError::InvalidKind(other.to_string())),
-        }
+impl From<kuukan_core::InvalidEntityKind> for StoreError {
+    fn from(err: kuukan_core::InvalidEntityKind) -> Self {
+        StoreError::InvalidKind(err.0)
     }
 }
 

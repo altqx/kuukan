@@ -21,6 +21,10 @@ pub enum SearchError {
     #[error("unknown entity kind: {0}")]
     UnknownKind(String),
 
+    /// The entity kind carries no search sub-index.
+    #[error("entity kind is not searchable: {0}")]
+    NotSearchable(kuukan_core::EntityKind),
+
     /// A payload can not be turned into an index document.
     #[error("invalid payload: {0}")]
     InvalidPayload(String),
