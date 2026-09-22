@@ -1,7 +1,7 @@
 name: Release
 
 # Triggered by pushing a version tag, e.g.:
-#   git tag v0.1.0 && git push origin v0.1.0
+#   git tag v0.2.0 && git push origin v0.2.0
 # Builds the Linux binary, attaches it (plus the compose file) to a GitHub
 # release, and lets the Docker workflow publish the matching GHCR image.
 on:
@@ -81,9 +81,10 @@ jobs:
           the Jikan REST v4 API under \`/v1\`, with SQLite (WAL) for storage and
           Tantivy for full-text search. No MongoDB, Redis or Typesense.
 
-          Feature-complete port of Jikan REST v4.2.2 and jikan-php v4.0.12, verified
-          against **270 recorded responses from a real jikan-rest v4.2.2 instance**
-          (266 exact matches, 4 documented divergences).
+          Feature-complete port of Jikan REST v4.2.2 and jikan-php v4.0.12. Responses
+          are a superset of Jikan's: same routes, parameters, status codes and error
+          envelopes, with a few added fields. See "Differences from Jikan" in the
+          README.
 
           ### Container (linux/amd64, linux/arm64)
 

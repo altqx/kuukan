@@ -77,12 +77,12 @@ Multi-arch images (`linux/amd64`, `linux/arm64`) are published to
 
 | Tag | Published from |
 |---|---|
-| `0.1.0`, `0.1`, `latest` | `v*` release tags |
+| `0.2.0`, `0.2`, `latest` | `v*` release tags |
 | `edge` | every push to `main` |
 | `sha-<short>` | every image build |
 
 ```bash
-docker run -d --name kuukan -p 8080:8080 -v kuukan-data:/app/data ghcr.io/altqx/kuukan:0.1.0
+docker run -d --name kuukan -p 8080:8080 -v kuukan-data:/app/data ghcr.io/altqx/kuukan:0.2.0
 ```
 
 Or with Compose, which pulls the published image by default and falls back to

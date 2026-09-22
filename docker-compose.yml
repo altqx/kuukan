@@ -1,6 +1,6 @@
 # Kuukan - a single-binary Jikan REST API v4 replacement.
 #
-#   docker compose up -d            # pulls ghcr.io/altqx/kuukan:${KUUKAN_TAG:-0.1.0}
+#   docker compose up -d            # pulls ghcr.io/altqx/kuukan:${KUUKAN_TAG:-0.2.0}
 #   docker compose up -d --build    # builds the image from this checkout instead
 #   KUUKAN_TAG=edge docker compose up -d   # track the main branch image
 #
@@ -10,7 +10,7 @@ name: kuukan
 
 services:
   kuukan:
-    image: ghcr.io/altqx/kuukan:${KUUKAN_TAG:-0.1.0}
+    image: ghcr.io/altqx/kuukan:${KUUKAN_TAG:-0.2.0}
     build:
       context: .
     ports:

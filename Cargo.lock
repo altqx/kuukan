@@ -1669,7 +1669,7 @@ dependencies = [
 
 [[package]]
 name = "kuukan-api"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "axum",
  "bytes",
@@ -1692,7 +1692,7 @@ dependencies = [
 
 [[package]]
 name = "kuukan-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1713,7 +1713,7 @@ dependencies = [
 
 [[package]]
 name = "kuukan-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "serde",
@@ -1724,7 +1724,7 @@ dependencies = [
 
 [[package]]
 name = "kuukan-mal"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1750,7 +1750,7 @@ dependencies = [
 
 [[package]]
 name = "kuukan-search"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "kuukan-core",
@@ -1765,7 +1765,7 @@ dependencies = [
 
 [[package]]
 name = "kuukan-store"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "futures",
