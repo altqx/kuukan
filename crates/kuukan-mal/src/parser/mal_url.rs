@@ -1,9 +1,7 @@
-//! MAL URL helpers: `MalUrl` model, `MalUrlParser`, `MalUrlExtractor` and the
-//! URL-id helpers from `Jikan\Helper\Parser`.
+//! MAL URL helpers: the `MalUrl` model, `MalUrlParser` and the URL-id helpers.
 //!
-//! JSON mappings mirror `App\Providers\SerializerFactory::convertMalUrl()`
-//! (`{mal_id, type, name, url}`) and its v2 variant
-//! (`{mal_id, type, title, name, url}`).
+//! A `MalUrl` serializes to `{mal_id, type, name, url}`, which is the shape the
+//! API resources embed wherever one entity links to another.
 
 use regex::Regex;
 use serde_json::{json, Value};
@@ -18,12 +16,6 @@ pub const BASE_URL: &str = "https://myanimelist.net";
 
 /// `Constants::CDN_URL`.
 pub const CDN_URL: &str = "https://cdn.myanimelist.net";
-
-/// `MalUrlExtractor::TYPE_ANIME`.
-pub const TYPE_ANIME: &str = "anime";
-
-/// `MalUrlExtractor::TYPE_MANGA`.
-pub const TYPE_MANGA: &str = "manga";
 
 /// `Parser::idFromUrl()`.
 pub(crate) fn id_from_url(url: &str) -> i64 {
@@ -92,17 +84,6 @@ impl MalUrl {
             "url": self.url(),
         })
     }
-
-    /// v2 payload: `{mal_id, type, title, name, url}`.
-    fn to_json_v2(&self) -> Value {
-        json!({
-            "mal_id": self.mal_id(),
-            "type": self.r#type(),
-            "title": self.title(),
-            "name": self.name(),
-            "url": self.url(),
-        })
-    }
 }
 
 impl std::fmt::Display for MalUrl {
@@ -142,73 +123,6 @@ impl MalUrlParser {
             format!("{BASE_URL}{href}"),
         ))
     }
-}
-
-/// `Jikan\Helper\MalUrlExtractor`.
-///
-/// Wraps an owned document/node (PHP clones the crawler) so the image-link
-/// removal does not affect the caller's selection.
-pub struct MalUrlExtractor {
-    node: HtmlNode,
-    kind: String,
-    image_links: bool,
-}
-
-impl MalUrlExtractor {
-    /// Construct from a whole document.
-    pub(crate) fn new(
-        doc: crate::parser::helper::HtmlDoc,
-        kind: impl Into<String>,
-        image_links: bool,
-    ) -> Self {
-        MalUrlExtractor {
-            node: doc.root(),
-            kind: kind.into(),
-            image_links,
-        }
-    }
-
-    /// Construct from a sub-selection node (PHP passes a filtered `Crawler`).
-    fn from_node(node: HtmlNode, kind: impl Into<String>, image_links: bool) -> Self {
-        MalUrlExtractor {
-            node,
-            kind: kind.into(),
-            image_links,
-        }
-    }
-
-    /// `MalUrlExtractor::getMalUrls()`.
-    fn mal_urls(&self) -> Result<Vec<MalUrl>, ParseError> {
-        if !self.image_links {
-            // Remove the nearest element ancestor of every `<a><img ...></a>`
-            // (PHP: `$c->ancestors()->first()` then `parentNode->removeChild`).
-            for img in self.node.nodes("//a/img")? {
-                if let Some(parent) = nearest_element_ancestor(&img) {
-                    unsafe {
-                        libxml::bindings::xmlUnlinkNode(parent.node().node_ptr());
-                    }
-                }
-            }
-        }
-
-        let xpath = format!("//a[contains(@href, \"{}/{}\")]", BASE_URL, self.kind);
-        let mut out = Vec::new();
-        for anchor in self.node.nodes(&xpath)? {
-            out.push(MalUrlParser::new(anchor).get_model()?);
-        }
-        Ok(out)
-    }
-}
-
-fn nearest_element_ancestor(node: &HtmlNode) -> Option<HtmlNode> {
-    let mut current = node.node().get_parent();
-    while let Some(parent) = current {
-        if parent.is_element_node() {
-            return Some(HtmlNode::new(node.document().clone(), parent));
-        }
-        current = parent.get_parent();
-    }
-    None
 }
 
 /// PHP `(int) $string`: leading whitespace and sign, then digits; anything
@@ -372,62 +286,7 @@ mod tests {
                 "url": "https://myanimelist.net/anime/1/Cowboy_Bebop"
             })
         );
-        assert_eq!(
-            mal.to_json_v2(),
-            json!({
-                "mal_id": 1,
-                "type": "anime",
-                "title": "Cowboy Bebop",
-                "name": "Cowboy Bebop",
-                "url": "https://myanimelist.net/anime/1/Cowboy_Bebop"
-            })
-        );
         assert_eq!(mal.to_string(), "Cowboy Bebop");
-    }
-
-    #[test]
-    fn extractor_removes_image_links() {
-        let doc = HtmlDoc::parse_str(
-            r#"
-            <div>
-              <a href="https://myanimelist.net/anime/1/Cowboy_Bebop"><img src="x.jpg"/></a>
-              <a href="https://myanimelist.net/anime/2/Trigun">Trigun</a>
-              <a href="https://myanimelist.net/manga/3/Berserk">Berserk</a>
-            </div>
-            "#,
-        )
-        .unwrap();
-
-        // image links kept when requested
-        let with_images = MalUrlExtractor::new(doc.clone(), TYPE_ANIME, true)
-            .mal_urls()
-            .unwrap();
-        assert_eq!(with_images.len(), 2);
-
-        // image links removed by default
-        let extractor = MalUrlExtractor::new(doc, TYPE_ANIME, false);
-        let urls = extractor.mal_urls().unwrap();
-        assert_eq!(urls.len(), 1);
-        assert_eq!(urls[0].name(), "Trigun");
-        assert_eq!(urls[0].mal_id(), 2);
-        assert_eq!(urls[0].r#type(), "anime");
-    }
-
-    #[test]
-    fn extractor_from_sub_node() {
-        let doc = HtmlDoc::parse_str(
-            r#"
-            <div id="a"><a href="https://myanimelist.net/anime/1/A">A</a></div>
-            <div id="b"><a href="https://myanimelist.net/anime/2/B">B</a></div>
-            "#,
-        )
-        .unwrap();
-        let node = doc.first("//div[@id='b']").unwrap().unwrap();
-        let urls = MalUrlExtractor::from_node(node, TYPE_ANIME, false)
-            .mal_urls()
-            .unwrap();
-        assert_eq!(urls.len(), 1);
-        assert_eq!(urls[0].name(), "B");
     }
 
     #[test]

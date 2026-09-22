@@ -76,17 +76,6 @@ impl<'a> RecentRecommendationsParser<'a> {
         Ok(out)
     }
 
-    /// `RecentRecommendationsParser::getUserRecommendations()`.
-    fn get_user_recommendations(&self) -> Result<Vec<Value>, ParseError> {
-        let mut out = Vec::new();
-        for node in self.doc.nodes(
-            "//*[@id=\"content\"]/div/div[2]/div/div[2]/div[contains(@class, \"spaceit borderClass\")]",
-        )? {
-            out.push(RecommendationListItemParser::new(&node).get_model()?);
-        }
-        Ok(out)
-    }
-
     /// `RecentRecommendationsParser::hasNextPage()`.
     fn has_next_page(&self) -> Result<bool, ParseError> {
         let Some(text) = self.doc.text("//*[@id=\"horiznav_nav\"]/div/span")? else {

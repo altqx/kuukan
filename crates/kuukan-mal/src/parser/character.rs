@@ -8,7 +8,6 @@
 use serde_json::{json, Value};
 
 use crate::error::ParseError;
-use crate::parser::common::mal_url;
 use crate::parser::helper::{HtmlDoc, HtmlNode};
 use crate::parser::jstring::{cleanse, utf8_nbsp_trim};
 use crate::parser::mal_url::id_from_url;
@@ -435,19 +434,6 @@ impl VoiceActorParser {
             .unwrap_or_default())
     }
 
-    /// `VoiceActorParser::getPerson()` (`MalUrl` of the name anchor).
-    fn person(&self) -> Result<Value, ParseError> {
-        let Some(anchor) = self.person_anchor()? else {
-            return Ok(json!({
-                "mal_id": 0,
-                "type": "",
-                "name": "",
-                "url": "",
-            }));
-        };
-        mal_url(&anchor)
-    }
-
     /// `VoiceActorParser::getPersonMeta()`.
     fn person_meta(&self) -> Result<Value, ParseError> {
         Ok(person_meta(
@@ -495,11 +481,6 @@ impl CharacterListItemParser {
         self.node.attr("//td[2]/div[3]/a", "href")
     }
 
-    /// `CharacterListItemParser::getMalId()`.
-    pub(crate) fn mal_id(&self) -> Result<i64, ParseError> {
-        Ok(id_from_url(&self.character_url()?.unwrap_or_default()))
-    }
-
     /// `CharacterListItemParser::getName()`.
     pub(crate) fn name(&self) -> Result<Option<String>, ParseError> {
         self.node
@@ -523,23 +504,6 @@ impl CharacterListItemParser {
             .unwrap_or_default())
     }
 
-    /// `CharacterListItemParser::getFavorites()`.
-    fn favorites(&self) -> Result<i64, ParseError> {
-        Ok(self
-            .node
-            .text("//td[2]/div[5]")?
-            .map(|text| php_int_prefix(&text.replace(',', "")))
-            .unwrap_or(0))
-    }
-
-    /// `CharacterListItemParser::getVoiceActors()`.
-    fn voice_actors(&self) -> Result<Vec<Value>, ParseError> {
-        let rows = self.node.nodes("//table[2]/tr")?;
-        rows.iter()
-            .map(|row| VoiceActorParser::new(row.clone()).model())
-            .collect()
-    }
-
     /// `CharacterListItemParser::getCharacterMeta()`.
     pub(crate) fn character_meta(&self) -> Result<Value, ParseError> {
         Ok(character_meta(
@@ -547,16 +511,6 @@ impl CharacterListItemParser {
             &self.character_url()?.unwrap_or_default(),
             self.image()?.as_deref(),
         ))
-    }
-
-    /// `CharacterListItemParser::getModel()` (anime/character listing shape).
-    pub(crate) fn model(&self) -> Result<Value, ParseError> {
-        Ok(json!({
-            "character": self.character_meta()?,
-            "role": self.role()?,
-            "favorites": self.favorites()?,
-            "voice_actors": self.voice_actors()?,
-        }))
     }
 }
 
@@ -567,28 +521,4 @@ impl CharacterListItemParser {
 /// `preg_replace('/\D/', '', $input)`.
 fn digits_only(input: &str) -> String {
     input.chars().filter(char::is_ascii_digit).collect()
-}
-
-/// PHP `(int)` cast on a string: leading whitespace/sign, then digits.
-fn php_int_prefix(input: &str) -> i64 {
-    let trimmed = input.trim_start();
-    let bytes = trimmed.as_bytes();
-    let mut i = 0;
-    let negative = if i < bytes.len() && (bytes[i] == b'+' || bytes[i] == b'-') {
-        let negative = bytes[i] == b'-';
-        i += 1;
-        negative
-    } else {
-        false
-    };
-    let start = i;
-    while i < bytes.len() && bytes[i].is_ascii_digit() {
-        i += 1;
-    }
-    let value: i64 = trimmed[start..i].parse().unwrap_or(0);
-    if negative {
-        -value
-    } else {
-        value
-    }
 }

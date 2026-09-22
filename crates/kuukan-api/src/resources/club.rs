@@ -29,6 +29,7 @@ pub fn club(payload: &Value) -> Value {
         "images": get(payload, "images"),
         "name": get(payload, "name"),
         "members": get(payload, "members"),
+        "pictures": get(payload, "pictures"),
         "category": get(payload, "category"),
         "created": get(payload, "created"),
         "access": get(payload, "access"),
@@ -124,7 +125,8 @@ mod tests {
         assert_object_keys(
             &mapped,
             &[
-                "mal_id", "url", "images", "name", "members", "category", "created", "access",
+                "mal_id", "url", "images", "name", "members", "pictures", "category", "created",
+                "access",
             ],
         );
         assert_eq!(mapped["mal_id"], json!(222057));
@@ -154,6 +156,7 @@ mod tests {
                 "images": null,
                 "name": null,
                 "members": null,
+                "pictures": null,
                 "category": null,
                 "created": null,
                 "access": null,
@@ -199,7 +202,8 @@ mod tests {
         assert_object_keys(
             &mapped[0],
             &[
-                "mal_id", "url", "images", "name", "members", "category", "created", "access",
+                "mal_id", "url", "images", "name", "members", "pictures", "category", "created",
+                "access",
             ],
         );
     }

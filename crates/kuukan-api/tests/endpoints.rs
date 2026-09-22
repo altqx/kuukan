@@ -356,3 +356,84 @@ async fn endpoints_keep_their_per_endpoint_ttl() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(header(&headers, "cache-control"), Some("no-cache, private"));
 }
+
+/// The fields revived from dead parser code have to reach the wire, not just
+/// the mapper. Seed a stored document and read the rendered response.
+#[tokio::test]
+async fn revived_fields_reach_the_response() {
+    use kuukan_api::endpoint::fingerprint;
+
+    let harness = Harness::new(RecordedSource::new()).await;
+
+    // /anime/{id}/episodes/{ep}: forum_url, which jikan-php dropped.
+    harness
+        .state
+        .store
+        .put_cache(
+            &fingerprint("anime", "/v1/anime/1/episodes/1"),
+            serde_json::json!({
+                "mal_id": 1,
+                "title": "Episode 1",
+                "forum_url": "https://myanimelist.net/forum/?topicid=1"
+            }),
+            Some(86_400),
+            false,
+        )
+        .await
+        .expect("seed episode");
+
+    let (status, _, body) = harness.get("/v1/anime/1/episodes/1").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        body["data"]["forum_url"],
+        "https://myanimelist.net/forum/?topicid=1"
+    );
+
+    // /clubs/{id}: the pictures count MAL shows beside members.
+    harness
+        .state
+        .store
+        .upsert_entity(
+            StoredEntity::new(
+                EntityKind::Club,
+                1,
+                serde_json::json!({ "mal_id": 1, "members": 10, "pictures": 4 }),
+            ),
+            Some(86_400),
+        )
+        .await
+        .expect("seed club");
+
+    let (status, _, body) = harness.get("/v1/clubs/1").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["data"]["pictures"], 4);
+    assert_eq!(body["data"]["members"], 10);
+
+    // /anime/{id}/reviews: the per-category score breakdown.
+    harness
+        .state
+        .store
+        .put_cache(
+            &fingerprint("anime", "/v1/anime/1/reviews"),
+            serde_json::json!({
+                "results": [{
+                    "mal_id": 7,
+                    "scores": {
+                        "overall": 9, "story": 8, "art": 10,
+                        "character": 7, "enjoyment": 9
+                    }
+                }],
+                "has_next_page": false,
+                "last_visible_page": 1
+            }),
+            Some(86_400),
+            false,
+        )
+        .await
+        .expect("seed reviews");
+
+    let (status, _, body) = harness.get("/v1/anime/1/reviews").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["data"][0]["scores"]["overall"], 9);
+    assert_eq!(body["data"][0]["scores"]["art"], 10);
+}

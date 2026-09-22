@@ -1141,15 +1141,6 @@ impl EpisodeListItemParser {
         Ok(php_int(&text))
     }
 
-    /// `EpisodeListItemParser::getEpisodeUrl()`.
-    fn get_episode_url(&self) -> PResult<String> {
-        required_node_attr(
-            &self.node,
-            "//td[contains(@class,\"episode-title\")]/a",
-            "href",
-        )
-    }
-
     /// `EpisodeListItemParser::getTitle()`.
     fn get_title(&self) -> PResult<String> {
         required_text_node(&self.node, "//td[contains(@class, \"episode-title\")]/a")
@@ -1359,7 +1350,7 @@ impl AnimeEpisodeParser {
         Ok(node.node_text().trim() == "Recap")
     }
 
-    /// `AnimeEpisodeParser::getForumUrl()`.
+    /// The episode's discussion thread, when MAL links one.
     fn get_forum_url(&self) -> PResult<Option<String>> {
         Ok(self
             .doc
@@ -1408,6 +1399,7 @@ impl AnimeEpisodeParser {
             "aired": self.get_aired()?.as_ref().map(date::format_atom),
             "filler": self.get_filler()?,
             "recap": self.get_recap()?,
+            "forum_url": self.get_forum_url()?,
             "synopsis": self.get_synopsis()?,
         }))
     }
@@ -1672,11 +1664,6 @@ impl PromoListItemParser {
         required_text_node(&self.node, "//a/div/span")
     }
 
-    /// `PromoListItemParser::getImageUrl()`.
-    fn get_image_url(&self) -> PResult<String> {
-        required_node_attr(&self.node, "//a/img", "data-src")
-    }
-
     /// `PromoListItemParser::getVideoUrl()`.
     fn get_video_url(&self) -> PResult<String> {
         required_node_attr(&self.node, "//a", "href")
@@ -1895,11 +1882,6 @@ impl CharacterListItemParser {
         required_node_attr(&self.node, "//td[2]/div[3]/a", "href")
     }
 
-    /// `CharacterListItemParser::getMalId()`.
-    fn get_mal_id(&self) -> PResult<i64> {
-        Ok(id_from_url(&self.get_character_url()?))
-    }
-
     /// `CharacterListItemParser::getName()`.
     fn get_name(&self) -> PResult<String> {
         required_text_node(&self.node, "//h3[contains(@class, \"h3_character_name\")]")
@@ -1981,11 +1963,6 @@ impl VoiceActorParser {
         required_node_attr(&self.node, "//a", "href")
     }
 
-    /// `VoiceActorParser::getMalId()`.
-    fn get_mal_id(&self) -> PResult<i64> {
-        Ok(id_from_url(&self.get_url()?))
-    }
-
     /// `VoiceActorParser::getImage()`.
     fn get_image(&self) -> PResult<String> {
         let image = self
@@ -2052,11 +2029,6 @@ impl MoreInfoParser {
         } else {
             Ok(Some(more_info))
         }
-    }
-
-    /// `AnimeMoreInfo::fromParser($parser)` serialized by JMS.
-    pub(crate) fn get_model(&self) -> PResult<Value> {
-        Ok(json!({ "more_info": self.get_more_info()? }))
     }
 }
 

@@ -5,26 +5,10 @@ use serde_json::{json, Value};
 use std::sync::OnceLock;
 
 use crate::error::ParseError;
-use crate::parser::character::{
-    anime_meta, character_meta, manga_meta, person_image_resource, user_image_resource,
-};
+use crate::parser::character::{anime_meta, character_meta, manga_meta, person_image_resource};
 use crate::parser::date::{format_atom, parse_date_mdy_readable};
 use crate::parser::helper::{HtmlDoc, HtmlNode};
 use crate::parser::jstring::{cleanse, utf8_nbsp_trim};
-
-/// `Jikan\Model\Common\UserMetaBasic` (`{url, username}`).
-pub(crate) fn user_meta_basic(username: &str, url: &str) -> Value {
-    json!({ "url": url, "username": username })
-}
-
-/// `Jikan\Model\Common\UserMeta` (`{username, url, images}`).
-pub(crate) fn user_meta(username: &str, url: &str, image_url: Option<&str>) -> Value {
-    json!({
-        "username": username,
-        "url": url,
-        "images": user_image_resource(image_url),
-    })
-}
 
 fn person_id_from_url(url: &str) -> i64 {
     // PersonParser::getPersonId(): '#https?://myanimelist.net/people/(\d+)#'
@@ -440,6 +424,7 @@ fn php_int_prefix(input: &str) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parser::character::user_image_resource;
 
     #[test]
     fn php_int_prefix_matches_php_cast() {

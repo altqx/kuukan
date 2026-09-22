@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 
 use crate::error::ParseError;
 use crate::parser::helper::{HtmlDoc, HtmlNode};
-use crate::parser::mal_url::{id_from_url, suffix_id_from_url, BASE_URL};
+use crate::parser::mal_url::{id_from_url, suffix_id_from_url};
 use crate::parser::media_url::{parse_image_quality, youtube_id_from_url};
 
 /// `CommonImageResource::factory()`.
@@ -108,11 +108,6 @@ impl<'a> EpisodeListItemParser<'a> {
         }))
     }
 
-    /// `EpisodeListItemParser::getId()`.
-    pub(crate) fn get_id(&self) -> Result<i64, ParseError> {
-        Ok(id_from_url(&self.get_url()?))
-    }
-
     /// `EpisodeListItemParser::getUrl()`.
     pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         Ok(self
@@ -136,11 +131,6 @@ impl<'a> EpisodeListItemParser<'a> {
             .attr("//div[contains(@class, \"video-list\")]/img", "data-src")?
             .unwrap_or_default();
         Ok(parse_image_quality(&src))
-    }
-
-    /// `EpisodeListItemParser::getImages()`.
-    fn get_images(&self) -> Result<String, ParseError> {
-        self.get_image_url()
     }
 
     /// `EpisodeListItemParser::getEpisodes()`.
@@ -251,11 +241,6 @@ impl<'a> PromotionalVideoListItemParser<'a> {
         }))
     }
 
-    /// `PromotionalVideoListItemParser::getId()`.
-    pub(crate) fn get_id(&self) -> Result<i64, ParseError> {
-        Ok(id_from_url(&self.get_url()?))
-    }
-
     /// `PromotionalVideoListItemParser::getUrl()`.
     pub(crate) fn get_url(&self) -> Result<String, ParseError> {
         Ok(self
@@ -302,16 +287,6 @@ impl<'a> PromotionalVideoListItemParser<'a> {
                 "//div[contains(@class, \"video-list\")]/a/div[contains(@class, \"info-container\")]/span",
             )?
             .unwrap_or_default())
-    }
-}
-
-/// The watch pages sometimes carry relative entry hrefs; keep the PHP
-/// `Constants::BASE_URL` prefix helper around for callers that need it.
-pub(crate) fn absolute_url(href: &str) -> String {
-    if href.starts_with("http") {
-        href.to_string()
-    } else {
-        format!("{BASE_URL}{href}")
     }
 }
 

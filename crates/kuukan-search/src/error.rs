@@ -17,10 +17,6 @@ pub enum SearchError {
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
 
-    /// The entity kind name has no known schema.
-    #[error("unknown entity kind: {0}")]
-    UnknownKind(String),
-
     /// The entity kind carries no search sub-index.
     #[error("entity kind is not searchable: {0}")]
     NotSearchable(kuukan_core::EntityKind),

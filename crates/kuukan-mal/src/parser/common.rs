@@ -52,17 +52,12 @@ use crate::error::ParseError;
 use crate::parser::date::format_atom;
 use crate::parser::helper::{HtmlDoc, HtmlNode};
 use crate::parser::jstring::cleanse;
-use crate::parser::mal_url::{id_from_url, MalUrl, MalUrlParser, BASE_URL};
+use crate::parser::mal_url::{id_from_url, MalUrlParser, BASE_URL};
 use crate::parser::media_url::parse_image_quality;
 
 // ---------------------------------------------------------------------------
 // MalUrlParser / UrlParser
 // ---------------------------------------------------------------------------
-
-/// `MalUrlParser::parseId()`: first `/(\d+)` group in the URL, `0` when absent.
-pub(crate) fn parse_mal_id(url: &str) -> i64 {
-    MalUrlParser::parse_id(url)
-}
 
 /// `(new MalUrlParser($node))->getModel()` as JSON: `{mal_id, type, name, url}`.
 ///
@@ -70,23 +65,6 @@ pub(crate) fn parse_mal_id(url: &str) -> i64 {
 /// URL) and the name goes through `JString::cleanse`.
 pub(crate) fn mal_url(node: &HtmlNode) -> Result<Value, ParseError> {
     Ok(MalUrlParser::new(node.clone()).get_model()?.to_json())
-}
-
-/// Build a `MalUrl` JSON object from an href/text pair without a DOM node.
-///
-/// Mirrors `MalUrlParser::getModel()`: the MAL base URL is stripped and
-/// re-prepended (so relative hrefs become absolute) and `text` is cleansed.
-/// `kind` overrides the `type` field (which is otherwise derived from the URL
-/// by `MalUrl::getType()`), for callers whose href does not match
-/// `https://myanimelist.net/<type>/...`.
-pub(crate) fn mal_url_from_parts(href: &str, text: &str, kind: Option<&str>) -> Value {
-    let href = href.replace(BASE_URL, "");
-    let url = format!("{BASE_URL}{href}");
-    let mut value = MalUrl::new(cleanse(text), url).to_json();
-    if let Some(kind) = kind {
-        value["type"] = Value::String(kind.to_string());
-    }
-    value
 }
 
 /// `(new UrlParser($node))->getModel()` as JSON: `{name, url}`.
@@ -146,17 +124,6 @@ fn alternative_title_entries(text: &str) -> Vec<Value> {
 // PictureParser / PicturesPageParser / DefaultPicturesPageParser
 // ---------------------------------------------------------------------------
 
-/// `(new PictureParser($node))->getModel()` as JSON:
-/// `{image_url, large_image_url}` (`image_url` is the `data-src` thumbnail,
-/// `large_image_url` the `<a href>`).
-pub(crate) fn picture(node: &HtmlNode) -> Result<Value, ParseError> {
-    let (image_url, large_image_url) = picture_urls(node)?;
-    Ok(json!({
-        "image_url": image_url,
-        "large_image_url": large_image_url,
-    }))
-}
-
 /// `PicturesPageParser::getModel()`: every `a.js-picture-gallery` as a
 /// `CommonImageResource` built from its `data-src` thumbnail.
 pub(crate) fn pictures_page(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
@@ -194,45 +161,6 @@ fn picture_urls(node: &HtmlNode) -> Result<(String, String), ParseError> {
 // ---------------------------------------------------------------------------
 // ItemMetaParser
 // ---------------------------------------------------------------------------
-
-/// `ItemMetaParser` getters as the `Jikan\Model\Common\ItemMeta` JSON:
-/// `{mal_id, url, image_url, name}`.
-///
-/// The getters are declared `?string`, so a missing `<a>`/`<img>` stays `null`
-/// (the concrete PHP model would raise a `TypeError`, the closest analogue of
-/// which is a null in Kuukan's dynamic payload).
-pub(crate) fn item_meta(node: &HtmlNode) -> Result<Value, ParseError> {
-    let url = node
-        .first("//a")?
-        .and_then(|anchor| anchor.node_attr("href"));
-    let name = node.first("//a")?.map(|anchor| anchor.node_text());
-    let image = node
-        .first("//img")?
-        .and_then(|image| image.node_attr("data-src"))
-        .map(|src| parse_image_quality(&src));
-
-    let mal_id = match &url {
-        Some(url) => item_meta_mal_id(url),
-        None => 0,
-    };
-
-    Ok(json!({
-        "mal_id": mal_id,
-        "url": url,
-        "image_url": image,
-        "name": name,
-    }))
-}
-
-/// `ItemMetaParser::getMalId()`: `(int) preg_replace('#https://myanimelist.net/\w+/(\d+).*#', '$1', $url)`.
-fn item_meta_mal_id(url: &str) -> i64 {
-    let re = item_meta_id_re();
-    match re.captures(url) {
-        Some(caps) => caps[1].parse().unwrap_or(0),
-        // No match: preg_replace returns the subject unchanged and PHP casts it.
-        None => php_intval(url),
-    }
-}
 
 // ---------------------------------------------------------------------------
 // AnimeCardParser
@@ -869,13 +797,6 @@ fn php_floatval(string: &str) -> f64 {
         }
     }
     string[start..i].parse::<f64>().unwrap_or(0.0)
-}
-
-fn item_meta_id_re() -> &'static regex::Regex {
-    static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
-    RE.get_or_init(|| {
-        regex::Regex::new(r"https://myanimelist\.net/\w+/(\d+).*").expect("valid regex")
-    })
 }
 
 fn digits_re() -> &'static regex::Regex {

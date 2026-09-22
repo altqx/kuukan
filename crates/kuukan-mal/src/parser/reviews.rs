@@ -248,6 +248,65 @@ fn json_to_int(value: &JsonValue) -> Option<i64> {
 // ---------------------------------------------------------------------------
 
 /// `Jikan\Parser\Reviews\AnimeReviewParser`.
+/// The per-category score breakdown MAL renders beside a review.
+///
+/// Ported from `MangaReviewScoresParser`, which jikan-php never called, so the
+/// breakdown never reached a response. It is shared by anime and manga reviews
+/// here because the markup is the same table either way.
+///
+/// Every score is optional and the whole block is `None` when MAL renders no
+/// table: a missing breakdown must read as absent, not as five zeros.
+pub(crate) struct ReviewScoresParser<'a> {
+    node: &'a HtmlNode,
+}
+
+impl<'a> ReviewScoresParser<'a> {
+    pub(crate) fn new(node: &'a HtmlNode) -> Self {
+        ReviewScoresParser { node }
+    }
+
+    fn row(&self, xpath: &str) -> Result<Option<i64>, ParseError> {
+        Ok(self
+            .node
+            .text(xpath)?
+            .map(|text| score_int(&text))
+            .unwrap_or(None))
+    }
+
+    /// `None` when this review carries no breakdown table.
+    pub(crate) fn model(&self) -> Result<Option<JsonValue>, ParseError> {
+        let overall = self.row("//table/tr[1]/td[2]/strong")?;
+        let story = self.row("//table/tr[2]/td[2]")?;
+        let art = self.row("//table/tr[3]/td[2]")?;
+        let character = self.row("//table/tr[4]/td[2]")?;
+        let enjoyment = self.row("//table/tr[5]/td[2]")?;
+        if [overall, story, art, character, enjoyment]
+            .iter()
+            .all(Option::is_none)
+        {
+            return Ok(None);
+        }
+        Ok(Some(json!({
+            "overall": overall,
+            "story": story,
+            "art": art,
+            "character": character,
+            "enjoyment": enjoyment,
+        })))
+    }
+}
+
+/// Leading-digit cast, but `None` rather than `0` when there are no digits, so
+/// an empty cell is absent instead of a real score of zero.
+fn score_int(input: &str) -> Option<i64> {
+    let digits: String = input
+        .trim_start()
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect();
+    digits.parse().ok()
+}
+
 pub struct AnimeReviewParser<'a> {
     node: &'a HtmlNode,
 }
@@ -276,17 +335,9 @@ impl<'a> AnimeReviewParser<'a> {
                 &self.get_anime_url()?,
                 &self.get_anime_image_url()?,
             ),
+            "scores": ReviewScoresParser::new(self.node).model()?,
             "user": self.get_reviewer()?,
         }))
-    }
-
-    /// `AnimeReviewParser::getAnime()`.
-    fn get_anime(&self) -> Result<JsonValue, ParseError> {
-        Ok(item_meta(
-            &self.get_anime_title()?,
-            &self.get_anime_url()?,
-            &self.get_anime_image_url()?,
-        ))
     }
 
     /// `AnimeReviewParser::getId()`: `parse_str(parse_url($url, PHP_URL_QUERY))`.
@@ -506,17 +557,9 @@ impl<'a> MangaReviewParser<'a> {
                 &self.get_manga_url()?,
                 &self.get_manga_image_url()?,
             ),
+            "scores": ReviewScoresParser::new(self.node).model()?,
             "user": self.get_reviewer()?,
         }))
-    }
-
-    /// `MangaReviewParser::getManga()`.
-    fn get_manga(&self) -> Result<JsonValue, ParseError> {
-        Ok(item_meta(
-            &self.get_manga_title()?,
-            &self.get_manga_url()?,
-            &self.get_manga_image_url()?,
-        ))
     }
 
     /// `MangaReviewParser::getId()`.
@@ -709,4 +752,76 @@ fn query_id_re() -> &'static Regex {
 fn seen_re() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"\((\d+)/(.*)\)").expect("valid regex"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A review with MAL's breakdown table yields every category.
+    #[test]
+    fn review_scores_read_the_breakdown_table() {
+        let doc = HtmlDoc::parse_str(
+            r#"<div class="review-element"><table>
+                 <tr><td>Overall</td><td><strong>9</strong></td></tr>
+                 <tr><td>Story</td><td>8</td></tr>
+                 <tr><td>Art</td><td>10</td></tr>
+                 <tr><td>Character</td><td>7</td></tr>
+                 <tr><td>Enjoyment</td><td>9</td></tr>
+               </table></div>"#,
+        )
+        .expect("doc");
+        let node = doc
+            .first("//div[@class='review-element']")
+            .expect("xpath")
+            .expect("node");
+        let scores = ReviewScoresParser::new(&node)
+            .model()
+            .expect("model")
+            .expect("a table is present");
+        assert_eq!(scores["overall"], 9);
+        assert_eq!(scores["story"], 8);
+        assert_eq!(scores["art"], 10);
+        assert_eq!(scores["character"], 7);
+        assert_eq!(scores["enjoyment"], 9);
+    }
+
+    /// The case that matters: MAL renders no breakdown for many reviews, and
+    /// that has to read as absent rather than as a real score of zero.
+    #[test]
+    fn review_scores_are_absent_without_a_table() {
+        let doc = HtmlDoc::parse_str(r#"<div class="review-element"><p>no table</p></div>"#)
+            .expect("doc");
+        let node = doc
+            .first("//div[@class='review-element']")
+            .expect("xpath")
+            .expect("node");
+        assert!(ReviewScoresParser::new(&node)
+            .model()
+            .expect("model")
+            .is_none());
+    }
+
+    /// A partially filled table keeps the categories MAL did render and nulls
+    /// the rest.
+    #[test]
+    fn review_scores_null_the_missing_categories() {
+        let doc = HtmlDoc::parse_str(
+            r#"<div class="review-element"><table>
+                 <tr><td>Overall</td><td><strong>6</strong></td></tr>
+               </table></div>"#,
+        )
+        .expect("doc");
+        let node = doc
+            .first("//div[@class='review-element']")
+            .expect("xpath")
+            .expect("node");
+        let scores = ReviewScoresParser::new(&node)
+            .model()
+            .expect("model")
+            .expect("overall is present");
+        assert_eq!(scores["overall"], 6);
+        assert!(scores["story"].is_null());
+        assert!(scores["enjoyment"].is_null());
+    }
 }

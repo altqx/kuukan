@@ -65,7 +65,8 @@ impl ClubParser {
         self.int_from_div(4)
     }
 
-    /// `ClubParser::getPicturesCount()`.
+    /// How many pictures the club has, which MAL lists beside the member
+    /// count.
     fn pictures_count(&self) -> Result<i64, ParseError> {
         self.int_from_div(5)
     }
@@ -161,6 +162,7 @@ impl ClubParser {
             "images": wrap_image_resource(Some(&self.image_url()?)),
             "name": self.title()?,
             "members": self.members_count()?,
+            "pictures": self.pictures_count()?,
             "category": self.category()?,
             "created": self.created()?,
             "access": self.access()?,

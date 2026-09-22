@@ -43,22 +43,6 @@ impl<'a> NewsListParser<'a> {
         }
         Ok(out)
     }
-
-    /// `NewsListParser::getHasNextPage()`.
-    fn get_has_next_page(&self) -> Result<bool, ParseError> {
-        Ok(self.doc.count(
-            "//*[@id=\"content\"]/table/tr/td[2]/div[1]/a[contains(text(), \"More News\")]",
-        )? > 0)
-    }
-
-    /// `NewsList::fromParser()`: `{results, has_next_page, last_visible_page}`.
-    pub(crate) fn get_model(&self) -> Result<Value, ParseError> {
-        Ok(json!({
-            "results": self.get_results()?,
-            "has_next_page": self.get_has_next_page()?,
-            "last_visible_page": 1,
-        }))
-    }
 }
 
 /// `Jikan\Parser\News\NewsListItemParser`.

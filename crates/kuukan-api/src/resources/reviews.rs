@@ -44,6 +44,7 @@ pub fn anime_review_item(payload: &Value) -> Value {
         "is_spoiler": get(payload, "is_spoiler"),
         "is_preliminary": get(payload, "is_preliminary"),
         "episodes_watched": get(payload, "episodes_watched"),
+        "scores": get(payload, "scores"),
         "user": get(payload, "user"),
     })
 }
@@ -62,6 +63,7 @@ pub fn manga_review_item(payload: &Value) -> Value {
         "is_spoiler": get(payload, "is_spoiler"),
         "is_preliminary": get(payload, "is_preliminary"),
         "chapters_read": get(payload, "chapters_read"),
+        "scores": get(payload, "scores"),
         "user": get(payload, "user"),
     })
 }
@@ -115,6 +117,9 @@ mod tests {
             "is_spoiler": false,
             "is_preliminary": false,
             "episodes_watched": null,
+            "scores": {
+                "overall": 10, "story": 9, "art": 10, "character": 10, "enjoyment": 10
+            },
             "user": {
                 "url": "https://myanimelist.net/profile/TheLlama",
                 "username": "TheLlama",
@@ -151,6 +156,7 @@ mod tests {
                 "reactions",
                 "review",
                 "score",
+                "scores",
                 "tags",
                 "type",
                 "url",
@@ -221,6 +227,7 @@ mod tests {
                 "reactions",
                 "review",
                 "score",
+                "scores",
                 "tags",
                 "type",
                 "url",
@@ -257,6 +264,7 @@ mod tests {
                 "reactions",
                 "review",
                 "score",
+                "scores",
                 "tags",
                 "type",
                 "url",
@@ -282,6 +290,7 @@ mod tests {
                 "reactions",
                 "review",
                 "score",
+                "scores",
                 "tags",
                 "type",
                 "url",
@@ -304,6 +313,7 @@ mod tests {
                 "reactions",
                 "review",
                 "score",
+                "scores",
                 "tags",
                 "type",
                 "url",

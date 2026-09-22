@@ -270,12 +270,6 @@ pub fn json_bytes(value: &serde_json::Value) -> Bytes {
     Bytes::from(serde_json::to_vec(value).unwrap_or_default())
 }
 
-#[allow(dead_code)]
-fn _assert_header_value() {
-    let _: Option<HeaderValue> = None;
-    let _ = header::CONTENT_TYPE;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

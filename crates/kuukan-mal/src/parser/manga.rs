@@ -533,11 +533,6 @@ impl MoreInfoParser {
             Some(more_info)
         })
     }
-
-    /// `MoreInfoParser::getModel()`.
-    pub(crate) fn model(&self) -> Result<Value, ParseError> {
-        Ok(json!({ "more_info": self.more_info()? }))
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -712,6 +707,7 @@ impl MangaReviewsParser {
                 "is_spoiler": parser.is_spoiler()?,
                 "is_preliminary": parser.is_preliminary()?,
                 "chapters_read": parser.get_chapters_read()?,
+                "scores": crate::parser::reviews::ReviewScoresParser::new(node).model()?,
                 "user": parser.get_reviewer()?,
             }));
         }
@@ -732,68 +728,6 @@ impl MangaReviewsParser {
             "results": self.results()?,
             "has_next_page": self.has_next_page()?,
             "last_visible_page": 1,
-        }))
-    }
-}
-
-// ---------------------------------------------------------------------------
-// MangaReviewScoresParser
-// ---------------------------------------------------------------------------
-
-/// `Jikan\Parser\Manga\MangaReviewScoresParser`.
-///
-/// `MangaReview::fromParser()` never calls `getMangaScores()`, so this is a
-/// direct port kept for parity with the PHP namespace (`MangaReviewerParser`
-/// lives in `parser/reviews.rs`, owned by the reviews crew).
-pub struct MangaReviewScoresParser {
-    node: HtmlNode,
-}
-
-impl MangaReviewScoresParser {
-    pub(crate) fn new(node: HtmlNode) -> Self {
-        MangaReviewScoresParser { node }
-    }
-
-    fn score(&self, row: usize) -> Result<i64, ParseError> {
-        Ok(self
-            .node
-            .text(&format!("//table/tr[{row}]/td[2]"))?
-            .map(|text| php_int_prefix(&text))
-            .unwrap_or(0))
-    }
-
-    fn overall(&self) -> Result<i64, ParseError> {
-        Ok(self
-            .node
-            .text("//table/tr[1]/td[2]/strong")?
-            .map(|text| php_int_prefix(&text))
-            .unwrap_or(0))
-    }
-
-    fn story(&self) -> Result<i64, ParseError> {
-        self.score(2)
-    }
-
-    fn art(&self) -> Result<i64, ParseError> {
-        self.score(3)
-    }
-
-    fn character(&self) -> Result<i64, ParseError> {
-        self.score(4)
-    }
-
-    fn enjoyment(&self) -> Result<i64, ParseError> {
-        self.score(5)
-    }
-
-    /// `MangaReviewScoresParser::getModel()`.
-    pub(crate) fn model(&self) -> Result<Value, ParseError> {
-        Ok(json!({
-            "overall": self.overall()?,
-            "story": self.story()?,
-            "art": self.art()?,
-            "character": self.character()?,
-            "enjoyment": self.enjoyment()?,
         }))
     }
 }

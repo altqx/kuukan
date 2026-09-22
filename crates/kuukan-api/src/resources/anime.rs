@@ -124,6 +124,7 @@ pub fn anime_episode(payload: &Value) -> Value {
         "aired": get(payload, "aired"),
         "filler": get(payload, "filler"),
         "recap": get(payload, "recap"),
+        "forum_url": get(payload, "forum_url"),
         "synopsis": get(payload, "synopsis"),
     })
 }
@@ -578,7 +579,7 @@ mod tests {
     }
 
     #[test]
-    fn anime_episode_maps_ten_php_keys() {
+    fn anime_episode_maps_the_episode_keys() {
         // tests/Integration/AnimeControllerTest::testEpisode
         let payload = json!({
             "mal_id": 1,
@@ -591,9 +592,9 @@ mod tests {
             "filler": false,
             "recap": false,
             "synopsis": "The series begins with an attack",
-            // raw parser extras that the PHP resource drops
+            "forum_url": "https://myanimelist.net/forum/?topicid=1",
+            // a raw parser extra the resource drops
             "score": 4.5,
-            "forum_url": null,
         });
 
         assert_eq!(
@@ -608,6 +609,9 @@ mod tests {
                 "aired": "1999-10-20T00:00:00+09:00",
                 "filler": false,
                 "recap": false,
+                // jikan-php dropped this; the single-episode endpoint now
+                // serves it, matching the episode list.
+                "forum_url": "https://myanimelist.net/forum/?topicid=1",
                 "synopsis": "The series begins with an attack",
             })
         );
@@ -616,7 +620,8 @@ mod tests {
         let mapped = anime_episode(&json!({"mal_id": 5, "title": "x"}));
         assert_eq!(mapped["duration"], Value::Null);
         assert_eq!(mapped["synopsis"], Value::Null);
-        assert_eq!(mapped.as_object().unwrap().len(), 10);
+        assert!(mapped["forum_url"].is_null());
+        assert_eq!(mapped.as_object().unwrap().len(), 11);
     }
 
     #[test]

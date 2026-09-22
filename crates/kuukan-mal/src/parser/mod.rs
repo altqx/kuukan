@@ -4,12 +4,9 @@
 //! module ever calls is `ParseModel::model`, and a getter that exists to build
 //! a model is implementation, not interface.
 //!
-//! Some ported getters are deliberately unreachable — `MangaReviewScoresParser`
-//! says so in its own doc comment — because they mirror a PHP method that the
-//! upstream model never calls either. They are kept for parity with the
-//! jikan-php namespace, so `dead_code` is allowed for the whole module rather
-//! than annotated at fifty separate sites.
-#![allow(dead_code)]
+//! Nothing here is kept for parity with a PHP namespace. If a getter is not
+//! reachable from a `ParseModel` impl it is gone, and `dead_code` is not
+//! allowed, so it cannot come back unnoticed.
 
 pub mod anime;
 pub mod character;

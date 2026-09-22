@@ -102,11 +102,6 @@ impl HtmlDoc {
         HtmlDoc::parse(html.as_bytes())
     }
 
-    /// The libxml2 document.
-    pub(crate) fn document(&self) -> &Document {
-        &self.document
-    }
-
     /// The root element (`<html>` for full pages) as an [`HtmlNode`].
     pub(crate) fn root(&self) -> HtmlNode {
         HtmlNode {
@@ -126,11 +121,6 @@ impl HtmlDoc {
         Ok(self.nodes(xpath)?.into_iter().next())
     }
 
-    /// `$crawler->filterXPath($xpath)->last()`.
-    pub(crate) fn last(&self, xpath: &str) -> Result<Option<HtmlNode>, ParseError> {
-        Ok(self.nodes(xpath)?.pop())
-    }
-
     /// `$crawler->filterXPath($xpath)->count()`.
     pub(crate) fn count(&self, xpath: &str) -> Result<usize, ParseError> {
         Ok(self.nodes(xpath)?.len())
@@ -147,27 +137,9 @@ impl HtmlDoc {
         Ok(self.first(xpath)?.map(|n| n.node_text()))
     }
 
-    /// `Parser::textOrNull($crawler->filterXPath($xpath))`.
-    fn text_or_null(&self, xpath: &str) -> Result<Option<String>, ParseError> {
-        self.text(xpath)
-    }
-
-    /// XPath `string($xpath)` against the document root.
-    ///
-    /// Unlike [`HtmlDoc::nodes`] the expression is **not** relativized: pass
-    /// `string(//span[@itemprop='ratingValue'])` or a plain relative path.
-    fn string_value(&self, xpath: &str) -> Result<String, ParseError> {
-        string_value_ctx(&self.document, &self.root, xpath)
-    }
-
     /// `$crawler->filterXPath($xpath)->html()` (inner HTML of the first node).
     pub(crate) fn html(&self, xpath: &str) -> Result<Option<String>, ParseError> {
         Ok(self.first(xpath)?.map(|n| n.node_html()))
-    }
-
-    /// `$crawler->filterXPath($xpath)->outerHtml()`.
-    fn outer_html(&self, xpath: &str) -> Result<Option<String>, ParseError> {
-        Ok(self.first(xpath)?.map(|n| n.outer_html()))
     }
 
     /// `$crawler->filter($selector)` (CSS selector -> XPath translation).
@@ -176,40 +148,12 @@ impl HtmlDoc {
         let nodes = eval_nodes(&self.document, std::slice::from_ref(&self.root), &xpath)?;
         Ok(wrap_nodes(&self.document, nodes))
     }
-
-    /// `$crawler->filterXPath($xpath)->each($closure)`.
-    fn each<R>(
-        &self,
-        xpath: &str,
-        mut f: impl FnMut(&HtmlNode, usize) -> R,
-    ) -> Result<Vec<R>, ParseError> {
-        let nodes = self.nodes(xpath)?;
-        Ok(nodes.iter().enumerate().map(|(i, n)| f(n, i)).collect())
-    }
-
-    /// `Parser::removeChildNodes($crawler->filterXPath($xpath))`.
-    pub(crate) fn remove_child_nodes(&self, xpath: &str) -> Result<(), ParseError> {
-        match self.first(xpath)? {
-            Some(node) => node.remove_child_nodes(),
-            None => Ok(()),
-        }
-    }
 }
 
 impl HtmlNode {
-    /// Wrap a raw libxml2 node (used by sibling modules/tests).
-    pub(crate) fn new(document: Document, node: Node) -> Self {
-        HtmlNode { document, node }
-    }
-
     /// The underlying libxml2 node.
     pub(crate) fn node(&self) -> &Node {
         &self.node
-    }
-
-    /// The owning libxml2 document.
-    pub(crate) fn document(&self) -> &Document {
-        &self.document
     }
 
     /// Value of this node's own attribute (`Crawler::attr()` on the selection).
@@ -245,11 +189,6 @@ impl HtmlNode {
         out
     }
 
-    /// `$crawler->outerHtml()`.
-    fn outer_html(&self) -> String {
-        html_node_to_string(&self.document, &self.node)
-    }
-
     /// `$crawler->filterXPath($xpath)` relative to this node.
     pub(crate) fn nodes(&self, xpath: &str) -> Result<Vec<HtmlNode>, ParseError> {
         let nodes = eval_nodes(&self.document, std::slice::from_ref(&self.node), xpath)?;
@@ -281,42 +220,11 @@ impl HtmlNode {
         Ok(self.first(xpath)?.map(|n| n.node_text()))
     }
 
-    /// `Parser::textOrNull($crawler->filterXPath($xpath))`.
-    fn text_or_null(&self, xpath: &str) -> Result<Option<String>, ParseError> {
-        self.text(xpath)
-    }
-
-    /// XPath `string($xpath)` with this node as context.
-    fn string_value(&self, xpath: &str) -> Result<String, ParseError> {
-        string_value_ctx(&self.document, &self.node, xpath)
-    }
-
-    /// `$crawler->filterXPath($xpath)->html()`.
-    pub(crate) fn html(&self, xpath: &str) -> Result<Option<String>, ParseError> {
-        Ok(self.first(xpath)?.map(|n| n.node_html()))
-    }
-
     /// `$crawler->filter($selector)`.
     pub(crate) fn css_nodes(&self, selector: &str) -> Result<Vec<HtmlNode>, ParseError> {
         let xpath = css_to_xpath(selector)?;
         let nodes = eval_nodes(&self.document, std::slice::from_ref(&self.node), &xpath)?;
         Ok(wrap_nodes(&self.document, nodes))
-    }
-
-    /// `$crawler->filterXPath($xpath)->each($closure)`.
-    fn each<R>(
-        &self,
-        xpath: &str,
-        mut f: impl FnMut(&HtmlNode, usize) -> R,
-    ) -> Result<Vec<R>, ParseError> {
-        let nodes = self.nodes(xpath)?;
-        Ok(nodes.iter().enumerate().map(|(i, n)| f(n, i)).collect())
-    }
-
-    /// `$crawler->children()`: element children only (DomCrawler skips text
-    /// nodes here).
-    fn children(&self) -> Vec<HtmlNode> {
-        wrap_nodes(&self.document, self.node.get_child_elements())
     }
 
     /// `$crawler->ancestors()`: element ancestors, nearest first.
@@ -350,16 +258,6 @@ impl HtmlNode {
         out
     }
 
-    /// `$crawler->eq($index)`.
-    fn eq(&self, _index: usize) -> Option<HtmlNode> {
-        // `eq()` on a single-node wrapper: only index 0 is meaningful.
-        if _index == 0 {
-            Some(self.clone())
-        } else {
-            None
-        }
-    }
-
     /// Port of `Parser::removeChildNodes()`.
     ///
     /// Removes every element child that is not one of `p, i, b, br, strong, u`
@@ -377,19 +275,6 @@ impl HtmlNode {
             }
         }
         Ok(())
-    }
-
-    /// `$crawler->innerText()`: direct text children only, normalized.
-    fn inner_text(&self) -> String {
-        for child in self.node.get_child_nodes() {
-            if child.is_text_node() {
-                let value = child.get_content();
-                if !value.trim().is_empty() {
-                    return normalize_whitespace(&value);
-                }
-            }
-        }
-        String::new()
     }
 }
 
@@ -469,13 +354,6 @@ fn eval_nodes(
         out.extend(found);
     }
     Ok(out)
-}
-
-fn string_value_ctx(document: &Document, node: &Node, xpath: &str) -> Result<String, ParseError> {
-    let mut ctx =
-        Context::new(document).map_err(|_| ParseError::InvalidXPath(xpath.to_string()))?;
-    ctx.findvalue(xpath, Some(node))
-        .map_err(|_| ParseError::InvalidXPath(xpath.to_string()))
 }
 
 /// Port of `Crawler::normalizeWhitespace()`.
@@ -1260,15 +1138,12 @@ mod tests {
         for _ in 0..25 {
             let doc2 = HtmlDoc::parse(&bytes).unwrap();
             assert_eq!(
-                doc2.string_value("string(//span[@itemprop='ratingValue'])")
-                    .unwrap(),
-                "8.22"
+                doc2.text("//span[@itemprop='ratingValue']")
+                    .unwrap()
+                    .as_deref(),
+                Some("8.22")
             );
         }
-        let rating = doc
-            .string_value("string(//span[@itemprop='ratingValue'])")
-            .expect("valid xpath");
-        assert_eq!(rating, "8.22");
 
         // CSS -> XPath for a `.spaceit_pad .score-label`-style selector
         let score = doc
@@ -1479,12 +1354,9 @@ mod tests {
     }
 
     #[test]
-    fn html_and_outer_html() {
+    fn inner_html_keeps_void_elements() {
         let doc = HtmlDoc::parse_str("<div class='x'>a<br>b</div>").unwrap();
         assert_eq!(doc.html("//div").unwrap().as_deref(), Some("a<br>b"));
-        let outer = doc.outer_html("//div").unwrap().unwrap();
-        assert!(outer.contains("<div class=\"x\">"), "{outer}");
-        assert!(outer.contains("a<br>b"), "{outer}");
     }
 
     /// Expected values captured from PHP 8.5 `DOMDocument::saveHTML` via
@@ -1499,11 +1371,6 @@ mod tests {
         assert_eq!(
             inner,
             "a<br>b<img src=\"x.png\" alt=\"y\">c &amp; d<!-- c --><span>s</span><input value=\"v\">"
-        );
-        let outer = doc.outer_html("//div").unwrap().unwrap();
-        assert_eq!(
-            outer,
-            "<div class=\"x\" data-a=\"b\">a<br>b<img src=\"x.png\" alt=\"y\">c &amp; d<!-- c --><span>s</span><input value=\"v\"></div>"
         );
 
         let doc = HtmlDoc::parse_str("<p>&lt;tag&gt; &quot;q&quot; &amp; &#39;s&#39;</p>").unwrap();
@@ -1524,7 +1391,6 @@ mod tests {
         assert!(doc.attr("//p", "id").unwrap().is_none());
         assert!(doc.first("//nope").unwrap().is_none());
         assert_eq!(doc.count("//nope").unwrap(), 0);
-        assert_eq!(doc.string_value("string(//nope)").unwrap(), "");
     }
 
     #[test]
