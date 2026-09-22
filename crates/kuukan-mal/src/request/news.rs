@@ -3,7 +3,7 @@
 //! Ports of `Jikan\Request\Anime\AnimeNewsRequest` and
 //! `Jikan\Request\Manga\MangaNewsRequest` (the news parsers live in
 //! [`crate::parser::news`], the shared payload is produced by
-//! [`crate::parser::news::parse_news`]).
+//! `parse_news`).
 
 use crate::request::{MalRequest, BASE_URL};
 

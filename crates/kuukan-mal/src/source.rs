@@ -3,8 +3,8 @@
 //! Everything kuukan needs from MAL is "give me the bytes at this URL".
 //! [`MalSource`] is that one method; [`MalClient`](crate::client::MalClient)
 //! is the adapter that fetches them over HTTP, and
-//! [`RecordedSource`](crate::testing::RecordedSource) is the adapter that
-//! replays captured pages in tests.
+//! `testing::RecordedSource` (behind the `testing` feature) is the adapter
+//! that replays captured pages in tests.
 //!
 //! Decoding sits on this side of the seam, not behind it: [`MalSourceExt`]
 //! turns bytes into an [`HtmlDoc`] or a JSON [`Value`], so an adapter never

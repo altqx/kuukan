@@ -5,16 +5,16 @@
 //!
 //! | PHP | Rust |
 //! |---|---|
-//! | `MalUrlParser` | [`mal_url`], [`mal_url_from_parts`], [`parse_mal_id`] |
-//! | `UrlParser` | [`url_parser`] |
-//! | `AlternativeTitleParser` | [`alternative_titles`] |
-//! | `PictureParser` | [`picture`] |
-//! | `PicturesPageParser` | [`pictures_page`] |
-//! | `DefaultPicturesPageParser` | [`default_pictures_page`] |
-//! | `ItemMetaParser` | [`item_meta`] |
-//! | `AnimeCardParser` | [`anime_card`] (+ [`anime_card_continuing`]) |
-//! | `MangaCardParser` | [`manga_card`] |
-//! | `Recommendation` / `Recommendations` | [`recommendation`], [`recommendations`] |
+//! | `MalUrlParser` | `mal_url`, `mal_url_from_parts`, `parse_mal_id` |
+//! | `UrlParser` | `url_parser` |
+//! | `AlternativeTitleParser` | `alternative_titles` |
+//! | `PictureParser` | `picture` |
+//! | `PicturesPageParser` | `pictures_page` |
+//! | `DefaultPicturesPageParser` | `default_pictures_page` |
+//! | `ItemMetaParser` | `item_meta` |
+//! | `AnimeCardParser` | `anime_card` (+ `anime_card_continuing`) |
+//! | `MangaCardParser` | `manga_card` |
+//! | `Recommendation` / `Recommendations` | `recommendation`, `recommendations` |
 //!
 //! Every function returns the JMS-shaped JSON of the matching model: keys in
 //! snake_case, `null` preserved, empty arrays kept as `[]`, `MalUrl` as
@@ -139,7 +139,7 @@ pub(crate) fn pictures_page(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
 /// `PersonImageResource` (only `jpg.image_url`).
 ///
 /// `DefaultPicture::fromParser()` only asks for `getSmall()` (`data-src`), so
-/// the `<a href>` is not required here (unlike [`pictures_page`]).
+/// the `<a href>` is not required here (unlike `pictures_page`).
 pub(crate) fn default_pictures_page(doc: &HtmlDoc) -> Result<Vec<Value>, ParseError> {
     let mut pictures = Vec::new();
     for anchor in doc.nodes("//a[@class=\"js-picture-gallery\"]")? {

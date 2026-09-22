@@ -7,7 +7,7 @@
 //!   `QuerySpecificAnimeSeasonHandler`) query `DefaultAnimeRepository` in
 //!   jikan-rest. kuukan has no Mongo query builder, so the `anime` entities of
 //!   the store are filtered in memory with the exact repository predicates
-//!   (see [`season_matches`] / [`passes_media_filters`]).
+//!   (see `season_matches` / `passes_media_filters`).
 //!
 //! The repository handlers never scrape: an empty store yields an empty
 //! collection (`{"data": []}`), and the missing-document `CachedData` makes

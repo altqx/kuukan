@@ -243,16 +243,11 @@ fn json_to_int(value: &JsonValue) -> Option<i64> {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Anime review
-// ---------------------------------------------------------------------------
-
-/// `Jikan\Parser\Reviews\AnimeReviewParser`.
 /// The per-category score breakdown MAL renders beside a review.
 ///
-/// Ported from `MangaReviewScoresParser`, which jikan-php never called, so the
-/// breakdown never reached a response. It is shared by anime and manga reviews
-/// here because the markup is the same table either way.
+/// jikan-php parsed this and never called it, so the breakdown never reached a
+/// response. It is shared by anime and manga reviews because the markup is the
+/// same table either way.
 ///
 /// Every score is optional and the whole block is `None` when MAL renders no
 /// table: a missing breakdown must read as absent, not as five zeros.
@@ -307,6 +302,11 @@ fn score_int(input: &str) -> Option<i64> {
     digits.parse().ok()
 }
 
+// ---------------------------------------------------------------------------
+// Anime review
+// ---------------------------------------------------------------------------
+
+/// `Jikan\Parser\Reviews\AnimeReviewParser`.
 pub struct AnimeReviewParser<'a> {
     node: &'a HtmlNode,
 }

@@ -1,7 +1,7 @@
 //! Port of `Jikan\Parser\Schedule\ScheduleParser`.
 //!
 //! Each day column holds anime cards parsed by the shared
-//! [`crate::parser::common::anime_card`] parser.
+//! `anime_card` parser.
 
 use serde_json::{json, Value};
 

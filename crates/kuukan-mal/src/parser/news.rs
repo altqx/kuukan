@@ -1,6 +1,6 @@
 //! Ports of `Jikan\Parser\News\*`.
 //!
-//! [`parse_news`] is the shared entry point used by the anime/manga news
+//! `parse_news` is the shared entry point used by the anime/manga news
 //! endpoints (`MalClient::getNewsList()`); it returns the JMS-shaped
 //! `NewsListItem[]` payload.
 

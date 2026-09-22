@@ -1,7 +1,7 @@
 //! The MyAnimeList entry points, one module per resource.
 //!
 //! Every function here is the same four steps — build the path, fetch it,
-//! parse it, wrap a parse failure — so the steps live in [`fetch_and_parse`]
+//! parse it, wrap a parse failure — so the steps live in `fetch_and_parse`
 //! and each function supplies only what varies: which request, which parser.
 //! The named functions stay, because the name is the locality this module
 //! earns; it was only the body that was copied seventy-odd times.
@@ -62,7 +62,7 @@ pub(crate) async fn fetch_then<T: Into<Value>>(
         .map_err(|error| MalError::parse_failed(&path, error.to_string()))
 }
 
-/// Like [`fetch_and_parse`], but an upstream 404 yields `empty()` instead of an
+/// Like `fetch_and_parse`, but an upstream 404 yields `empty()` instead of an
 /// error.
 ///
 /// Several MAL listings 404 when there is nothing to list, and jikan-php

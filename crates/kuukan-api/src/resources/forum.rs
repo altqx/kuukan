@@ -3,9 +3,10 @@
 //! `ForumResource.php` returns `$this['topics']` for `/anime/{id}/forum` and
 //! `/manga/{id}/forum`; the handlers cache
 //! `{"topics": [ForumTopic, ...]}`, and Laravel wraps the bare list as
-//! `{"data": [...]}`. The shared raw-value port is
-//! [`crate::resources::misc::forum`]; [`forum_topics`] additionally exposes the
-//! list as a `Vec` for callers that want the collection directly.
+//! `{"data": [...]}`. [`crate::resources::misc::forum`] shapes each stored
+//! topic through [`forum_topic`] so a response always carries the full
+//! `ForumTopic` key set, and keeps `null` when the cached document has no
+//! `topics` at all.
 //!
 //! `ForumTopic` JMS shape:
 //! `{mal_id, url, title, date, author_username, author_url, comments,

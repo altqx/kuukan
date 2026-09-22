@@ -2,7 +2,7 @@
 //!
 //! Ports of `Jikan\Request\Anime\AnimeForumRequest` and
 //! `Jikan\Request\Manga\MangaForumRequest` (the shared parser lives in
-//! [`crate::parser::forum`], see [`crate::parser::forum::parse_forum`]).
+//! [`crate::parser::forum`], see `parse_forum`).
 
 use crate::request::{http_build_query, MalRequest, QueryValue, BASE_URL};
 

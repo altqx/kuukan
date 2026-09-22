@@ -1,7 +1,7 @@
 //! Frozen user entry points.
 //!
 //! Every function mirrors the matching `Jikan\MyAnimeList\MalClient` method:
-//! it builds the request path, fetches through [`MalClient`] and returns the
+//! it builds the request path, fetches through `MalClient` and returns the
 //! JMS-shaped payload (`serde_json::Value`) of the PHP model. Parser failures
 //! surface as [`MalError::Parse`] with the `ParserException` message
 //! (`Failed to parse '<path>'`).

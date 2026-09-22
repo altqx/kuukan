@@ -1,6 +1,6 @@
 //! Ports of `Jikan\Parser\Forum\*`.
 //!
-//! [`parse_forum`] is the shared entry point used by the anime/manga forum
+//! `parse_forum` is the shared entry point used by the anime/manga forum
 //! endpoints (`MalClient::getAnimeForum()` / `getMangaForum()`); it returns the
 //! JMS-shaped `ForumTopic[]` payload.
 

@@ -12,7 +12,7 @@
 //! The Typesense-backed handlers return the `*Collection` resource straight
 //! from the controller, so they never get `addJikanCacheFlags`; the reference
 //! recordings confirm `Cache-Control: no-cache, private` (Symfony's default)
-//! and no `X-Request-Fingerprint`. [`no_cache_default`] adds exactly that
+//! and no `X-Request-Fingerprint`. `no_cache_default` adds exactly that
 //! default to any response of this family. `/users` is the exception: in PHP it
 //! is a `RequestHandlerWithScraperCache` endpoint with the `CacheCategory::Search`
 //! TTL, so it renders with `json_with_cache_flags`. Kuukan serves it from the

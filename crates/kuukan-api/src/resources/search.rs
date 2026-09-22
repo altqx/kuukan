@@ -11,7 +11,7 @@
 //! - [`user_collection`] / [`user_search`] — `UserCollection`
 //! - [`producer_collection`] / [`producer_search`] — `ProducerCollection`
 //! - [`magazine_collection`] / [`magazine_search`] — `MagazineCollection`
-//! - [`genre_collection`] / [`genre_search`] — `GenreCollection`
+//! - [`genre_collection`] / `genre_search` — `GenreCollection`
 //!
 //! In PHP each collection's `$collects` class is applied to every underlying
 //! item before `toArray()` builds the envelope. The search item shapes are

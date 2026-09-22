@@ -1,6 +1,6 @@
 //! Port of `Jikan\Parser\Seasonal\SeasonalParser`.
 //!
-//! Anime cards come from the shared [`crate::parser::common::anime_card`]
+//! Anime cards come from the shared `anime_card`
 //! parser; seasonal cards append the `continuing` flag
 //! (`Jikan\Model\Seasonal\SeasonalAnime`).
 
