@@ -10,8 +10,6 @@
 //! here from `resources::character`.
 
 use crate::resources::misc::{get, get_first};
-use kuukan_core::envelope;
-use kuukan_core::pagination::Pagination;
 use serde_json::{json, Value};
 
 pub use super::character::pictures;
@@ -142,11 +140,6 @@ pub fn person_pictures(payload: &Value) -> Value {
 /// `PersonResource`).
 pub fn person_collection(items: &[Value]) -> Vec<Value> {
     items.iter().map(person).collect()
-}
-
-/// Envelope for `PersonCollection`: `{"pagination": {...}, "data": [...]}`.
-pub fn person_search_response(pagination: &Pagination, items: &[Value]) -> Value {
-    envelope::paged(pagination, person_collection(items))
 }
 
 #[cfg(test)]
@@ -455,22 +448,5 @@ mod tests {
             ])
         );
         assert_eq!(person_pictures(&payload), pictures(&payload));
-    }
-
-    #[test]
-    fn person_search_response_builds_pagination_envelope() {
-        let pagination = Pagination::search(1, false, 1, 1, 1, 25);
-        let mapped = person_search_response(&pagination, &[json!({"mal_id": 7})]);
-
-        assert_eq!(
-            mapped["pagination"],
-            json!({
-                "last_visible_page": 1,
-                "has_next_page": false,
-                "current_page": 1,
-                "items": {"count": 1, "total": 1, "per_page": 25}
-            })
-        );
-        assert_eq!(mapped["data"][0]["mal_id"], json!(7));
     }
 }

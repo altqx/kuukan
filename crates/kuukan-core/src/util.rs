@@ -43,11 +43,6 @@ pub fn format_atom(dt: &DateTime<FixedOffset>) -> String {
     dt.format("%Y-%m-%dT%H:%M:%S%:z").to_string()
 }
 
-/// `DATE_ATOM` for UTC values, preserving the `+00:00` suffix PHP prints.
-pub fn utc_atom(dt: &DateTime<chrono::Utc>) -> String {
-    format_atom(&dt.with_timezone(&FixedOffset::east_opt(0).unwrap()))
-}
-
 /// Jikan renders an empty `related` map as `{}` and a non-empty one as
 /// `[{relation, entry}]` for anime/manga. This mirrors
 /// `HttpHelper::serializeEmptyObjectsControllerLevel`.
@@ -78,14 +73,6 @@ pub fn max_results_per_page() -> u64 {
         .and_then(|v| v.parse().ok())
         .filter(|v| *v > 0)
         .unwrap_or(25)
-}
-
-/// `SOURCE_TIMEOUT` in seconds (jikan's `.env.dist` default is 10).
-pub fn source_timeout_secs() -> u64 {
-    std::env::var("SOURCE_TIMEOUT")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(10)
 }
 
 #[cfg(test)]

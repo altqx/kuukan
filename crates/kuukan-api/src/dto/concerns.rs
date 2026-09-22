@@ -92,36 +92,6 @@ pub fn limit(query: &Query, default_limit: Option<u64>) -> Result<u64, ApiError>
     Ok(raw.trim().parse::<i64>().unwrap_or(1).max(1) as u64)
 }
 
-/// `DateFormat("Y-m-d")` + `Sometimes|Required`, returned as unix seconds.
-pub fn date_param(query: &Query, field: &str) -> Result<Option<i64>, ApiError> {
-    let Some(raw) = query.get(field) else {
-        return Ok(None);
-    };
-    if raw.is_empty() {
-        // PreparesData: empty string for optional non-bool becomes missing.
-        return Ok(None);
-    }
-    let mut v = Validator::new();
-    if !v.date_format(field, raw, "Y-m-d") {
-        return Err(v.finish().unwrap_err());
-    }
-    let ts = crate::dto::validation::parse_date(raw, "Y-m-d");
-    Ok(ts)
-}
-
-/// `max_score`/`min_score`/`score` numeric values parsed without range checks
-/// (DTOs apply `between` themselves; the ranges differ per endpoint).
-pub fn numeric_param(query: &Query, field: &str) -> Result<Option<f64>, ApiError> {
-    let Some(raw) = query.get(field) else {
-        return Ok(None);
-    };
-    let mut v = Validator::new();
-    if !v.numeric(field, raw) {
-        return Err(v.finish().unwrap_err());
-    }
-    Ok(raw.trim().parse().ok())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -168,13 +138,5 @@ mod tests {
             Some(true)
         );
         assert!(optional_bool_flag(&Query::from_pairs([("sfw", "maybe")]), "sfw").is_err());
-    }
-
-    #[test]
-    fn dates_parse_y_m_d() {
-        let q = Query::from_pairs([("start_date", "2020-01-02")]);
-        assert!(date_param(&q, "start_date").unwrap().is_some());
-        let q = Query::from_pairs([("start_date", "2020-13-01")]);
-        assert!(date_param(&q, "start_date").is_err());
     }
 }

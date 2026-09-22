@@ -40,21 +40,6 @@ php_enum! {
     }
 }
 
-/// `App\Enums\ClubTypeEnum::from()` as an `Option`.
-pub fn parse_club_type(value: &str) -> Option<ClubType> {
-    ClubType::parse(value)
-}
-
-/// `App\Enums\ClubCategoryEnum::from()` as an `Option`.
-pub fn parse_club_category(value: &str) -> Option<ClubCategory> {
-    ClubCategory::parse(value)
-}
-
-/// `App\Enums\ClubOrderByEnum::from()` as an `Option`.
-pub fn parse_club_order_by(value: &str) -> Option<ClubOrderBy> {
-    ClubOrderBy::parse(value)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,13 +59,13 @@ mod tests {
     #[test]
     fn club_category_labels_are_not_accepted_as_input() {
         assert_eq!(
-            parse_club_category("actors_and_artists"),
+            ClubCategory::parse("actors_and_artists"),
             Some(ClubCategory::ActorsAndArtists)
         );
         assert_eq!(ClubCategory::ActorsAndArtists.as_str(), "Actors & Artists");
-        assert_eq!(parse_club_category("Actors & Artists"), None);
+        assert_eq!(ClubCategory::parse("Actors & Artists"), None);
         assert_eq!(
-            parse_club_category("cities_and_neighborhoods"),
+            ClubCategory::parse("cities_and_neighborhoods"),
             Some(ClubCategory::CitiesAndNeighborhoods)
         );
     }
@@ -88,10 +73,10 @@ mod tests {
     #[test]
     fn club_order_by_rejects_mal_sort_key() {
         assert_eq!(
-            parse_club_order_by("members_count"),
+            ClubOrderBy::parse("members_count"),
             Some(ClubOrderBy::MembersCount)
         );
         assert_eq!(ClubOrderBy::MembersCount.as_str(), "members");
-        assert_eq!(parse_club_order_by("members"), None);
+        assert_eq!(ClubOrderBy::parse("members"), None);
     }
 }

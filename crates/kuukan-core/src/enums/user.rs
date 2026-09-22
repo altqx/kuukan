@@ -19,16 +19,6 @@ php_enum! {
     }
 }
 
-/// `App\Enums\UserListTypeEnum::from()` as an `Option`.
-pub fn parse_user_list_type(value: &str) -> Option<UserListType> {
-    UserListType::parse(value)
-}
-
-/// `App\Enums\UserHistoryTypeEnum::from()` as an `Option`.
-pub fn parse_user_history_type(value: &str) -> Option<UserHistoryType> {
-    UserHistoryType::parse(value)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -50,11 +40,11 @@ mod tests {
 
     #[test]
     fn user_types_accept_case_insensitive_indexes() {
-        assert_eq!(parse_user_list_type("ANIME"), Some(UserListType::Anime));
+        assert_eq!(UserListType::parse("ANIME"), Some(UserListType::Anime));
         assert_eq!(
-            parse_user_history_type("Manga"),
+            UserHistoryType::parse("Manga"),
             Some(UserHistoryType::Manga)
         );
-        assert_eq!(parse_user_list_type("novel"), None);
+        assert_eq!(UserListType::parse("novel"), None);
     }
 }

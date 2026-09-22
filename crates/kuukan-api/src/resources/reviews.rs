@@ -20,14 +20,20 @@ fn get(payload: &Value, key: &str) -> Value {
     misc::get(payload, key)
 }
 
-/// `ReviewsResource::toArray()` (`/anime/{id}/reviews`, `/manga/{id}/reviews`).
-pub fn reviews_resource(payload: &Value) -> Value {
-    misc::reviews(payload)
-}
-
 /// Default `ResultsResource` body for `/reviews/anime` and `/reviews/manga`.
 pub fn reviews(payload: &Value) -> Value {
     misc::results(payload)
+}
+
+/// `/reviews/anime` and `/reviews/manga`, whose items carry the reviewed
+/// `entry` on top of the per-entry review shape.
+pub fn full_reviews(payload: &Value, review_type: &str) -> Value {
+    let item = if review_type == "manga" {
+        full_manga_review_item
+    } else {
+        full_anime_review_item
+    };
+    misc::results_mapped(payload, item)
 }
 
 /// `Jikan\Model\Anime\AnimeReview` JMS shape (per-entry review).
@@ -129,52 +135,6 @@ mod tests {
                 }
             }
         })
-    }
-
-    #[test]
-    fn reviews_resource_keeps_pagination_verbatim() {
-        let doc = json!({
-            "results": [anime_review_doc()],
-            "last_visible_page": 2,
-            "has_next_page": true
-        });
-        let out = reviews_resource(&doc);
-        assert_eq!(keys(&out), vec!["data", "pagination"]);
-        assert_eq!(
-            out["pagination"],
-            json!({"last_visible_page": 2, "has_next_page": true})
-        );
-        let item = &out["data"][0];
-        assert_eq!(
-            keys(item),
-            vec![
-                "date",
-                "episodes_watched",
-                "is_preliminary",
-                "is_spoiler",
-                "mal_id",
-                "reactions",
-                "review",
-                "score",
-                "scores",
-                "tags",
-                "type",
-                "url",
-                "user"
-            ]
-        );
-        assert!(item["episodes_watched"].is_null());
-        assert_eq!(item["user"]["username"], json!("TheLlama"));
-    }
-
-    #[test]
-    fn reviews_resource_missing_pagination_is_null() {
-        let out = reviews_resource(&json!({"results": []}));
-        assert_eq!(
-            out["pagination"],
-            json!({"last_visible_page": null, "has_next_page": null})
-        );
-        assert_eq!(out["data"], json!([]));
     }
 
     fn full_anime_review_doc() -> Value {

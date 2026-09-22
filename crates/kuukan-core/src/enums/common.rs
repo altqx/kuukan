@@ -81,46 +81,6 @@ php_enum! {
     }
 }
 
-/// `App\Enums\SortDirection::from()` as an `Option`.
-pub fn parse_sort_direction(value: &str) -> Option<SortDirection> {
-    SortDirection::parse(value)
-}
-
-/// `App\Enums\ReviewTypeEnum::from()` as an `Option`.
-pub fn parse_review_type(value: &str) -> Option<ReviewType> {
-    ReviewType::parse(value)
-}
-
-/// `App\Enums\TopReviewsTypeEnum::from()` as an `Option`.
-pub fn parse_top_reviews_type(value: &str) -> Option<TopReviewsType> {
-    TopReviewsType::parse(value)
-}
-
-/// `App\Enums\MediaReviewsSortEnum::from()` as an `Option`.
-pub fn parse_media_reviews_sort(value: &str) -> Option<MediaReviewsSort> {
-    MediaReviewsSort::parse(value)
-}
-
-/// `App\Enums\GenreFilterEnum::from()` as an `Option`.
-pub fn parse_genre_filter(value: &str) -> Option<GenreFilter> {
-    GenreFilter::parse(value)
-}
-
-/// `App\Enums\GenderEnum::from()` as an `Option`.
-pub fn parse_gender(value: &str) -> Option<Gender> {
-    Gender::parse(value)
-}
-
-/// `App\Enums\AnimeForumFilterEnum::from()` as an `Option`.
-pub fn parse_anime_forum_filter(value: &str) -> Option<AnimeForumFilter> {
-    AnimeForumFilter::parse(value)
-}
-
-/// `App\Enums\MangaForumFilterEnum::from()` as an `Option`.
-pub fn parse_manga_forum_filter(value: &str) -> Option<MangaForumFilter> {
-    MangaForumFilter::parse(value)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -162,23 +122,23 @@ mod tests {
     fn media_reviews_sort_matches_php() {
         assert_eq!(MediaReviewsSort::MostVoted.as_str(), "mostvoted");
         assert_eq!(
-            parse_media_reviews_sort("mostVoted"),
+            MediaReviewsSort::parse("mostVoted"),
             Some(MediaReviewsSort::MostVoted)
         );
         assert_eq!(
-            parse_media_reviews_sort("mostvoted"),
+            MediaReviewsSort::parse("mostvoted"),
             Some(MediaReviewsSort::MostVoted)
         );
         assert_eq!(
-            parse_media_reviews_sort("MOSTVOTED"),
+            MediaReviewsSort::parse("MOSTVOTED"),
             Some(MediaReviewsSort::MostVoted)
         );
         assert_eq!(
-            parse_media_reviews_sort("newest"),
+            MediaReviewsSort::parse("newest"),
             Some(MediaReviewsSort::Newest)
         );
         // `suggested` only exists in labels(); no docblock method => rejected.
-        assert_eq!(parse_media_reviews_sort("suggested"), None);
+        assert_eq!(MediaReviewsSort::parse("suggested"), None);
     }
 
     #[test]
@@ -186,29 +146,29 @@ mod tests {
         assert_eq!(Gender::Any.as_str(), "-1");
         assert_eq!(Gender::Male.as_str(), "1");
         assert_eq!(Gender::Nonbinary.as_str(), "3");
-        assert_eq!(parse_gender("nonbinary"), Some(Gender::Nonbinary));
-        assert_eq!(parse_gender("-1"), None);
-        assert_eq!(parse_gender("1"), None);
+        assert_eq!(Gender::parse("nonbinary"), Some(Gender::Nonbinary));
+        assert_eq!(Gender::parse("-1"), None);
+        assert_eq!(Gender::parse("1"), None);
     }
 
     #[test]
     fn genre_filter_and_forum_filters_match_php() {
         assert_eq!(
-            parse_genre_filter("explicit_genres"),
+            GenreFilter::parse("explicit_genres"),
             Some(GenreFilter::ExplicitGenres)
         );
         assert_eq!(
-            parse_genre_filter("demographics"),
+            GenreFilter::parse("demographics"),
             Some(GenreFilter::Demographics)
         );
         assert_eq!(
-            parse_anime_forum_filter("episode"),
+            AnimeForumFilter::parse("episode"),
             Some(AnimeForumFilter::Episode)
         );
         assert_eq!(
-            parse_manga_forum_filter("chapters"),
+            MangaForumFilter::parse("chapters"),
             Some(MangaForumFilter::Chapters)
         );
-        assert_eq!(parse_anime_forum_filter("episodes"), None);
+        assert_eq!(AnimeForumFilter::parse("episodes"), None);
     }
 }

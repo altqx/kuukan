@@ -67,6 +67,6 @@ async fn load(
         })
         .await?;
 
-    let data = resource::reviews(&cached.payload);
+    let data = resource::full_reviews(&cached.payload, review_type);
     Ok(cached.render(data))
 }

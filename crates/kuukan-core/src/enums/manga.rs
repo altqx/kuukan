@@ -120,45 +120,10 @@ php_enum! {
     }
 }
 
-/// `App\Enums\MangaTypeEnum::from()` as an `Option`.
-pub fn parse_manga_type(value: &str) -> Option<MangaType> {
-    MangaType::parse(value)
-}
-
-/// `App\Enums\MangaStatusEnum::from()` as an `Option`.
-pub fn parse_manga_status(value: &str) -> Option<MangaStatus> {
-    MangaStatus::parse(value)
-}
-
-/// `App\Enums\MangaOrderByEnum::from()` as an `Option`.
-pub fn parse_manga_order_by(value: &str) -> Option<MangaOrderBy> {
-    MangaOrderBy::parse(value)
-}
-
-/// `App\Enums\TopMangaFilterEnum::from()` as an `Option`.
-pub fn parse_top_manga_filter(value: &str) -> Option<TopMangaFilter> {
-    TopMangaFilter::parse(value)
-}
-
-/// `App\Enums\MangaListStatusEnum::from()` as an `Option`.
-pub fn parse_manga_list_status(value: &str) -> Option<MangaListStatus> {
-    MangaListStatus::parse(value)
-}
-
 /// `App\Enums\UserMangaListOrderByEnum::from()` as an `Option`.
 ///
-/// Always `None`: the PHP enum cannot be resolved (duplicate labels).
-pub fn parse_user_manga_list_order_by(value: &str) -> Option<UserMangaListOrderBy> {
-    UserMangaListOrderBy::parse(value)
-}
-
 /// `App\Enums\UserMangaListStatusFilterEnum::from()` as an `Option`.
 ///
-/// Always `None`: the PHP enum cannot be resolved (duplicate labels).
-pub fn parse_user_manga_list_status_filter(value: &str) -> Option<UserMangaListStatusFilter> {
-    UserMangaListStatusFilter::parse(value)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -188,27 +153,27 @@ mod tests {
     #[test]
     fn manga_type_and_status_match_php() {
         assert_eq!(MangaType::LightNovel.as_str(), "Light Novel");
-        assert_eq!(parse_manga_type("lightnovel"), Some(MangaType::LightNovel));
-        assert_eq!(parse_manga_type("LIGHTNOVEL"), Some(MangaType::LightNovel));
-        assert_eq!(parse_manga_type("Light Novel"), None);
-        assert_eq!(parse_manga_type("One-shot"), None);
+        assert_eq!(MangaType::parse("lightnovel"), Some(MangaType::LightNovel));
+        assert_eq!(MangaType::parse("LIGHTNOVEL"), Some(MangaType::LightNovel));
+        assert_eq!(MangaType::parse("Light Novel"), None);
+        assert_eq!(MangaType::parse("One-shot"), None);
 
         assert_eq!(MangaStatus::Complete.as_str(), "Finished");
-        assert_eq!(parse_manga_status("complete"), Some(MangaStatus::Complete));
-        assert_eq!(parse_manga_status("Finished"), None);
-        assert_eq!(parse_manga_status("On Hiatus"), None);
+        assert_eq!(MangaStatus::parse("complete"), Some(MangaStatus::Complete));
+        assert_eq!(MangaStatus::parse("Finished"), None);
+        assert_eq!(MangaStatus::parse("On Hiatus"), None);
     }
 
     #[test]
     fn manga_order_by_rejects_mal_sort_keys() {
         assert_eq!(
-            parse_manga_order_by("start_date"),
+            MangaOrderBy::parse("start_date"),
             Some(MangaOrderBy::StartDate)
         );
         assert_eq!(MangaOrderBy::StartDate.as_str(), "published.from");
         assert_eq!(MangaOrderBy::EndDate.as_str(), "published.to");
-        assert_eq!(parse_manga_order_by("published.from"), None);
-        assert_eq!(parse_manga_order_by("published.to"), None);
+        assert_eq!(MangaOrderBy::parse("published.from"), None);
+        assert_eq!(MangaOrderBy::parse("published.to"), None);
     }
 
     #[test]
@@ -216,10 +181,10 @@ mod tests {
         assert_eq!(MangaListStatus::All.as_str(), "7");
         assert_eq!(MangaListStatus::PlanToRead.as_str(), "6");
         assert_eq!(
-            parse_manga_list_status("plantoread"),
+            MangaListStatus::parse("plantoread"),
             Some(MangaListStatus::PlanToRead)
         );
-        assert_eq!(parse_manga_list_status("6"), None);
+        assert_eq!(MangaListStatus::parse("6"), None);
     }
 
     #[test]
@@ -231,12 +196,12 @@ mod tests {
         );
         for index in UserMangaListOrderBy::INDEXES {
             assert_eq!(
-                parse_user_manga_list_order_by(index),
+                UserMangaListOrderBy::parse(index),
                 None,
                 "PHP rejects `{index}`"
             );
         }
-        assert!(parse_user_manga_list_order_by("chapters_read").is_none());
+        assert!(UserMangaListOrderBy::parse("chapters_read").is_none());
     }
 
     #[test]
@@ -248,7 +213,7 @@ mod tests {
         );
         for index in UserMangaListStatusFilter::INDEXES {
             assert_eq!(
-                parse_user_manga_list_status_filter(index),
+                UserMangaListStatusFilter::parse(index),
                 None,
                 "PHP rejects `{index}`"
             );

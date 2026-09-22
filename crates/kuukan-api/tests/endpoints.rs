@@ -482,3 +482,77 @@ async fn every_review_endpoint_carries_scores() {
         );
     }
 }
+
+/// The resource layer is an allow-list: it must emit every documented key even
+/// when a scrape stored a partial document, and must not leak keys the shape
+/// does not name. These endpoints used to hand the stored list straight to the
+/// client, so neither held.
+#[tokio::test]
+async fn list_endpoints_shape_their_items() {
+    use kuukan_api::endpoint::fingerprint;
+
+    let harness = Harness::new(RecordedSource::new()).await;
+
+    // Each stored item is deliberately partial and carries an extra key that
+    // the documented shape does not name.
+    let partial = serde_json::json!({ "mal_id": 1, "leaked": "should not appear" });
+    let page = serde_json::json!({
+        "results": [partial],
+        "has_next_page": false,
+        "last_visible_page": 1
+    });
+
+    for (request_type, uri, expected) in [
+        (
+            "anime",
+            "/v1/anime/1/news",
+            vec![
+                "mal_id",
+                "url",
+                "title",
+                "date",
+                "author_username",
+                "author_url",
+                "forum_url",
+                "images",
+                "comments",
+                "excerpt",
+            ],
+        ),
+        (
+            "watch",
+            "/v1/watch/episodes",
+            vec!["entry", "episodes", "region_locked"],
+        ),
+        (
+            "recommendations",
+            "/v1/recommendations/anime",
+            vec!["mal_id", "entry", "content", "date", "user"],
+        ),
+    ] {
+        harness
+            .state
+            .store
+            .put_cache(
+                &fingerprint(request_type, uri),
+                page.clone(),
+                Some(86_400),
+                false,
+            )
+            .await
+            .expect("seed");
+
+        let (status, _, body) = harness.get(uri).await;
+        assert_eq!(status, StatusCode::OK, "{uri} did not render");
+        let item = body["data"][0].as_object().expect("an item object");
+        let mut got: Vec<&str> = item.keys().map(String::as_str).collect();
+        let mut want = expected.clone();
+        got.sort_unstable();
+        want.sort_unstable();
+        assert_eq!(got, want, "{uri} did not shape its items");
+        assert!(
+            item.get("leaked").is_none(),
+            "{uri} leaked a stored key the shape does not name"
+        );
+    }
+}

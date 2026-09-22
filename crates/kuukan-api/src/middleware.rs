@@ -265,11 +265,6 @@ pub async fn default_cache_control_middleware(req: Request, next: Next) -> Respo
     response
 }
 
-/// Small helper used by handlers/tests to build a cached response.
-pub fn json_bytes(value: &serde_json::Value) -> Bytes {
-    Bytes::from(serde_json::to_vec(value).unwrap_or_default())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

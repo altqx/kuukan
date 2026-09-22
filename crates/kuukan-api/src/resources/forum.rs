@@ -26,16 +26,6 @@ pub fn forum(payload: &Value) -> Value {
     misc::forum(payload)
 }
 
-/// The cached `topics` list as a `Vec` (`[]` when absent).
-pub fn forum_topics(payload: &Value) -> Vec<Value> {
-    payload
-        .get("topics")
-        .and_then(Value::as_array)
-        .cloned()
-        .or_else(|| payload.as_array().cloned())
-        .unwrap_or_default()
-}
-
 /// `Jikan\Model\Forum\ForumTopic` JMS shape.
 pub fn forum_topic(payload: &Value) -> Value {
     json!({
@@ -46,7 +36,10 @@ pub fn forum_topic(payload: &Value) -> Value {
         "author_username": get(payload, "author_username"),
         "author_url": get(payload, "author_url"),
         "comments": get(payload, "comments"),
-        "last_comment": get(payload, "last_comment"),
+        "last_comment": match payload.get("last_comment") {
+            Some(Value::Object(_)) => forum_post(&payload["last_comment"]),
+            other => other.cloned().unwrap_or(Value::Null),
+        },
     })
 }
 
@@ -101,16 +94,6 @@ mod tests {
         );
         // PHP array access on a missing key yields null, not [].
         assert!(forum(&json!({})).is_null());
-    }
-
-    #[test]
-    fn forum_topics_returns_a_vec() {
-        let doc = json!({"topics": [topic_doc()]});
-        let topics = forum_topics(&doc);
-        assert_eq!(topics.len(), 1);
-        assert_eq!(topics[0]["comments"], json!(7));
-        assert_eq!(forum_topics(&json!([{"mal_id": 1}])).len(), 1);
-        assert!(forum_topics(&json!({})).is_empty());
     }
 
     #[test]

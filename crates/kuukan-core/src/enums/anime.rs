@@ -173,59 +173,8 @@ php_enum! {
     }
 }
 
-/// `App\Enums\AnimeTypeEnum::from()` as an `Option`.
-pub fn parse_anime_type(value: &str) -> Option<AnimeType> {
-    AnimeType::parse(value)
-}
-
-/// `App\Enums\AnimeStatusEnum::from()` as an `Option`.
-pub fn parse_anime_status(value: &str) -> Option<AnimeStatus> {
-    AnimeStatus::parse(value)
-}
-
-/// `App\Enums\AnimeRatingEnum::from()` as an `Option`.
-pub fn parse_anime_rating(value: &str) -> Option<AnimeRating> {
-    AnimeRating::parse(value)
-}
-
-/// `App\Enums\AnimeSeasonEnum::from()` as an `Option`.
-pub fn parse_anime_season(value: &str) -> Option<AnimeSeason> {
-    AnimeSeason::parse(value)
-}
-
-/// `App\Enums\AnimeOrderByEnum::from()` as an `Option`.
-pub fn parse_anime_order_by(value: &str) -> Option<AnimeOrderBy> {
-    AnimeOrderBy::parse(value)
-}
-
-/// `App\Enums\TopAnimeFilterEnum::from()` as an `Option`.
-pub fn parse_top_anime_filter(value: &str) -> Option<TopAnimeFilter> {
-    TopAnimeFilter::parse(value)
-}
-
-/// `App\Enums\AnimeScheduleFilterEnum::from()` as an `Option`.
-pub fn parse_anime_schedule_filter(value: &str) -> Option<AnimeScheduleFilter> {
-    AnimeScheduleFilter::parse(value)
-}
-
-/// `App\Enums\AnimeListStatusEnum::from()` as an `Option`.
-pub fn parse_anime_list_status(value: &str) -> Option<AnimeListStatus> {
-    AnimeListStatus::parse(value)
-}
-
 /// `App\Enums\AnimeListAiringStatusFilterEnum::from()` as an `Option`.
 ///
-/// Always `None`: the PHP enum cannot be resolved (duplicate labels), so
-/// every value fails validation there too.
-pub fn parse_anime_list_airing_status_filter(value: &str) -> Option<AnimeListAiringStatusFilter> {
-    AnimeListAiringStatusFilter::parse(value)
-}
-
-/// `App\Enums\UserAnimeListOrderByEnum::from()` as an `Option`.
-pub fn parse_user_anime_list_order_by(value: &str) -> Option<UserAnimeListOrderBy> {
-    UserAnimeListOrderBy::parse(value)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -268,52 +217,52 @@ mod tests {
     fn anime_type_matches_php_labels_and_casing() {
         assert_eq!(AnimeType::Tv.as_str(), "TV");
         assert_eq!(AnimeType::Tv.index(), "tv");
-        assert_eq!(parse_anime_type("tv"), Some(AnimeType::Tv));
-        assert_eq!(parse_anime_type("TV"), Some(AnimeType::Tv));
-        assert_eq!(parse_anime_type("Tv"), Some(AnimeType::Tv));
-        assert_eq!(parse_anime_type("tV"), Some(AnimeType::Tv));
-        assert_eq!(parse_anime_type("tv_special"), Some(AnimeType::TvSpecial));
-        assert_eq!(parse_anime_type("TV_SPECIAL"), Some(AnimeType::TvSpecial));
+        assert_eq!(AnimeType::parse("tv"), Some(AnimeType::Tv));
+        assert_eq!(AnimeType::parse("TV"), Some(AnimeType::Tv));
+        assert_eq!(AnimeType::parse("Tv"), Some(AnimeType::Tv));
+        assert_eq!(AnimeType::parse("tV"), Some(AnimeType::Tv));
+        assert_eq!(AnimeType::parse("tv_special"), Some(AnimeType::TvSpecial));
+        assert_eq!(AnimeType::parse("TV_SPECIAL"), Some(AnimeType::TvSpecial));
         // Labels are not indexes.
-        assert_eq!(parse_anime_type("TV Special"), None);
-        assert_eq!(parse_anime_type("light novel"), None);
+        assert_eq!(AnimeType::parse("TV Special"), None);
+        assert_eq!(AnimeType::parse("light novel"), None);
     }
 
     #[test]
     fn anime_status_labels_are_not_accepted_as_input() {
-        assert_eq!(parse_anime_status("airing"), Some(AnimeStatus::Airing));
-        assert_eq!(parse_anime_status("COMPLETE"), Some(AnimeStatus::Complete));
-        assert_eq!(parse_anime_status("Currently Airing"), None);
-        assert_eq!(parse_anime_status("Finished Airing"), None);
-        assert_eq!(parse_anime_status("Not yet aired"), None);
+        assert_eq!(AnimeStatus::parse("airing"), Some(AnimeStatus::Airing));
+        assert_eq!(AnimeStatus::parse("COMPLETE"), Some(AnimeStatus::Complete));
+        assert_eq!(AnimeStatus::parse("Currently Airing"), None);
+        assert_eq!(AnimeStatus::parse("Finished Airing"), None);
+        assert_eq!(AnimeStatus::parse("Not yet aired"), None);
     }
 
     #[test]
     fn anime_rating_labels_are_not_accepted_as_input() {
-        assert_eq!(parse_anime_rating("pg13"), Some(AnimeRating::Pg13));
-        assert_eq!(parse_anime_rating("R17"), Some(AnimeRating::R17));
-        assert_eq!(parse_anime_rating("rx"), Some(AnimeRating::Rx));
-        assert_eq!(parse_anime_rating("Rx - Hentai"), None);
-        assert_eq!(parse_anime_rating("G"), Some(AnimeRating::G));
+        assert_eq!(AnimeRating::parse("pg13"), Some(AnimeRating::Pg13));
+        assert_eq!(AnimeRating::parse("R17"), Some(AnimeRating::R17));
+        assert_eq!(AnimeRating::parse("rx"), Some(AnimeRating::Rx));
+        assert_eq!(AnimeRating::parse("Rx - Hentai"), None);
+        assert_eq!(AnimeRating::parse("G"), Some(AnimeRating::G));
     }
 
     #[test]
     fn anime_season_labels_are_lowercase_like_php() {
         assert_eq!(AnimeSeason::Summer.as_str(), "summer");
         assert_eq!(AnimeSeason::Winter.as_str(), "winter");
-        assert_eq!(parse_anime_season("FALL"), Some(AnimeSeason::Fall));
+        assert_eq!(AnimeSeason::parse("FALL"), Some(AnimeSeason::Fall));
     }
 
     #[test]
     fn anime_order_by_rejects_mal_sort_keys() {
         assert_eq!(
-            parse_anime_order_by("start_date"),
+            AnimeOrderBy::parse("start_date"),
             Some(AnimeOrderBy::StartDate)
         );
         assert_eq!(AnimeOrderBy::StartDate.as_str(), "aired.from");
-        assert_eq!(parse_anime_order_by("aired.from"), None);
-        assert_eq!(parse_anime_order_by("aired.to"), None);
-        assert_eq!(parse_anime_order_by("MAL_ID"), Some(AnimeOrderBy::MalId));
+        assert_eq!(AnimeOrderBy::parse("aired.from"), None);
+        assert_eq!(AnimeOrderBy::parse("aired.to"), None);
+        assert_eq!(AnimeOrderBy::parse("MAL_ID"), Some(AnimeOrderBy::MalId));
     }
 
     #[test]
@@ -326,11 +275,11 @@ mod tests {
         );
         assert_eq!(AnimeScheduleFilter::Unknown.as_str(), "Unknown");
         assert_eq!(
-            parse_anime_schedule_filter("MONDAY"),
+            AnimeScheduleFilter::parse("MONDAY"),
             Some(AnimeScheduleFilter::Monday)
         );
         assert_eq!(
-            parse_anime_schedule_filter("Not scheduled once per week"),
+            AnimeScheduleFilter::parse("Not scheduled once per week"),
             None
         );
         assert!(AnimeScheduleFilter::Monday.is_week_day());
@@ -345,12 +294,12 @@ mod tests {
         assert_eq!(AnimeListStatus::Watching.as_str(), "1");
         assert_eq!(AnimeListStatus::PlanToWatch.as_str(), "6");
         assert_eq!(
-            parse_anime_list_status("plantowatch"),
+            AnimeListStatus::parse("plantowatch"),
             Some(AnimeListStatus::PlanToWatch)
         );
         // Numeric labels are not accepted.
-        assert_eq!(parse_anime_list_status("7"), None);
-        assert_eq!(parse_anime_list_status("1"), None);
+        assert_eq!(AnimeListStatus::parse("7"), None);
+        assert_eq!(AnimeListStatus::parse("1"), None);
     }
 
     #[test]
@@ -358,12 +307,12 @@ mod tests {
         const { assert!(!AnimeListAiringStatusFilter::RESOLVES_IN_PHP) };
         for index in AnimeListAiringStatusFilter::INDEXES {
             assert_eq!(
-                parse_anime_list_airing_status_filter(index),
+                AnimeListAiringStatusFilter::parse(index),
                 None,
                 "PHP rejects `{index}`"
             );
         }
-        assert_eq!(parse_anime_list_airing_status_filter("airing"), None);
+        assert_eq!(AnimeListAiringStatusFilter::parse("airing"), None);
         assert!("airing".parse::<AnimeListAiringStatusFilter>().is_err());
         assert_eq!(
             AnimeListAiringStatusFilter::PHP_CLASS,
@@ -378,16 +327,16 @@ mod tests {
         assert_eq!(UserAnimeListOrderBy::EpisodesWatched.as_str(), "12");
         assert_eq!(UserAnimeListOrderBy::Status.as_str(), "16");
         assert_eq!(
-            parse_user_anime_list_order_by("started_date"),
+            UserAnimeListOrderBy::parse("started_date"),
             Some(UserAnimeListOrderBy::StartedDate)
         );
         assert_eq!(
-            parse_user_anime_list_order_by("LAST_UPDATED"),
+            UserAnimeListOrderBy::parse("LAST_UPDATED"),
             Some(UserAnimeListOrderBy::LastUpdated)
         );
         // `finished_date` is in labels() but not a docblock method: rejected.
-        assert_eq!(parse_user_anime_list_order_by("finished_date"), None);
+        assert_eq!(UserAnimeListOrderBy::parse("finished_date"), None);
         // Numeric labels are not accepted as input.
-        assert_eq!(parse_user_anime_list_order_by("2"), None);
+        assert_eq!(UserAnimeListOrderBy::parse("2"), None);
     }
 }

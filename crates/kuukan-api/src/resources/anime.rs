@@ -131,9 +131,12 @@ pub fn anime_episode(payload: &Value) -> Value {
 
 /// `AnimeVideosResource`.
 pub fn anime_videos(payload: &Value) -> Value {
+    use crate::resources::watch::{promo_list_item, stream_episode_list_item};
     json!({
-        "promo": get(payload, "promo"),
-        "episodes": get(payload, "episodes"),
+        "promo": misc::map_items(payload, "promo", promo_list_item),
+        "episodes": misc::map_items(payload, "episodes", stream_episode_list_item),
+        // Music videos are {title, video, meta}, a different shape from promos,
+        // and no mapper describes them yet, so they pass through.
         "music_videos": get(payload, "music_videos"),
     })
 }
@@ -201,11 +204,6 @@ pub fn anime_streaming_links(payload: &Value) -> Value {
 /// `ExternalLinksResource` on `/anime/{id}/external`.
 pub fn anime_external_links(payload: &Value) -> Value {
     misc::external_links(payload)
-}
-
-/// `UserUpdatesResource` on `/anime/{id}/userupdates`.
-pub fn anime_user_updates(payload: &Value) -> Value {
-    misc::results(payload)
 }
 
 /// `ReviewsResource` on `/anime/{id}/reviews`.
@@ -728,44 +726,5 @@ mod tests {
             anime_themes(&json!({"opening_themes": null, "ending_themes": null})),
             json!({"openings": [], "endings": []})
         );
-    }
-
-    #[test]
-    fn anime_more_info_news_forum_pictures_delegate_to_shared_mappers() {
-        let moreinfo = json!({"moreinfo": "asd"});
-        assert_eq!(anime_more_info(&moreinfo), misc::more_info(&moreinfo));
-
-        let news = json!({
-            "results": [{"mal_id": 60609964, "url": "https://myanimelist.net/news/60609964"}],
-            "last_visible_page": 1,
-            "has_next_page": false
-        });
-        assert_eq!(anime_news(&news), misc::news(&news));
-
-        let forum = json!({"topics": [{"mal_id": 2022869, "comments": 7}]});
-        assert_eq!(anime_forum(&forum), misc::forum(&forum));
-
-        let pictures = json!({"pictures": [[{"jpg": {"image_url": "x"}}]]});
-        assert_eq!(anime_pictures(&pictures), misc::pictures(&pictures));
-
-        let recommendations =
-            json!({"recommendations": [{"entry": {"mal_id": 205}, "url": "u", "votes": 118}]});
-        assert_eq!(
-            anime_recommendations(&recommendations),
-            misc::recommendations(&recommendations)
-        );
-
-        let links = json!({
-            "external_links": [{"name": "Wikipedia", "url": "https://en.wikipedia.org"}],
-            "streaming_links": [{"name": "Crunchyroll", "url": "https://crunchyroll.com"}]
-        });
-        assert_eq!(anime_external_links(&links), misc::external_links(&links));
-        assert_eq!(anime_streaming_links(&links), misc::streaming_links(&links));
-
-        let updates = json!({"users": [{"user": {"username": "Mar-E"}, "score": null}]});
-        assert_eq!(anime_user_updates(&updates), misc::results(&updates));
-
-        let reviews = json!({"results": [], "last_visible_page": 1, "has_next_page": false});
-        assert_eq!(anime_reviews(&reviews), misc::reviews(&reviews));
     }
 }

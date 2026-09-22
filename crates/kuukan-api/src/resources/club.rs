@@ -13,8 +13,6 @@
 //! `false`.
 
 use crate::resources::misc::{self, get};
-use kuukan_core::envelope;
-use kuukan_core::pagination::Pagination;
 use serde_json::{json, Value};
 
 /// `ClubResource::toArray()`.
@@ -55,12 +53,6 @@ pub fn club_collection(items: &[Value]) -> Vec<Value> {
     items.iter().map(club).collect()
 }
 
-/// Envelope for `ClubCollection`: `{"pagination": {last_visible_page,
-/// has_next_page}, "data": [...]}`.
-pub fn club_search_response(pagination: &Pagination, items: &[Value]) -> Value {
-    envelope::paged(pagination, club_collection(items))
-}
-
 /// `ResultsResource::toArray()` for `GET /clubs/{id}/members`.
 ///
 /// Unlike the paginator-backed collections, this reads `last_visible_page`,
@@ -69,11 +61,6 @@ pub fn club_search_response(pagination: &Pagination, items: &[Value]) -> Value {
 /// canonical [`crate::resources::misc::results`] mapper.
 pub fn club_members(payload: &Value) -> Value {
     misc::results(payload)
-}
-
-/// Alias of [`club_members`].
-pub fn club_members_response(payload: &Value) -> Value {
-    club_members(payload)
 }
 
 #[cfg(test)]
@@ -209,19 +196,6 @@ mod tests {
     }
 
     #[test]
-    fn club_search_response_only_has_two_pagination_keys() {
-        let pagination = Pagination::list(5, true);
-        let mapped = club_search_response(&pagination, &[club_document()]);
-
-        assert_object_keys(&mapped, &["pagination", "data"]);
-        assert_eq!(
-            mapped["pagination"],
-            json!({"last_visible_page": 5, "has_next_page": true})
-        );
-        assert_eq!(mapped["data"][0]["mal_id"], json!(222057));
-    }
-
-    #[test]
     fn club_members_builds_results_envelope() {
         let document = json!({
             "results": [{
@@ -246,18 +220,5 @@ mod tests {
             json!({"last_visible_page": 7, "has_next_page": true})
         );
         assert_eq!(mapped["data"], document["results"]);
-    }
-
-    #[test]
-    fn club_members_defaults_pagination_when_missing() {
-        let mapped = club_members(&json!({"results": []}));
-        assert_eq!(
-            mapped,
-            json!({
-                "pagination": {"last_visible_page": 1, "has_next_page": false},
-                "data": []
-            })
-        );
-        assert_eq!(club_members_response(&json!({"results": []})), mapped);
     }
 }

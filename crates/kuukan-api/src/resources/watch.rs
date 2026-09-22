@@ -23,12 +23,12 @@ use crate::resources::misc;
 
 /// `/watch/episodes` and `/watch/episodes/popular` response body.
 pub fn watch_episodes(payload: &Value) -> Value {
-    misc::results(payload)
+    misc::results_mapped(payload, watch_episode_item)
 }
 
 /// `/watch/promos` and `/watch/promos/popular` response body.
 pub fn watch_promos(payload: &Value) -> Value {
-    misc::results(payload)
+    misc::results_mapped(payload, promo_item)
 }
 
 /// `Jikan\Model\Watch\RecentEpisodeListItem` JMS shape:
@@ -47,7 +47,7 @@ pub fn recent_episode_item(payload: &Value) -> Value {
 pub fn watch_episode_item(payload: &Value) -> Value {
     json!({
         "entry": misc::get(payload, "entry"),
-        "episodes": misc::get(payload, "episodes"),
+        "episodes": misc::map_items(payload, "episodes", recent_episode_item),
         "region_locked": misc::get(payload, "region_locked"),
     })
 }

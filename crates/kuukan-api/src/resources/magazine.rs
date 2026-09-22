@@ -13,8 +13,6 @@
 //! reads it.
 
 use crate::resources::misc::get;
-use kuukan_core::envelope;
-use kuukan_core::pagination::Pagination;
 use serde_json::{json, Value};
 
 /// `MagazineResource::toArray()`.
@@ -34,11 +32,6 @@ pub fn magazine(payload: &Value) -> Value {
 /// `MagazineCollection` item mapping (`$collects` is `MagazineResource`).
 pub fn magazine_collection(items: &[Value]) -> Vec<Value> {
     items.iter().map(magazine).collect()
-}
-
-/// Envelope for `MagazineCollection`: `{"pagination": {...}, "data": [...]}`.
-pub fn magazine_search_response(pagination: &Pagination, items: &[Value]) -> Value {
-    envelope::paged(pagination, magazine_collection(items))
 }
 
 #[cfg(test)]
@@ -103,22 +96,5 @@ mod tests {
         assert_eq!(mapped[1]["name"], json!("Young Jump"));
         assert_eq!(mapped[1]["count"], json!(0));
         assert_object_keys(&mapped[0], &["mal_id", "name", "url", "count"]);
-    }
-
-    #[test]
-    fn magazine_search_response_builds_pagination_envelope() {
-        let pagination = Pagination::search(4, true, 2, 25, 76, 25);
-        let mapped = magazine_search_response(&pagination, &[magazine_document()]);
-
-        assert_eq!(
-            mapped["pagination"],
-            json!({
-                "last_visible_page": 4,
-                "has_next_page": true,
-                "current_page": 2,
-                "items": {"count": 25, "total": 76, "per_page": 25}
-            })
-        );
-        assert_eq!(mapped["data"][0]["mal_id"], json!(1));
     }
 }

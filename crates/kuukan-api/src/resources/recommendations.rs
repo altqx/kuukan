@@ -23,17 +23,7 @@ fn get(payload: &Value, key: &str) -> Value {
 
 /// `/recommendations/anime` and `/recommendations/manga` response body.
 pub fn recommendations(payload: &Value) -> Value {
-    misc::results(payload)
-}
-
-/// `RecommendationsResource::toArray()` for `/anime/{id}/recommendations` and
-/// `/manga/{id}/recommendations`: the stored `recommendations` list.
-pub fn entry_recommendations(payload: &Value) -> Vec<Value> {
-    payload
-        .get("recommendations")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
+    misc::results_mapped(payload, recommendation_list_item)
 }
 
 /// `Jikan\Model\Recommendations\RecommendationListItem` JMS shape:
@@ -122,29 +112,6 @@ mod tests {
             json!({"last_visible_page": 1, "has_next_page": false})
         );
         assert!(out["data"].is_null());
-    }
-
-    #[test]
-    fn entry_recommendations_returns_bare_list() {
-        let doc = json!({
-            "recommendations": [
-                {
-                    "entry": {
-                        "mal_id": 205,
-                        "url": "https://myanimelist.net/anime/205/Samurai_Champloo",
-                        "images": {"jpg": {"image_url": "x", "small_image_url": "t", "large_image_url": "l"}, "webp": {"image_url": "w", "small_image_url": "tw", "large_image_url": "lw"}},
-                        "title": "Samurai Champloo"
-                    },
-                    "url": "https://myanimelist.net/recommendations/anime/1-205",
-                    "votes": 118
-                }
-            ]
-        });
-        let items = entry_recommendations(&doc);
-        assert_eq!(items.len(), 1);
-        assert_eq!(items[0]["entry"]["title"], json!("Samurai Champloo"));
-        assert_eq!(items[0]["votes"], json!(118));
-        assert!(entry_recommendations(&json!({})).is_empty());
     }
 
     #[test]

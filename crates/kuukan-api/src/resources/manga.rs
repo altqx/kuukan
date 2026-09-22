@@ -130,11 +130,6 @@ pub fn manga_external_links(payload: &Value) -> Value {
     misc::external_links(payload)
 }
 
-/// `UserUpdatesResource` on `/manga/{id}/userupdates`.
-pub fn manga_user_updates(payload: &Value) -> Value {
-    misc::results(payload)
-}
-
 /// `ReviewsResource` on `/manga/{id}/reviews`.
 pub fn manga_reviews(payload: &Value) -> Value {
     misc::reviews(payload)
@@ -410,52 +405,5 @@ mod tests {
         });
         assert_eq!(manga_relations(&payload), payload["related"]);
         assert_eq!(manga_relations(&json!({})), Value::Null);
-    }
-
-    #[test]
-    fn manga_shared_resources_delegate() {
-        let news = json!({
-            "results": [{"mal_id": 60609964, "url": "https://myanimelist.net/news/60609964"}],
-            "last_visible_page": 1,
-            "has_next_page": false
-        });
-        assert_eq!(manga_news(&news), misc::news(&news));
-
-        let forum = json!({"topics": [{"mal_id": 2022869, "comments": 7}]});
-        assert_eq!(manga_forum(&forum), misc::forum(&forum));
-
-        let pictures = json!({"pictures": [[{"jpg": {"image_url": "x"}}]]});
-        assert_eq!(manga_pictures(&pictures), misc::pictures(&pictures));
-
-        let moreinfo = json!({"moreinfo": "asd"});
-        assert_eq!(manga_more_info(&moreinfo), misc::more_info(&moreinfo));
-
-        let recommendations =
-            json!({"recommendations": [{"entry": {"mal_id": 205}, "url": "u", "votes": 118}]});
-        assert_eq!(
-            manga_recommendations(&recommendations),
-            misc::recommendations(&recommendations)
-        );
-
-        let links =
-            json!({"external_links": [{"name": "Wikipedia", "url": "https://en.wikipedia.org"}]});
-        assert_eq!(manga_external_links(&links), misc::external_links(&links));
-
-        let updates = json!({
-            "users": [{
-                "user": {"username": "Mar-E"},
-                "score": null,
-                "status": "Watching",
-                "volumes_read": 16,
-                "volumes_total": 26,
-                "chapters_read": 22,
-                "chapters_total": 22,
-                "date": "2023-01-31T22:34:00+00:00"
-            }]
-        });
-        assert_eq!(manga_user_updates(&updates), misc::results(&updates));
-
-        let reviews = json!({"results": [], "last_visible_page": 1, "has_next_page": false});
-        assert_eq!(manga_reviews(&reviews), misc::reviews(&reviews));
     }
 }

@@ -14,8 +14,6 @@
 //! because `setSerializeNull(true)` is set.
 
 use crate::resources::misc::{self, get, get_first};
-use kuukan_core::envelope;
-use kuukan_core::pagination::Pagination;
 use serde_json::{json, Value};
 
 /// `CharacterResource` reads `$this->favorites`, a model accessor over the
@@ -140,11 +138,6 @@ pub fn character_pictures(payload: &Value) -> Value {
 /// `CharacterResource`).
 pub fn character_collection(items: &[Value]) -> Vec<Value> {
     items.iter().map(character).collect()
-}
-
-/// Envelope for `CharacterCollection`: `{"pagination": {...}, "data": [...]}`.
-pub fn character_search_response(pagination: &Pagination, items: &[Value]) -> Value {
-    envelope::paged(pagination, character_collection(items))
 }
 
 #[cfg(test)]
@@ -456,36 +449,6 @@ mod tests {
         assert_eq!(mapped[1]["favorites"], json!(20));
         assert_object_keys(
             &mapped[0],
-            &[
-                "mal_id",
-                "url",
-                "images",
-                "name",
-                "name_kanji",
-                "nicknames",
-                "favorites",
-                "about",
-            ],
-        );
-    }
-
-    #[test]
-    fn character_search_response_builds_pagination_envelope() {
-        let pagination = Pagination::search(2, true, 1, 25, 30, 25);
-        let mapped = character_search_response(&pagination, &[json!({"mal_id": 1})]);
-
-        assert_eq!(
-            mapped["pagination"],
-            json!({
-                "last_visible_page": 2,
-                "has_next_page": true,
-                "current_page": 1,
-                "items": {"count": 25, "total": 30, "per_page": 25}
-            })
-        );
-        assert_eq!(mapped["data"][0]["mal_id"], json!(1));
-        assert_object_keys(
-            &mapped["data"][0],
             &[
                 "mal_id",
                 "url",

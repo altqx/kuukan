@@ -9,8 +9,6 @@
 //! resources never read it, so it is intentionally dropped from the output.
 
 use crate::resources::misc::{self, get};
-use kuukan_core::envelope;
-use kuukan_core::pagination::Pagination;
 use serde_json::{json, Value};
 
 /// `ProducerResource::toArray()`.
@@ -57,11 +55,6 @@ pub fn external_links(payload: &Value) -> Value {
 /// `ProducerResource`).
 pub fn producer_collection(items: &[Value]) -> Vec<Value> {
     items.iter().map(producer).collect()
-}
-
-/// Envelope for `ProducerCollection`: `{"pagination": {...}, "data": [...]}`.
-pub fn producer_search_response(pagination: &Pagination, items: &[Value]) -> Value {
-    envelope::paged(pagination, producer_collection(items))
 }
 
 #[cfg(test)]
@@ -192,34 +185,5 @@ mod tests {
             json!([{"name": "Official Site", "url": "https://www.eiken-anime.jp/"}])
         );
         assert_eq!(external_links(&json!({})), Value::Null);
-    }
-
-    #[test]
-    fn producer_search_response_builds_pagination_envelope() {
-        let pagination = Pagination::search(3, true, 2, 30, 60, 30);
-        let mapped = producer_search_response(&pagination, &[producer_document()]);
-
-        assert_eq!(
-            mapped["pagination"],
-            json!({
-                "last_visible_page": 3,
-                "has_next_page": true,
-                "current_page": 2,
-                "items": {"count": 30, "total": 60, "per_page": 30}
-            })
-        );
-        assert_object_keys(
-            &mapped["data"][0],
-            &[
-                "mal_id",
-                "url",
-                "titles",
-                "images",
-                "favorites",
-                "established",
-                "about",
-                "count",
-            ],
-        );
     }
 }

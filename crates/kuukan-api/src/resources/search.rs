@@ -223,11 +223,6 @@ pub fn genre_collection(items: &[Value]) -> Vec<Value> {
     items.iter().map(genre_item).collect()
 }
 
-/// `GenreCollection::toArray`: `{data: [...]}` (no pagination block).
-pub fn genre_search(items: &[Value]) -> Value {
-    envelope::data(genre_collection(items))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -570,32 +565,6 @@ mod tests {
         let mapped = magazine_search(&search_pagination(), &[payload]);
         assert_eq!(mapped["pagination"]["last_visible_page"], json!(2));
         assert_eq!(mapped["data"][0]["name"], json!("Big Comic Spirits"));
-    }
-
-    #[test]
-    fn genre_item_and_search() {
-        // tests/Integration/GenreControllerTest
-        let payload = json!({
-            "mal_id": 1,
-            "name": "Action",
-            "url": "https://myanimelist.net/anime/genre/1/Action",
-            "count": 4000,
-        });
-
-        assert_eq!(
-            genre_item(&payload),
-            json!({
-                "mal_id": 1,
-                "name": "Action",
-                "url": "https://myanimelist.net/anime/genre/1/Action",
-                "count": 4000,
-            })
-        );
-
-        let mapped = genre_search(&[payload]);
-        assert_eq!(mapped.as_object().unwrap().len(), 1);
-        assert_eq!(mapped["data"][0]["name"], json!("Action"));
-        assert!(mapped.get("pagination").is_none());
     }
 
     #[test]

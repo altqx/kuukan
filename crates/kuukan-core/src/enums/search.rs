@@ -43,26 +43,6 @@ php_enum! {
     }
 }
 
-/// `App\Enums\CharacterOrderByEnum::from()` as an `Option`.
-pub fn parse_character_order_by(value: &str) -> Option<CharacterOrderBy> {
-    CharacterOrderBy::parse(value)
-}
-
-/// `App\Enums\PeopleOrderByEnum::from()` as an `Option`.
-pub fn parse_people_order_by(value: &str) -> Option<PeopleOrderBy> {
-    PeopleOrderBy::parse(value)
-}
-
-/// `App\Enums\ProducerOrderByEnum::from()` as an `Option`.
-pub fn parse_producer_order_by(value: &str) -> Option<ProducerOrderBy> {
-    ProducerOrderBy::parse(value)
-}
-
-/// `App\Enums\MagazineOrderByEnum::from()` as an `Option`.
-pub fn parse_magazine_order_by(value: &str) -> Option<MagazineOrderBy> {
-    MagazineOrderBy::parse(value)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,21 +77,21 @@ mod tests {
         assert_eq!(CharacterOrderBy::Favorites.as_str(), "member_favorites");
         assert_eq!(PeopleOrderBy::Favorites.as_str(), "member_favorites");
         assert_eq!(
-            parse_character_order_by("favorites"),
+            CharacterOrderBy::parse("favorites"),
             Some(CharacterOrderBy::Favorites)
         );
-        assert_eq!(parse_character_order_by("member_favorites"), None);
-        assert_eq!(parse_people_order_by("member_favorites"), None);
+        assert_eq!(CharacterOrderBy::parse("member_favorites"), None);
+        assert_eq!(PeopleOrderBy::parse("member_favorites"), None);
         assert_eq!(
-            parse_people_order_by("birthday"),
+            PeopleOrderBy::parse("birthday"),
             Some(PeopleOrderBy::Birthday)
         );
         assert_eq!(
-            parse_producer_order_by("established"),
+            ProducerOrderBy::parse("established"),
             Some(ProducerOrderBy::Established)
         );
         assert_eq!(
-            parse_magazine_order_by("count"),
+            MagazineOrderBy::parse("count"),
             Some(MagazineOrderBy::Count)
         );
     }

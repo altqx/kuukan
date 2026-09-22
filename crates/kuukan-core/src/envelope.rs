@@ -20,12 +20,3 @@ pub fn paged(pagination: &Pagination, data: impl Into<Value>) -> Value {
         "data": data.into(),
     })
 }
-
-/// Map a list of items, keeping the envelope.
-pub fn paged_items<T: serde::Serialize>(pagination: &Pagination, items: &[T]) -> Value {
-    let items: Vec<Value> = items
-        .iter()
-        .map(|item| serde_json::to_value(item).unwrap_or(Value::Null))
-        .collect();
-    paged(pagination, items)
-}

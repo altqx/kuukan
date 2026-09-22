@@ -63,14 +63,51 @@ pub fn results(payload: &Value) -> Value {
     })
 }
 
+/// Map every element of an array-valued field, leaving a missing or
+/// non-array value exactly as it was.
+pub fn map_items(payload: &Value, key: &str, item: fn(&Value) -> Value) -> Value {
+    match payload.get(key) {
+        Some(Value::Array(items)) => Value::Array(items.iter().map(item).collect()),
+        other => other.cloned().unwrap_or(Value::Null),
+    }
+}
+
+/// [`results`], with each item shaped by `item`.
+///
+/// The bare [`results`] hands the stored list straight to the client, so a
+/// response carries whatever the scrape happened to store. Endpoints with a
+/// documented item shape map through this instead, which fills in every key
+/// the shape promises. `null` when the list is absent is preserved.
+pub fn results_mapped(payload: &Value, item: fn(&Value) -> Value) -> Value {
+    let data = match payload.get("results") {
+        Some(Value::Array(items)) => Value::Array(items.iter().map(item).collect()),
+        other => other.cloned().unwrap_or(Value::Null),
+    };
+    json!({
+        "pagination": list_pagination(payload),
+        "data": data,
+    })
+}
+
 /// `NewsResource` (same shape as `ResultsResource`).
 pub fn news(payload: &Value) -> Value {
-    results(payload)
+    results_mapped(payload, crate::resources::news::news_item)
 }
 
 /// `ForumResource`: the stored document wraps topics under `topics`.
 pub fn forum(payload: &Value) -> Value {
-    get(payload, "topics")
+    // Shape each topic rather than passing the stored list through, so the
+    // response carries every documented key even when a scrape omitted one.
+    // `null` when absent is kept: that is `CachedData::__get()`.
+    match payload.get("topics") {
+        Some(Value::Array(topics)) => Value::Array(
+            topics
+                .iter()
+                .map(crate::resources::forum::forum_topic)
+                .collect(),
+        ),
+        other => other.cloned().unwrap_or(Value::Null),
+    }
 }
 
 /// `PicturesResource`.
@@ -87,7 +124,16 @@ pub fn more_info(payload: &Value) -> Value {
 
 /// `RecommendationsResource` (anime/manga shared).
 pub fn recommendations(payload: &Value) -> Value {
-    get(payload, "recommendations")
+    // `{entry, url, votes}` per item, rather than the stored list verbatim.
+    match payload.get("recommendations") {
+        Some(Value::Array(items)) => Value::Array(
+            items
+                .iter()
+                .map(crate::resources::recommendations::recommendation_item)
+                .collect(),
+        ),
+        other => other.cloned().unwrap_or(Value::Null),
+    }
 }
 
 /// `ExternalLinksResource` (anime/manga/producer/user shared).
@@ -186,13 +232,24 @@ mod tests {
     }
 
     #[test]
-    fn news_is_identical_to_results() {
+    fn news_shapes_items_rather_than_passing_them_through() {
         let payload = json!({
             "results": [{"mal_id": 60609964, "title": "News"}],
             "last_visible_page": 1,
             "has_next_page": false,
         });
-        assert_eq!(news(&payload), results(&payload));
+        // Same envelope as `results`...
+        assert_eq!(
+            news(&payload)["pagination"],
+            results(&payload)["pagination"]
+        );
+        // ...but each item carries every documented key, so a scrape that
+        // stored a partial document cannot produce a partial response.
+        let item = &news(&payload)["data"][0];
+        assert_eq!(item["mal_id"], 60609964);
+        assert_eq!(item["title"], "News");
+        assert!(item["author_username"].is_null());
+        assert_eq!(item.as_object().expect("object").len(), 10);
     }
 
     #[test]
