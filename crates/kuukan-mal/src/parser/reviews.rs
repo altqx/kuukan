@@ -824,4 +824,29 @@ mod tests {
         assert!(scores["story"].is_null());
         assert!(scores["enjoyment"].is_null());
     }
+
+    /// Scores must be scoped to their own review. The xpath starts with `//`,
+    /// which without relativization would search the whole document and give
+    /// every review the first one's scores.
+    #[test]
+    fn review_scores_do_not_leak_between_reviews() {
+        let doc = HtmlDoc::parse_str(
+            r#"<div id="a" class="review-element"><table>
+                 <tr><td>Overall</td><td><strong>3</strong></td></tr>
+                 <tr><td>Story</td><td>3</td></tr>
+               </table></div>
+               <div id="b" class="review-element"><table>
+                 <tr><td>Overall</td><td><strong>8</strong></td></tr>
+                 <tr><td>Story</td><td>7</td></tr>
+               </table></div>"#,
+        )
+        .expect("doc");
+        let second = doc.first("//div[@id='b']").expect("xpath").expect("node");
+        let scores = ReviewScoresParser::new(&second)
+            .model()
+            .expect("model")
+            .expect("table present");
+        assert_eq!(scores["overall"], 8, "took the first review's overall");
+        assert_eq!(scores["story"], 7, "took the first review's story");
+    }
 }

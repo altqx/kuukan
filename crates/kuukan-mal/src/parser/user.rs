@@ -1180,6 +1180,19 @@ fn user_review_payload(
 }
 
 fn user_review_item(crawler: &HtmlNode) -> Result<Value, ParseError> {
+    let mut item = user_review_body(crawler)?;
+    // Keep `/users/{name}/reviews` the same shape as every other review
+    // endpoint, which all carry the per-category breakdown.
+    if let Some(map) = item.as_object_mut() {
+        let scores = crate::parser::reviews::ReviewScoresParser::new(crawler)
+            .model()?
+            .unwrap_or(Value::Null);
+        map.insert("scores".to_string(), scores);
+    }
+    Ok(item)
+}
+
+fn user_review_body(crawler: &HtmlNode) -> Result<Value, ParseError> {
     // `UserReviewsParser::getReviews()` dispatches on the raw type marker.
     let kind_text = required_text(crawler, "//div/div/div[2]/div[2]/small")?;
     match kind_text.as_str() {
@@ -1443,5 +1456,37 @@ mod tests {
                 "creative": 0,
             })
         );
+    }
+
+    /// `/users/{name}/reviews` builds its payload separately from every other
+    /// review endpoint, so it is the one that silently drifts out of shape.
+    /// It shipped without the score breakdown once already.
+    #[test]
+    fn user_reviews_carry_the_score_breakdown() {
+        let doc = HtmlDoc::parse_str(
+            r#"<div class="review-element">
+                 <div><div>
+                   <div>one</div>
+                   <div><div>x</div><div><small>(Anime)</small></div></div>
+                 </div></div>
+                 <table>
+                   <tr><td>Overall</td><td><strong>9</strong></td></tr>
+                   <tr><td>Story</td><td>8</td></tr>
+                   <tr><td>Art</td><td>10</td></tr>
+                   <tr><td>Character</td><td>7</td></tr>
+                   <tr><td>Enjoyment</td><td>6</td></tr>
+                 </table>
+               </div>"#,
+        )
+        .expect("doc");
+        let node = doc
+            .first("//div[@class='review-element']")
+            .expect("xpath")
+            .expect("node");
+
+        let item = user_review_item(&node).expect("review item");
+        assert_eq!(item["scores"]["overall"], 9);
+        assert_eq!(item["scores"]["story"], 8);
+        assert_eq!(item["scores"]["enjoyment"], 6);
     }
 }

@@ -437,3 +437,48 @@ async fn revived_fields_reach_the_response() {
     assert_eq!(body["data"][0]["scores"]["overall"], 9);
     assert_eq!(body["data"][0]["scores"]["art"], 10);
 }
+
+/// No review endpoint's mapper may filter the score breakdown out. This seeds
+/// the stored document, so it proves the rendering path only; whether each
+/// parser *produces* scores is pinned next to the parsers.
+#[tokio::test]
+async fn every_review_endpoint_carries_scores() {
+    use kuukan_api::endpoint::fingerprint;
+
+    let harness = Harness::new(RecordedSource::new()).await;
+    let review = serde_json::json!({
+        "mal_id": 7,
+        "scores": { "overall": 9, "story": 8, "art": 10, "character": 7, "enjoyment": 9 }
+    });
+    let page = serde_json::json!({
+        "results": [review],
+        "has_next_page": false,
+        "last_visible_page": 1
+    });
+
+    for (request_type, uri) in [
+        ("anime", "/v1/anime/1/reviews"),
+        ("manga", "/v1/manga/1/reviews"),
+        ("reviews", "/v1/reviews/anime"),
+        ("users", "/v1/users/someone/reviews"),
+    ] {
+        harness
+            .state
+            .store
+            .put_cache(
+                &fingerprint(request_type, uri),
+                page.clone(),
+                Some(86_400),
+                false,
+            )
+            .await
+            .expect("seed reviews");
+
+        let (status, _, body) = harness.get(uri).await;
+        assert_eq!(status, StatusCode::OK, "{uri} did not render");
+        assert_eq!(
+            body["data"][0]["scores"]["overall"], 9,
+            "{uri} dropped the review score breakdown"
+        );
+    }
+}
